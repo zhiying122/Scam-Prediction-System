@@ -1,0 +1,94 @@
+version: "3.9"
+
+# AI 詐騙進化預測系統 - Docker Compose 服務定義
+# 包含 PostgreSQL、Redis、Qdrant 三個基礎設施服務
+
+services:
+  # ── PostgreSQL 關聯式資料庫 ────────────────────────────────────────────────
+  # 儲存：ScamScript、AccessLog、CaseReport、ModelVersion、RiskVector、AlertEvent
+  postgres:
+    image: postgres:16-alpine
+    container_name: scam_prediction_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scam_prediction
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d scam_prediction"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - scam_network
+
+  # ── Redis 快取層 ───────────────────────────────────────────────────────────
+  # 用途：API 速率限制計數、Dashboard 快取、Risk_Vector 快取
+  redis:
+    image: redis:7-alpine
+    container_name: scam_prediction_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - scam_network
+
+  # ── Qdrant 向量資料庫 ──────────────────────────────────────────────────────
+  # 用途：儲存 SemanticVector（384 維語意向量），支援相似度搜尋
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: scam_prediction_qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    ports:
+      - "6333:6333"   # HTTP REST API
+      - "6334:6334"   # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ./docker/qdrant/config.yaml:/qdrant/config/production.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - scam_network
+
+# ── 持久化資料卷 ───────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    name: scam_prediction_postgres_data
+  redis_data:
+    name: scam_prediction_redis_data
+  qdrant_data:
+    name: scam_prediction_qdrant_data
+
+# ── 內部網路 ───────────────────────────────────────────────────────────────────
+networks:
+  scam_network:
+    name: scam_prediction_network
+    driver: bridge

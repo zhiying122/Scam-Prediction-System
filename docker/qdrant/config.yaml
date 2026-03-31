@@ -1,0 +1,23 @@
+# Qdrant 向量資料庫設定檔
+# 用於 AI 詐騙進化預測系統的語意向量儲存
+
+service:
+  # HTTP REST API 連接埠
+  http_port: 6333
+  # gRPC API 連接埠
+  grpc_port: 6334
+  # 允許所有來源連線（生產環境應限制）
+  host: 0.0.0.0
+
+storage:
+  # 儲存路徑
+  storage_path: /qdrant/storage
+  # 快照路徑
+  snapshots_path: /qdrant/snapshots
+
+# 效能設定
+optimizers:
+  # 索引建立閾值（向量數量超過此值才建立索引）
+  indexing_threshold: 20000
+  # 記憶體映射閾值
+  memmap_threshold: 50000
