@@ -14,6 +14,7 @@ from app.pattern_analyzer.embedder import LanguageEmbedder, EmbeddingResult, det
 from app.pattern_analyzer.keyword_extractor import KeywordExtractor
 from app.pattern_analyzer.psych_classifier import PsychologicalClassifier, VALID_PSYCHOLOGICAL_TAGS
 from app.pattern_analyzer.clusterer import ScamClusterer
+from app.pattern_analyzer.xai_highlighter import XAIHighlighter, HighlightSpan, XAIResult
 
 __all__ = [
     "PatternAnalyzer",
@@ -28,4 +29,7 @@ __all__ = [
     "PsychologicalClassifier",
     "VALID_PSYCHOLOGICAL_TAGS",
     "ScamClusterer",
+    "XAIHighlighter",
+    "HighlightSpan",
+    "XAIResult",
 ]

@@ -1,0 +1,43 @@
+{
+  "family": "scam-prediction-streamlit",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "scam-prediction-streamlit",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/scam-prediction-streamlit:latest",
+      "portMappings": [
+        {
+          "containerPort": 8501,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        { "name": "APP_ENV", "value": "production" }
+      ],
+      "secrets": [
+        { "name": "API_GATEWAY_URL", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:scam-prediction/api-gateway-url" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/scam-prediction-streamlit",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 40
+      }
+    }
+  ]
+}

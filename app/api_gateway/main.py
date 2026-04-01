@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api_gateway.middleware.api_key import APIKeyMiddleware
 from app.api_gateway.middleware.logging import RequestLoggingMiddleware
 from app.api_gateway.middleware.rate_limit import RateLimitMiddleware
-from app.api_gateway.routers import data, health, predictions, risk_vectors, scam
+from app.api_gateway.routers import data, health, predictions, risk_vectors, scam, analyze
 from app.config import get_settings
 
 # ── 日誌設定 ──────────────────────────────────────────────────────────────────
@@ -95,3 +95,4 @@ app.include_router(scam.router, prefix=API_PREFIX)
 app.include_router(risk_vectors.router, prefix=API_PREFIX)
 app.include_router(data.router, prefix=API_PREFIX)
 app.include_router(predictions.router, prefix=API_PREFIX)
+app.include_router(analyze.router, prefix=API_PREFIX)

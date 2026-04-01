@@ -16,6 +16,7 @@ from app.pattern_analyzer.embedder import LanguageEmbedder, EMBEDDING_DIM
 from app.pattern_analyzer.keyword_extractor import KeywordExtractor
 from app.pattern_analyzer.psych_classifier import PsychologicalClassifier
 from app.pattern_analyzer.clusterer import ScamClusterer
+from app.pattern_analyzer.xai_highlighter import XAIHighlighter, HighlightSpan, XAIResult
 from app.models.semantic_vector import SemanticVector
 
 
@@ -64,6 +65,9 @@ class AnalysisResult:
     cluster_label: str
     """分群標籤，語言不支援時為空字串"""
 
+    xai_result: Optional[XAIResult] = None
+    """XAI 可解釋性高亮結果，語言不支援時為 None"""
+
 
 @dataclass
 class BatchAnalysisResult:
@@ -103,22 +107,13 @@ class PatternAnalyzer:
         keyword_extractor: Optional[KeywordExtractor] = None,
         psych_classifier: Optional[PsychologicalClassifier] = None,
         clusterer: Optional[ScamClusterer] = None,
+        xai_highlighter: Optional[XAIHighlighter] = None,
     ):
-        """
-        初始化 Pattern_Analyzer
-
-        支援依賴注入，方便測試時替換各子模組。
-
-        Args:
-            embedder: 語言偵測與語意嵌入器（預設自動建立）
-            keyword_extractor: TF-IDF 關鍵詞提取器（預設自動建立）
-            psych_classifier: 心理特徵分類器（預設自動建立）
-            clusterer: 分群器（預設自動建立）
-        """
         self._embedder = embedder or LanguageEmbedder()
         self._keyword_extractor = keyword_extractor or KeywordExtractor()
         self._psych_classifier = psych_classifier or PsychologicalClassifier()
         self._clusterer = clusterer or ScamClusterer()
+        self._xai_highlighter = xai_highlighter or XAIHighlighter()
 
     def analyze(self, script_id: str, content: str) -> AnalysisResult:
         """
@@ -154,7 +149,10 @@ class PatternAnalyzer:
         # 步驟 3：心理特徵分類
         psych_tags = self._psych_classifier.classify(content)
 
-        # 步驟 4：單一樣本分群（使用預設標籤）
+        # 步驟 4：XAI 高亮分析
+        xai_result = self._xai_highlighter.highlight(content)
+
+        # 步驟 5：單一樣本分群（使用預設標籤）
         cluster_label = "詐騙類群-1"
 
         return AnalysisResult(
@@ -165,6 +163,7 @@ class PatternAnalyzer:
             keywords=keywords,
             psychological_tags=psych_tags,
             cluster_label=cluster_label,
+            xai_result=xai_result,
         )
 
     def analyze_batch(self, inputs: list[AnalysisInput]) -> BatchAnalysisResult:
@@ -209,9 +208,11 @@ class PatternAnalyzer:
             content = inputs[i].content
             keywords = self._keyword_extractor.extract(content)
             psych_tags = self._psych_classifier.classify(content)
+            xai_result = self._xai_highlighter.highlight(content)
             partial_results[i] = {
                 "keywords": keywords,
                 "psych_tags": psych_tags,
+                "xai_result": xai_result,
                 "embedding": embedding_results[i].embedding,
                 "language": embedding_results[i].language,
             }
@@ -251,6 +252,7 @@ class PatternAnalyzer:
                     keywords=data["keywords"],
                     psychological_tags=data["psych_tags"],
                     cluster_label=cluster_labels.get(i, "詐騙類群-1"),
+                    xai_result=data["xai_result"],
                 ))
 
         # 建立 SemanticVector 物件（僅支援語言的樣本）
