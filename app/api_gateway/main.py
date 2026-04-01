@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # ── 建立 FastAPI 應用程式 ──────────────────────────────────────────────────────
 app = FastAPI(
     lifespan=lifespan,
-    title="AI 詐騙進化預測系統 API Gateway",
+    title="ScamOracle — 全境式變種詐騙先知系統 API Gateway",
     description=(
         "主動式防詐情報平台 API，提供風險向量查詢、詐騙話術生成觸發、"
         "報案資料匯入與預警事件查詢等功能。"

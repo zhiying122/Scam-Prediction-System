@@ -1,5 +1,5 @@
-# 🧠 AI 詐騙進化預測系統
-### AI Scam Evolution Prediction System
+# 🔮 ScamOracle — 全境式變種詐騙先知系統
+### ScamOracle: Omniscient Scam Variant Prediction System
 
 > 從被動防禦到主動預測，運用生成式 AI 構築下一代防詐護城河
 

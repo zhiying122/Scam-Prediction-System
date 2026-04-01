@@ -4,13 +4,13 @@ AI 詐騙進化預測系統 - Streamlit 儀表板主入口
 import streamlit as st
 
 st.set_page_config(
-    page_title="AI 詐騙進化預測系統",
-    page_icon="🛡️",
+    page_title="ScamOracle — 全境式變種詐騙先知系統",
+    page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🛡️ AI 詐騙進化預測系統")
+st.title("🔮 ScamOracle — 全境式變種詐騙先知系統")
 st.markdown("從被動防禦到主動預測，運用生成式 AI 構築下一代防詐護城河。")
 
 st.divider()
