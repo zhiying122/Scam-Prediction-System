@@ -398,8 +398,7 @@ class TestRouterSkeleton:
 class TestAPIKeyProperties:
     """
     屬性 15：API 金鑰驗證拒絕無效請求
-
-    **Validates: Requirements 5.3**
+    驗證需求：5.3
 
     對於任意不含有效 API 金鑰的請求（空值、格式錯誤、不存在的金鑰、已撤銷的金鑰），
     API_Gateway 應回傳 HTTP 401 狀態碼，不得執行任何業務邏輯。
@@ -408,80 +407,117 @@ class TestAPIKeyProperties:
     @h_settings(max_examples=100)
     @given(
         st.one_of(
-            # 隨機字串（不在有效金鑰集合中）
             st.text(min_size=1, max_size=64).filter(
                 lambda k: k.strip() not in _VALID_API_KEYS
                 or not _VALID_API_KEYS.get(k.strip(), {}).get("is_active", False)
             ),
-            # 空字串
             st.just(""),
-            # 純空白字串
             st.text(alphabet=" \t\n", min_size=1, max_size=10),
         )
     )
-    def test_invalid_api_key_rejected(self, api_key: str) -> None:
-        """
-        屬性 15：API 金鑰驗證拒絕無效請求
-
-        **Validates: Requirements 5.3**
-
-        對於任意無效的 API 金鑰，lookup_api_key 應回傳 None。
+    def test_invalid_api_key_lookup_returns_none(self, api_key: str) -> None:
         """
         # Feature: ai-scam-evolution-prediction, Property 15: API 金鑰驗證拒絕無效請求
+        對於任意無效的 API 金鑰，lookup_api_key 應回傳 None。
+        """
         result = lookup_api_key(api_key.strip())
-        # 無效金鑰（不在有效集合中，或已撤銷）應回傳 None
         if api_key.strip() not in _VALID_API_KEYS:
             assert result is None
         elif not _VALID_API_KEYS[api_key.strip()].get("is_active", False):
             assert result is None
 
+    # 純 ASCII 可列印字元策略（HTTP header 只接受 ASCII）
+    _ascii_key_strategy = st.text(
+        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_",
+        min_size=1,
+        max_size=64,
+    ).filter(lambda k: k.strip() not in _VALID_API_KEYS)
+
+    @h_settings(max_examples=50)
+    @given(api_key=_ascii_key_strategy)
+    def test_nonexistent_key_returns_http_401(self, api_key: str) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 15: API 金鑰驗證拒絕無效請求
+        不存在的 API 金鑰發送請求時，API Gateway 必須回傳 HTTP 401。
+        """
+        tc = TestClient(app, raise_server_exceptions=False)
+        response = tc.get("/v1/risk-vectors", headers={"X-API-Key": api_key})
+        assert response.status_code == 401, (
+            f"無效金鑰 {repr(api_key[:20])} 應得到 HTTP 401，但得到 {response.status_code}"
+        )
+
+    @h_settings(max_examples=30)
+    @given(api_key=_ascii_key_strategy)
+    def test_invalid_key_response_has_error_code(self, api_key: str) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 15: API 金鑰驗證拒絕無效請求
+        HTTP 401 回應本體必須包含 error_code 與 description 欄位。
+        """
+        tc = TestClient(app, raise_server_exceptions=False)
+        response = tc.get("/v1/risk-vectors", headers={"X-API-Key": api_key})
+        assert response.status_code == 401
+        data = response.json()
+        assert "error_code" in data
+        assert "description" in data
+        assert data["error_code"]
+        assert data["description"]
+
+    @h_settings(max_examples=100)
+    @given(
+        valid_key=st.sampled_from(["test-key-001", "test-key-002"])
+    )
+    def test_valid_key_lookup_returns_info(self, valid_key: str) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 15: API 金鑰驗證拒絕無效請求
+        有效的 API 金鑰 lookup_api_key 必須回傳非 None 的金鑰資訊。
+        """
+        result = lookup_api_key(valid_key)
+        assert result is not None
+        assert result.get("is_active") is True
+        assert "client_id" in result
+        assert "rate_limit" in result
+
 
 class TestRateLimitProperties:
     """
     屬性 16：速率限制觸發 HTTP 429
-
-    **Validates: Requirements 5.4**
+    驗證需求：5.4
 
     對於任意在 60 秒視窗內超過訂閱方案請求上限的客戶端，
     API_Gateway 應回傳 HTTP 429，且回應標頭應包含非零的 Retry-After 值。
     """
 
-    @h_settings(max_examples=50)
+    @h_settings(max_examples=100)
     @given(
         rate_limit=st.integers(min_value=1, max_value=20),
         extra_requests=st.integers(min_value=1, max_value=10),
     )
-    def test_rate_limit_http_429(self, rate_limit: int, extra_requests: int) -> None:
-        """
-        屬性 16：速率限制觸發 HTTP 429
-
-        **Validates: Requirements 5.4**
-
-        對於任意速率限制值，超過限制後計數器應超過上限。
+    def test_counter_exceeds_limit_after_overflow(
+        self, rate_limit: int, extra_requests: int
+    ) -> None:
         """
         # Feature: ai-scam-evolution-prediction, Property 16: 速率限制觸發 HTTP 429
+        對任意速率限制值，發送 rate_limit + extra_requests 次請求後，
+        計數器必須超過 rate_limit。
+        """
         counter = SlidingWindowCounter(window_seconds=60)
-        client_key = f"prop-test-client-{rate_limit}"
+        client_key = f"prop-test-{rate_limit}-{extra_requests}"
 
-        # 填滿速率限制
         for _ in range(rate_limit + extra_requests):
             counter.add_request(client_key)
 
         count = counter.get_count(client_key)
-        # 計數應超過速率限制
-        assert count > rate_limit
+        assert count > rate_limit, (
+            f"計數 {count} 應超過速率限制 {rate_limit}"
+        )
 
     @h_settings(max_examples=50)
-    @given(
-        rate_limit=st.integers(min_value=1, max_value=10),
-    )
-    def test_rate_limit_retry_after_nonzero(self, rate_limit: int) -> None:
-        """
-        屬性 16（補充）：超限時 Retry-After 應為非零正整數
-
-        **Validates: Requirements 5.4**
+    @given(rate_limit=st.integers(min_value=1, max_value=10))
+    def test_exceeding_limit_triggers_http_429(self, rate_limit: int) -> None:
         """
         # Feature: ai-scam-evolution-prediction, Property 16: 速率限制觸發 HTTP 429
+        對任意速率限制值，超過限制的請求必須得到 HTTP 429。
+        """
         from fastapi import FastAPI
         from fastapi.testclient import TestClient as TC
 
@@ -501,16 +537,103 @@ class TestRateLimitProperties:
 
         tc = TC(test_app, raise_server_exceptions=False)
 
-        # 發送超過限制的請求
         last_response = None
         for _ in range(rate_limit + 1):
             last_response = tc.get("/probe")
 
         assert last_response is not None
         assert last_response.status_code == 429
-        assert "Retry-After" in last_response.headers
-        retry_after = int(last_response.headers["Retry-After"])
-        assert retry_after > 0
+
+    @h_settings(max_examples=50)
+    @given(rate_limit=st.integers(min_value=1, max_value=10))
+    def test_retry_after_header_is_positive_integer(self, rate_limit: int) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 16: 速率限制觸發 HTTP 429
+        HTTP 429 回應的 Retry-After 標頭必須為正整數。
+        """
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient as TC
+
+        test_app = FastAPI()
+        test_counter = SlidingWindowCounter(window_seconds=60)
+        test_app.add_middleware(
+            RateLimitMiddleware,
+            default_rate_limit=rate_limit,
+            window_seconds=60,
+            exempt_paths=set(),
+            counter=test_counter,
+        )
+
+        @test_app.get("/probe")
+        async def probe():
+            return {"ok": True}
+
+        tc = TC(test_app, raise_server_exceptions=False)
+        for _ in range(rate_limit + 1):
+            r = tc.get("/probe")
+
+        assert r.status_code == 429
+        assert "Retry-After" in r.headers
+        retry_after = int(r.headers["Retry-After"])
+        assert retry_after > 0, f"Retry-After 應為正整數，但得到 {retry_after}"
+
+    @h_settings(max_examples=50)
+    @given(rate_limit=st.integers(min_value=1, max_value=10))
+    def test_429_response_body_has_error_code(self, rate_limit: int) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 16: 速率限制觸發 HTTP 429
+        HTTP 429 回應本體必須包含 error_code=RATE_LIMIT_EXCEEDED 與 retry_after 欄位。
+        """
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient as TC
+
+        test_app = FastAPI()
+        test_counter = SlidingWindowCounter(window_seconds=60)
+        test_app.add_middleware(
+            RateLimitMiddleware,
+            default_rate_limit=rate_limit,
+            window_seconds=60,
+            exempt_paths=set(),
+            counter=test_counter,
+        )
+
+        @test_app.get("/probe")
+        async def probe():
+            return {"ok": True}
+
+        tc = TC(test_app, raise_server_exceptions=False)
+        for _ in range(rate_limit + 1):
+            r = tc.get("/probe")
+
+        assert r.status_code == 429
+        data = r.json()
+        assert data.get("error_code") == "RATE_LIMIT_EXCEEDED"
+        assert "retry_after" in data
+        assert data["retry_after"] > 0
+
+    @h_settings(max_examples=100)
+    @given(
+        rate_limit=st.integers(min_value=1, max_value=50),
+        requests_within_limit=st.integers(min_value=0, max_value=50),
+    )
+    def test_within_limit_count_never_exceeds(
+        self, rate_limit: int, requests_within_limit: int
+    ) -> None:
+        """
+        # Feature: ai-scam-evolution-prediction, Property 16: 速率限制觸發 HTTP 429
+        在速率限制內的請求，計數器不應超過 rate_limit。
+        """
+        from hypothesis import assume
+        assume(requests_within_limit <= rate_limit)
+
+        counter = SlidingWindowCounter(window_seconds=60)
+        client_key = f"within-limit-{rate_limit}-{requests_within_limit}"
+
+        for _ in range(requests_within_limit):
+            counter.add_request(client_key)
+
+        count = counter.get_count(client_key)
+        assert count <= rate_limit
 
 
 class TestScamScriptNotExposed:

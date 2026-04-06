@@ -386,3 +386,476 @@ class TestGenerateTOTPSecret:
         """每次產生的 TOTP 金鑰應不同"""
         secrets = {generate_totp_secret() for _ in range(10)}
         assert len(secrets) == 10  # 10 個金鑰應全部不同
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 屬性測試（Property-Based Testing）
+# Feature: ai-scam-evolution-prediction
+# ══════════════════════════════════════════════════════════════════════════════
+
+from hypothesis import given, settings, assume
+from hypothesis import strategies as st
+
+
+# ── 策略定義 ──────────────────────────────────────────────────────────────────
+
+# 合法角色策略
+valid_roles = st.sampled_from(list(Role))
+
+# 合法操作類型策略
+valid_actions = st.sampled_from(list(Action))
+
+# 合法操作類型字串策略（用於 audit_log）
+valid_action_strings = st.sampled_from(["read", "export", "bulk_export"])
+
+# 非空操作人員 ID 策略
+operator_id_strategy = st.text(
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="-_"),
+    min_size=1,
+    max_size=50,
+).filter(lambda s: s.strip() != "")
+
+# 非空資源 ID 策略
+resource_id_strategy = st.uuids().map(str)
+
+# 非空資源類型策略
+resource_type_strategy = st.sampled_from(["scam_script", "risk_vector", "alert_event"])
+
+# 匯出數量策略（0 ~ 閾值）
+count_below_threshold = st.integers(min_value=0, max_value=BULK_EXPORT_THRESHOLD)
+
+# 匯出數量策略（超過閾值）
+count_above_threshold = st.integers(min_value=BULK_EXPORT_THRESHOLD + 1, max_value=10000)
+
+
+# ── 屬性 18：角色存取控制 ─────────────────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+
+class TestProperty18RoleAccessControl:
+    """
+    屬性 18：角色存取控制
+    驗證需求：6.1
+
+    對任意合法角色與操作類型，check_permission 的回傳值必須與
+    權限矩陣 PERMISSION_MATRIX 中定義的值完全一致。
+    """
+
+    @given(role=valid_roles, action=valid_actions)
+    @settings(max_examples=100)
+    def test_permission_matches_matrix(self, role: Role, action: Action):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+        對任意合法角色與操作類型，check_permission 結果必須與權限矩陣一致。
+        """
+        from app.access_controller.rbac import PERMISSION_MATRIX
+        expected = PERMISSION_MATRIX[role][action]
+        result = check_permission("test-operator", role, action)
+        assert result == expected, (
+            f"角色 {role.value} 對操作 {action.value} 的權限應為 {expected}，但得到 {result}"
+        )
+
+    @given(role=valid_roles, action=valid_actions)
+    @settings(max_examples=100)
+    def test_permission_is_boolean(self, role: Role, action: Action):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+        check_permission 的回傳值必須為布林值。
+        """
+        result = check_permission("test-operator", role, action)
+        assert isinstance(result, bool), f"check_permission 應回傳 bool，但得到 {type(result)}"
+
+    @given(
+        operator_id=operator_id_strategy,
+        role=valid_roles,
+        action=valid_actions,
+    )
+    @settings(max_examples=100)
+    def test_permission_independent_of_operator_id(
+        self, operator_id: str, role: Role, action: Action
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+        權限結果只取決於角色與操作類型，與 operator_id 無關。
+        """
+        result1 = check_permission(operator_id, role, action)
+        result2 = check_permission("another-operator-xyz", role, action)
+        assert result1 == result2, (
+            f"相同角色 {role.value} 對操作 {action.value} 的權限不應因 operator_id 不同而改變"
+        )
+
+    @given(action=valid_actions)
+    @settings(max_examples=100)
+    def test_restricted_roles_always_denied(self, action: Action):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+        一般操作員與 External_Client 對任意操作類型均應被拒絕。
+        """
+        for restricted_role in [Role.GENERAL_OPERATOR, Role.EXTERNAL_CLIENT]:
+            result = check_permission("test-op", restricted_role, action)
+            assert result is False, (
+                f"角色 {restricted_role.value} 對操作 {action.value} 應被拒絕，但得到 {result}"
+            )
+
+    @given(action=valid_actions)
+    @settings(max_examples=100)
+    def test_privileged_roles_always_allowed(self, action: Action):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 18: 角色存取控制
+        系統管理員與詐騙分析師對任意操作類型均應被允許。
+        """
+        for privileged_role in [Role.SYSTEM_ADMIN, Role.SCAM_ANALYST]:
+            result = check_permission("test-op", privileged_role, action)
+            assert result is True, (
+                f"角色 {privileged_role.value} 對操作 {action.value} 應被允許，但得到 {result}"
+            )
+
+
+# ── 屬性 19：存取日誌記錄完整性（Round-Trip）────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 19: 存取日誌記錄完整性（Round-Trip）
+
+class TestProperty19AuditLogRoundTrip:
+    """
+    屬性 19：存取日誌記錄完整性（Round-Trip）
+    驗證需求：6.2
+
+    對任意合法輸入，append_log 寫入後 get_all_logs 取回的記錄
+    必須與原始輸入完全一致（Round-Trip 不變量）。
+    """
+
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        clear_logs()
+        yield
+        clear_logs()
+
+    @given(
+        operator_id=operator_id_strategy,
+        action=valid_action_strings,
+        resource_id=resource_id_strategy,
+        resource_type=resource_type_strategy,
+    )
+    @settings(max_examples=100)
+    def test_log_fields_preserved_after_append(
+        self, operator_id: str, action: str, resource_id: str, resource_type: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 19: 存取日誌記錄完整性（Round-Trip）
+        append_log 後取回的記錄，所有欄位值必須與輸入完全一致。
+        """
+        clear_logs()
+        log = append_log(operator_id, action, resource_id, resource_type)
+        logs = get_all_logs()
+
+        assert len(logs) == 1
+        retrieved = logs[0]
+        assert retrieved.operator_id == operator_id
+        assert retrieved.action == action
+        assert retrieved.resource_id == resource_id
+        assert retrieved.resource_type == resource_type
+        assert retrieved.id == log.id
+        assert retrieved.current_hash == log.current_hash
+
+    @given(
+        entries=st.lists(
+            st.tuples(
+                operator_id_strategy,
+                valid_action_strings,
+                resource_id_strategy,
+                resource_type_strategy,
+            ),
+            min_size=1,
+            max_size=10,
+        )
+    )
+    @settings(max_examples=50)
+    def test_log_count_matches_appends(self, entries):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 19: 存取日誌記錄完整性（Round-Trip）
+        append_log 呼叫 N 次後，get_all_logs 應回傳恰好 N 筆記錄。
+        """
+        clear_logs()
+        for operator_id, action, resource_id, resource_type in entries:
+            append_log(operator_id, action, resource_id, resource_type)
+
+        logs = get_all_logs()
+        assert len(logs) == len(entries)
+
+    @given(
+        operator_id=operator_id_strategy,
+        action=valid_action_strings,
+        resource_id=resource_id_strategy,
+        resource_type=resource_type_strategy,
+    )
+    @settings(max_examples=100)
+    def test_log_has_non_empty_hash_fields(
+        self, operator_id: str, action: str, resource_id: str, resource_type: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 19: 存取日誌記錄完整性（Round-Trip）
+        每筆日誌的 prev_hash 與 current_hash 必須為非空的 64 字元十六進位字串。
+        """
+        clear_logs()
+        log = append_log(operator_id, action, resource_id, resource_type)
+
+        assert len(log.prev_hash) == 64
+        assert len(log.current_hash) == 64
+        assert all(c in "0123456789abcdef" for c in log.prev_hash)
+        assert all(c in "0123456789abcdef" for c in log.current_hash)
+
+    @given(
+        operator_id=operator_id_strategy,
+        action=valid_action_strings,
+        resource_id=resource_id_strategy,
+        resource_type=resource_type_strategy,
+    )
+    @settings(max_examples=100)
+    def test_log_timestamp_is_set(
+        self, operator_id: str, action: str, resource_id: str, resource_type: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 19: 存取日誌記錄完整性（Round-Trip）
+        每筆日誌的 timestamp 必須為非 None 的 datetime 物件。
+        """
+        clear_logs()
+        log = append_log(operator_id, action, resource_id, resource_type)
+        assert log.timestamp is not None
+        assert isinstance(log.timestamp, datetime)
+
+
+# ── 屬性 21：日誌防竄改雜湊鏈完整性 ─────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+
+class TestProperty21HashChainIntegrity:
+    """
+    屬性 21：日誌防竄改雜湊鏈完整性
+    驗證需求：6.5
+
+    對任意合法日誌序列，verify_chain 在未竄改時必須回傳 True；
+    對任意單一欄位的竄改，verify_chain 必須回傳 False。
+    """
+
+    @pytest.fixture(autouse=True)
+    def reset(self):
+        clear_logs()
+        yield
+        clear_logs()
+
+    @given(
+        entries=st.lists(
+            st.tuples(
+                operator_id_strategy,
+                valid_action_strings,
+                resource_id_strategy,
+                resource_type_strategy,
+            ),
+            min_size=1,
+            max_size=10,
+        )
+    )
+    @settings(max_examples=50)
+    def test_intact_chain_always_valid(self, entries):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+        對任意合法日誌序列，未竄改的鏈必須通過 verify_chain 驗證。
+        """
+        clear_logs()
+        for operator_id, action, resource_id, resource_type in entries:
+            append_log(operator_id, action, resource_id, resource_type)
+
+        assert verify_chain() is True
+
+    @given(
+        entries=st.lists(
+            st.tuples(
+                operator_id_strategy,
+                valid_action_strings,
+                resource_id_strategy,
+                resource_type_strategy,
+            ),
+            min_size=2,
+            max_size=8,
+        ),
+        tamper_index=st.integers(min_value=0, max_value=7),
+        tampered_value=st.text(min_size=1, max_size=20).filter(lambda s: s.strip() != ""),
+    )
+    @settings(max_examples=50)
+    def test_tampered_operator_id_detected(self, entries, tamper_index, tampered_value):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+        竄改任意一筆日誌的 operator_id 後，verify_chain 必須回傳 False。
+        """
+        from app.access_controller import audit_log as al
+
+        clear_logs()
+        for operator_id, action, resource_id, resource_type in entries:
+            append_log(operator_id, action, resource_id, resource_type)
+
+        idx = tamper_index % len(entries)
+        original = al._log_chain[idx].operator_id
+        assume(tampered_value != original)
+
+        al._log_chain[idx].operator_id = tampered_value
+        assert verify_chain() is False
+
+    @given(
+        entries=st.lists(
+            st.tuples(
+                operator_id_strategy,
+                valid_action_strings,
+                resource_id_strategy,
+                resource_type_strategy,
+            ),
+            min_size=2,
+            max_size=8,
+        ),
+        tamper_index=st.integers(min_value=0, max_value=7),
+    )
+    @settings(max_examples=50)
+    def test_tampered_current_hash_detected(self, entries, tamper_index):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+        竄改任意一筆日誌的 current_hash 後，verify_chain 必須回傳 False。
+        """
+        from app.access_controller import audit_log as al
+
+        clear_logs()
+        for operator_id, action, resource_id, resource_type in entries:
+            append_log(operator_id, action, resource_id, resource_type)
+
+        idx = tamper_index % len(entries)
+        al._log_chain[idx].current_hash = "f" * 64
+
+        assert verify_chain() is False
+
+    @given(
+        entries=st.lists(
+            st.tuples(
+                operator_id_strategy,
+                valid_action_strings,
+                resource_id_strategy,
+                resource_type_strategy,
+            ),
+            min_size=2,
+            max_size=8,
+        ),
+        tamper_index=st.integers(min_value=1, max_value=7),
+    )
+    @settings(max_examples=50)
+    def test_tampered_prev_hash_detected(self, entries, tamper_index):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+        竄改任意一筆日誌（非第一筆）的 prev_hash 後，verify_chain 必須回傳 False。
+        """
+        from app.access_controller import audit_log as al
+
+        clear_logs()
+        for operator_id, action, resource_id, resource_type in entries:
+            append_log(operator_id, action, resource_id, resource_type)
+
+        # 確保 tamper_index 在有效範圍內（至少第 2 筆，index >= 1）
+        idx = max(1, tamper_index % len(entries))
+        al._log_chain[idx].prev_hash = "e" * 64
+
+        assert verify_chain() is False
+
+    @given(
+        n=st.integers(min_value=1, max_value=10),
+    )
+    @settings(max_examples=30)
+    def test_chain_length_preserved(self, n: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 21: 日誌防竄改雜湊鏈完整性
+        append_log N 次後，日誌鏈長度必須恰好為 N（append-only 不變量）。
+        """
+        clear_logs()
+        for i in range(n):
+            append_log(f"op-{i:03d}", "read", str(uuid.uuid4()), "scam_script")
+
+        assert len(get_all_logs()) == n
+
+
+# ── 屬性 20：批量匯出二次驗證閾值 ────────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+
+class TestProperty20BulkExport2FAThreshold:
+    """
+    屬性 20：批量匯出二次驗證閾值
+    驗證需求：6.4
+
+    對任意數量 count：
+    - count <= 100：require_2fa_for_bulk_export 必須回傳 True（不需 2FA）
+    - count > 100 且未提供 TOTP：必須拋出 BulkExportRequires2FA
+    - count > 100 且提供有效 TOTP：必須回傳 True
+    """
+
+    @given(count=count_below_threshold)
+    @settings(max_examples=100)
+    def test_count_at_or_below_threshold_never_requires_2fa(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        count <= 100 時，require_2fa_for_bulk_export 必須回傳 True，不拋出例外。
+        """
+        result = require_2fa_for_bulk_export(count)
+        assert result is True
+
+    @given(count=count_above_threshold)
+    @settings(max_examples=100)
+    def test_count_above_threshold_always_requires_2fa(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        count > 100 且未提供 TOTP 時，必須拋出 BulkExportRequires2FA。
+        """
+        with pytest.raises(BulkExportRequires2FA) as exc_info:
+            require_2fa_for_bulk_export(count)
+        assert exc_info.value.count == count
+
+    @given(count=count_above_threshold)
+    @settings(max_examples=50)
+    def test_count_above_threshold_with_valid_totp_allowed(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        count > 100 且提供有效 TOTP 時，必須回傳 True。
+        """
+        secret = generate_totp_secret()
+        totp = pyotp.TOTP(secret)
+        valid_token = totp.now()
+
+        result = require_2fa_for_bulk_export(count, totp_secret=secret, totp_token=valid_token)
+        assert result is True
+
+    @given(count=count_above_threshold)
+    @settings(max_examples=50)
+    def test_count_above_threshold_with_invalid_totp_raises(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        count > 100 且提供無效 TOTP 時，必須拋出 InvalidTOTPError。
+        """
+        secret = generate_totp_secret()
+
+        with pytest.raises(InvalidTOTPError):
+            require_2fa_for_bulk_export(count, totp_secret=secret, totp_token="000000")
+
+    @given(count=st.integers(min_value=0, max_value=10000))
+    @settings(max_examples=100)
+    def test_threshold_boundary_is_exactly_100(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        閾值邊界精確為 100：count <= 100 允許，count > 100 需要 2FA。
+        """
+        if count <= BULK_EXPORT_THRESHOLD:
+            result = require_2fa_for_bulk_export(count)
+            assert result is True
+        else:
+            with pytest.raises(BulkExportRequires2FA):
+                require_2fa_for_bulk_export(count)
+
+    @given(count=count_above_threshold)
+    @settings(max_examples=50)
+    def test_exception_contains_correct_count(self, count: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 20: 批量匯出二次驗證閾值
+        BulkExportRequires2FA 例外必須包含正確的 count 值。
+        """
+        with pytest.raises(BulkExportRequires2FA) as exc_info:
+            require_2fa_for_bulk_export(count)
+        assert exc_info.value.count == count

@@ -451,10 +451,15 @@ class TestScamGenerateEndpoint:
 
     @pytest.fixture(autouse=True)
     def clear_store(self):
-        """每個測試前清空 in-memory 儲存"""
+        """每個測試前清空 in-memory 儲存並重置全域 rate limit counter"""
+        from app.api_gateway.middleware.rate_limit import get_rate_limit_counter
         _scam_scripts_store.clear()
+        # 重置全域 rate limit counter，避免測試間互相污染
+        counter = get_rate_limit_counter()
+        counter._counters.clear()
         yield
         _scam_scripts_store.clear()
+        counter._counters.clear()
 
     VALID_API_KEY = "test-key-001"
 
@@ -670,6 +675,527 @@ class TestScamScriptRegulatedInvariant:
                 psychological_tags=["緊迫感製造"],
                 language="zh-TW",
                 is_regulated=False,  # 應拋出 ValueError
+                created_at=datetime.now(timezone.utc),
+                created_by="analyst-001",
+            )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 屬性測試（Property-Based Testing）
+# Feature: ai-scam-evolution-prediction
+# ══════════════════════════════════════════════════════════════════════════════
+
+import pytest
+from hypothesis import given, settings as h_settings, assume
+from hypothesis import strategies as st
+
+
+# ── 策略定義 ──────────────────────────────────────────────────────────────────
+
+# 合法的 LLM 錯誤代碼策略
+valid_error_codes = st.sampled_from([
+    LLMErrorCode.TIMEOUT,
+    LLMErrorCode.API_ERROR,
+    LLMErrorCode.PARSE_ERROR,
+    LLMErrorCode.UNKNOWN_ERROR,
+])
+
+# 非空描述字串策略
+non_empty_description = st.text(min_size=1, max_size=200).filter(lambda s: s.strip() != "")
+
+# 合法的 min_samples 策略（1 ~ 50）
+min_samples_strategy = st.integers(min_value=1, max_value=50)
+
+# 合法的詐騙情境策略
+scenario_strategy = st.text(min_size=1, max_size=100).filter(lambda s: s.strip() != "")
+
+# 合法的目標受眾策略
+audience_strategy = st.text(min_size=1, max_size=100).filter(lambda s: s.strip() != "")
+
+# 受限角色策略（不可存取 Scam_Script 生成）
+restricted_roles = st.sampled_from(["一般操作員", "External_Client"])
+
+# 特權角色策略（可存取 Scam_Script 生成）
+privileged_roles = st.sampled_from(["系統管理員", "詐騙分析師"])
+
+
+# ── 屬性 1：生成樣本數量下限 ──────────────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 1: 生成樣本數量下限
+
+class TestProperty1SampleCountMinimum:
+    """
+    屬性 1：生成樣本數量下限
+    驗證需求：1.1
+
+    對任意合法的 min_samples 值，generate_scam_samples 成功時
+    回傳的樣本數量必須 >= min_samples。
+    """
+
+    @h_settings(max_examples=50)
+    @given(min_samples=min_samples_strategy)
+    def test_generated_sample_count_meets_minimum(self, min_samples: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 1: 生成樣本數量下限
+        成功生成時，回傳樣本數量必須 >= min_samples。
+        """
+        import asyncio
+
+        # 建立回傳恰好 min_samples 個樣本的 mock LLM
+        mock_llm = _make_mock_llm(_make_llm_response_json(min_samples))
+
+        result = asyncio.get_event_loop().run_until_complete(
+            generate_scam_samples(
+                scenario="假冒銀行客服",
+                target_audience="中老年族群",
+                min_samples=min_samples,
+                llm_client=mock_llm,
+            )
+        )
+
+        assert "error_code" not in result, f"不應有錯誤：{result}"
+        assert result["count"] >= min_samples, (
+            f"樣本數量 {result['count']} 小於要求的最小值 {min_samples}"
+        )
+        assert len(result["samples"]) >= min_samples
+
+    @h_settings(max_examples=50)
+    @given(min_samples=min_samples_strategy)
+    def test_each_sample_has_required_fields(self, min_samples: int):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 1: 生成樣本數量下限
+        每個樣本必須包含 content、psychological_tags、target_audience 三個非空欄位。
+        """
+        import asyncio
+
+        mock_llm = _make_mock_llm(_make_llm_response_json(min_samples))
+
+        result = asyncio.get_event_loop().run_until_complete(
+            generate_scam_samples(
+                scenario="投資詐騙",
+                target_audience="年輕族群",
+                min_samples=min_samples,
+                llm_client=mock_llm,
+            )
+        )
+
+        assert "error_code" not in result
+        for sample in result["samples"]:
+            assert "content" in sample and sample["content"], "content 不得為空"
+            assert "psychological_tags" in sample and sample["psychological_tags"], "psychological_tags 不得為空"
+            assert "target_audience" in sample and sample["target_audience"], "target_audience 不得為空"
+
+    @h_settings(max_examples=30)
+    @given(
+        scenario=scenario_strategy,
+        audience=audience_strategy,
+    )
+    def test_result_contains_request_id(self, scenario: str, audience: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 1: 生成樣本數量下限
+        成功回應必須包含非空的 request_id。
+        """
+        import asyncio
+
+        mock_llm = _make_mock_llm(_make_llm_response_json(10))
+
+        result = asyncio.get_event_loop().run_until_complete(
+            generate_scam_samples(
+                scenario=scenario,
+                target_audience=audience,
+                min_samples=10,
+                llm_client=mock_llm,
+            )
+        )
+
+        if "error_code" not in result:
+            assert "request_id" in result
+            assert result["request_id"]
+
+
+# ── 屬性 2：LLM 錯誤回應結構完整性 ──────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+
+class TestProperty2LLMErrorResponseStructure:
+    """
+    屬性 2：LLM 錯誤回應結構完整性
+    驗證需求：1.3
+
+    對任意 LLM 錯誤情境，build_error_response 回傳的結構必須包含
+    error_code、description、timestamp、request_id 四個非空欄位。
+    """
+
+    @h_settings(max_examples=100)
+    @given(
+        error_code=valid_error_codes,
+        description=non_empty_description,
+    )
+    def test_error_response_has_all_required_fields(self, error_code: str, description: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+        build_error_response 回傳的結構必須包含四個必要欄位，且均非空。
+        """
+        result = build_error_response(error_code=error_code, description=description)
+
+        assert "error_code" in result, "缺少 error_code 欄位"
+        assert "description" in result, "缺少 description 欄位"
+        assert "timestamp" in result, "缺少 timestamp 欄位"
+        assert "request_id" in result, "缺少 request_id 欄位"
+
+        assert result["error_code"], "error_code 不得為空"
+        assert result["description"], "description 不得為空"
+        assert result["timestamp"], "timestamp 不得為空"
+        assert result["request_id"], "request_id 不得為空"
+
+    @h_settings(max_examples=100)
+    @given(
+        error_code=valid_error_codes,
+        description=non_empty_description,
+    )
+    def test_error_code_preserved(self, error_code: str, description: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+        error_code 欄位值必須與傳入值完全一致。
+        """
+        result = build_error_response(error_code=error_code, description=description)
+        assert result["error_code"] == error_code
+
+    @h_settings(max_examples=100)
+    @given(
+        error_code=valid_error_codes,
+        description=non_empty_description,
+    )
+    def test_timestamp_is_valid_iso8601(self, error_code: str, description: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+        timestamp 欄位必須為合法的 ISO 8601 格式字串。
+        """
+        result = build_error_response(error_code=error_code, description=description)
+        # 若格式錯誤，fromisoformat 會拋出 ValueError
+        datetime.fromisoformat(result["timestamp"])
+
+    @h_settings(max_examples=100)
+    @given(
+        error_code=valid_error_codes,
+        description=non_empty_description,
+    )
+    def test_request_id_is_valid_uuid(self, error_code: str, description: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+        自動生成的 request_id 必須為合法的 UUID 格式。
+        """
+        result = build_error_response(error_code=error_code, description=description)
+        # 若格式錯誤，UUID() 會拋出 ValueError
+        uuid.UUID(result["request_id"])
+
+    @h_settings(max_examples=50, deadline=None)
+    @given(
+        error_code=valid_error_codes,
+        description=non_empty_description,
+    )
+    def test_generate_scam_samples_error_has_all_fields(
+        self, error_code: str, description: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 2: LLM 錯誤回應結構完整性
+        generate_scam_samples 在任意錯誤情境下，回傳結構必須包含四個必要欄位。
+        使用 max_attempts=1 避免重試延遲超過 deadline。
+        """
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(side_effect=Exception(description))
+
+        # patch max_retries 為 1，避免重試延遲
+        with patch("app.scam_engine.generator.settings") as mock_settings:
+            mock_settings.llm_timeout_seconds = 60
+            mock_settings.llm_max_retries = 1
+            mock_settings.llm_retry_initial_delay = 0.0
+            mock_settings.llm_retry_backoff_multiplier = 1.0
+            mock_settings.llm_retry_max_delay = 0.0
+
+            result = asyncio.get_event_loop().run_until_complete(
+                generate_scam_samples(
+                    scenario="測試情境",
+                    target_audience="測試受眾",
+                    llm_client=mock_llm,
+                )
+            )
+
+        assert "error_code" in result
+        assert "description" in result
+        assert "timestamp" in result
+        assert "request_id" in result
+        assert result["error_code"]
+        assert result["description"]
+        assert result["timestamp"]
+        assert result["request_id"]
+
+
+# ── 屬性 3：未授權請求一律拒絕 ───────────────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 3: 未授權請求一律拒絕
+
+class TestProperty3UnauthorizedRequestsRejected:
+    """
+    屬性 3：未授權請求一律拒絕
+    驗證需求：1.4
+
+    對任意受限角色（一般操作員、External_Client），
+    POST /v1/scam/generate 必須回傳 HTTP 403，不執行任何生成邏輯。
+    """
+
+    @h_settings(max_examples=50)
+    @given(role=restricted_roles)
+    def test_restricted_role_always_rejected(self, role: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 3: 未授權請求一律拒絕
+        受限角色對任意情境的生成請求均應被拒絕（HTTP 403）。
+        """
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient as TC
+        from app.api_gateway.middleware.api_key import APIKeyMiddleware
+        from app.api_gateway.middleware.rate_limit import RateLimitMiddleware, SlidingWindowCounter
+        from app.api_gateway.routers import scam as scam_router
+
+        # 建立獨立 app 避免全域 rate limit 污染
+        isolated_app = FastAPI()
+        isolated_counter = SlidingWindowCounter(window_seconds=60)
+        isolated_app.add_middleware(APIKeyMiddleware)
+        isolated_app.add_middleware(
+            RateLimitMiddleware,
+            default_rate_limit=10000,
+            window_seconds=60,
+            counter=isolated_counter,
+        )
+        isolated_app.include_router(scam_router.router, prefix="/v1")
+
+        tc = TC(isolated_app, raise_server_exceptions=False)
+        response = tc.post(
+            "/v1/scam/generate",
+            headers={"X-API-Key": "test-key-001"},
+            json={
+                "scenario": "假冒銀行客服",
+                "target_audience": "中老年族群",
+                "operator_id": "test-op",
+                "operator_role": role,
+            },
+        )
+        assert response.status_code == 403, (
+            f"角色 {role} 應被拒絕（HTTP 403），但得到 {response.status_code}"
+        )
+
+    @h_settings(max_examples=30)
+    @given(
+        role=restricted_roles,
+        scenario=scenario_strategy,
+        audience=audience_strategy,
+    )
+    def test_restricted_role_rejected_for_any_scenario(
+        self, role: str, scenario: str, audience: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 3: 未授權請求一律拒絕
+        受限角色對任意情境與受眾的請求均應被拒絕。
+        """
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient as TC
+        from app.api_gateway.middleware.api_key import APIKeyMiddleware
+        from app.api_gateway.middleware.rate_limit import RateLimitMiddleware, SlidingWindowCounter
+        from app.api_gateway.routers import scam as scam_router
+
+        isolated_app = FastAPI()
+        isolated_counter = SlidingWindowCounter(window_seconds=60)
+        isolated_app.add_middleware(APIKeyMiddleware)
+        isolated_app.add_middleware(
+            RateLimitMiddleware,
+            default_rate_limit=10000,
+            window_seconds=60,
+            counter=isolated_counter,
+        )
+        isolated_app.include_router(scam_router.router, prefix="/v1")
+
+        tc = TC(isolated_app, raise_server_exceptions=False)
+        response = tc.post(
+            "/v1/scam/generate",
+            headers={"X-API-Key": "test-key-001"},
+            json={
+                "scenario": scenario,
+                "target_audience": audience,
+                "operator_id": "test-op",
+                "operator_role": role,
+            },
+        )
+        assert response.status_code == 403
+
+    @h_settings(max_examples=30)
+    @given(role=privileged_roles)
+    def test_privileged_role_not_rejected_by_rbac(self, role: str):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 3: 未授權請求一律拒絕
+        特權角色不應因 RBAC 被拒絕（可能因其他原因失敗，但不應是 403）。
+        """
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient as TC
+        from app.api_gateway.middleware.api_key import APIKeyMiddleware
+        from app.api_gateway.middleware.rate_limit import RateLimitMiddleware, SlidingWindowCounter
+        from app.api_gateway.routers import scam as scam_router
+        from unittest.mock import AsyncMock, patch
+
+        mock_result = {
+            "samples": [
+                {
+                    "content": f"詐騙話術 {i}",
+                    "psychological_tags": ["緊迫感製造"],
+                    "target_audience": "中老年族群",
+                }
+                for i in range(10)
+            ],
+            "count": 10,
+            "request_id": "test-id",
+        }
+
+        isolated_app = FastAPI()
+        isolated_counter = SlidingWindowCounter(window_seconds=60)
+        isolated_app.add_middleware(APIKeyMiddleware)
+        isolated_app.add_middleware(
+            RateLimitMiddleware,
+            default_rate_limit=10000,
+            window_seconds=60,
+            counter=isolated_counter,
+        )
+        isolated_app.include_router(scam_router.router, prefix="/v1")
+
+        tc = TC(isolated_app, raise_server_exceptions=False)
+        with patch(
+            "app.api_gateway.routers.scam.generate_scam_samples",
+            new=AsyncMock(return_value=mock_result),
+        ):
+            response = tc.post(
+                "/v1/scam/generate",
+                headers={"X-API-Key": "test-key-001"},
+                json={
+                    "scenario": "假冒銀行客服",
+                    "target_audience": "中老年族群",
+                    "operator_id": "test-op",
+                    "operator_role": role,
+                },
+            )
+        assert response.status_code != 403, (
+            f"特權角色 {role} 不應被 RBAC 拒絕，但得到 HTTP 403"
+        )
+
+
+# ── 屬性 4：Scam_Script 受管制標記不變量 ─────────────────────────────────────
+# Feature: ai-scam-evolution-prediction, Property 4: Scam_Script 受管制標記不變量
+
+class TestProperty4ScamScriptRegulatedInvariant:
+    """
+    屬性 4：Scam_Script 受管制標記不變量
+    驗證需求：1.5
+
+    對任意生成的 Scam_Script，is_regulated 欄位必須恆為 True，
+    不得為 False 或 None。
+    """
+
+    @h_settings(max_examples=50)
+    @given(
+        scenario=scenario_strategy,
+        audience=audience_strategy,
+        n_samples=st.integers(min_value=1, max_value=20),
+    )
+    def test_all_stored_scripts_are_regulated(
+        self, scenario: str, audience: str, n_samples: int
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 4: Scam_Script 受管制標記不變量
+        生成並儲存的所有 Scam_Script，is_regulated 必須恆為 True。
+        """
+        from fastapi.testclient import TestClient as TC
+        from app.api_gateway.main import app
+        from app.api_gateway.routers.scam import _scam_scripts_store
+        from unittest.mock import AsyncMock, patch
+
+        _scam_scripts_store.clear()
+
+        mock_result = {
+            "samples": [
+                {
+                    "content": f"詐騙話術樣本 {i}，您的帳戶發現異常，請立即驗證身份。",
+                    "psychological_tags": ["緊迫感製造"],
+                    "target_audience": audience,
+                }
+                for i in range(n_samples)
+            ],
+            "count": n_samples,
+            "request_id": "test-id",
+        }
+
+        tc = TC(app, raise_server_exceptions=False)
+        with patch(
+            "app.api_gateway.routers.scam.generate_scam_samples",
+            new=AsyncMock(return_value=mock_result),
+        ):
+            response = tc.post(
+                "/v1/scam/generate",
+                headers={"X-API-Key": "test-key-001"},
+                json={
+                    "scenario": scenario,
+                    "target_audience": audience,
+                    "operator_id": "analyst-001",
+                    "operator_role": "詐騙分析師",
+                },
+            )
+
+        if response.status_code == 202:
+            for script in _scam_scripts_store:
+                assert script.is_regulated is True, (
+                    f"Scam_Script.is_regulated 必須恆為 True，但得到 {script.is_regulated}"
+                )
+
+        _scam_scripts_store.clear()
+
+    @h_settings(max_examples=100)
+    @given(
+        content=st.text(min_size=1, max_size=200).filter(lambda s: s.strip() != ""),
+        scenario=scenario_strategy,
+        audience=audience_strategy,
+    )
+    def test_scam_script_model_is_regulated_always_true(
+        self, content: str, scenario: str, audience: str
+    ):
+        """
+        # Feature: ai-scam-evolution-prediction, Property 4: Scam_Script 受管制標記不變量
+        直接建立 ScamScript 模型時，is_regulated=True 必須被接受，
+        is_regulated=False 必須被拒絕。
+        """
+        from app.models.scam_script import ScamScript
+
+        # is_regulated=True 應被接受
+        script = ScamScript(
+            id=str(uuid.uuid4()),
+            task_id=str(uuid.uuid4()),
+            content=content,
+            scenario=scenario,
+            target_audience=audience,
+            psychological_tags=["緊迫感製造"],
+            language="zh-TW",
+            is_regulated=True,
+            created_at=datetime.now(timezone.utc),
+            created_by="analyst-001",
+        )
+        assert script.is_regulated is True
+
+        # is_regulated=False 應被拒絕
+        with pytest.raises(ValueError, match="is_regulated"):
+            ScamScript(
+                id=str(uuid.uuid4()),
+                task_id=str(uuid.uuid4()),
+                content=content,
+                scenario=scenario,
+                target_audience=audience,
+                psychological_tags=["緊迫感製造"],
+                language="zh-TW",
+                is_regulated=False,
                 created_at=datetime.now(timezone.utc),
                 created_by="analyst-001",
             )
