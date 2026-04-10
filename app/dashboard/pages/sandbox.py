@@ -177,13 +177,12 @@ def run_sandbox_simulation(
     else:
         predicted_risk_level = "低"
 
-    # 若有風險等級篩選，以篩選值為準
-    if params.risk_level_filter:
-        predicted_risk_level = params.risk_level_filter
+    # 若有風險等級篩選，記錄篩選條件但不覆蓋預測結果
+    filter_note = f"（已套用篩選：{params.risk_level_filter}）" if params.risk_level_filter else ""
 
     summary = (
         f"針對「{params.scenario_type}」情境與「{params.target_audience}」受眾的沙盤推演，"
-        f"預測風險等級為「{predicted_risk_level}」，"
+        f"預測風險等級為「{predicted_risk_level}」{filter_note}，"
         f"識別出 {len(unique_features)} 項高風險特徵。"
     )
 

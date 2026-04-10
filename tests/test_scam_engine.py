@@ -743,7 +743,7 @@ class TestProperty1SampleCountMinimum:
         # 建立回傳恰好 min_samples 個樣本的 mock LLM
         mock_llm = _make_mock_llm(_make_llm_response_json(min_samples))
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             generate_scam_samples(
                 scenario="假冒銀行客服",
                 target_audience="中老年族群",
@@ -769,7 +769,7 @@ class TestProperty1SampleCountMinimum:
 
         mock_llm = _make_mock_llm(_make_llm_response_json(min_samples))
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             generate_scam_samples(
                 scenario="投資詐騙",
                 target_audience="年輕族群",
@@ -798,7 +798,7 @@ class TestProperty1SampleCountMinimum:
 
         mock_llm = _make_mock_llm(_make_llm_response_json(10))
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             generate_scam_samples(
                 scenario=scenario,
                 target_audience=audience,
@@ -914,7 +914,7 @@ class TestProperty2LLMErrorResponseStructure:
             mock_settings.llm_retry_backoff_multiplier = 1.0
             mock_settings.llm_retry_max_delay = 0.0
 
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 generate_scam_samples(
                     scenario="測試情境",
                     target_audience="測試受眾",

@@ -23,6 +23,35 @@ from langchain_openai import ChatOpenAI
 
 from app.config import get_settings
 
+# 確保 .env 已載入再取得設定（必須在 get_settings() 之前）
+from dotenv import load_dotenv
+load_dotenv()
+
+def _build_llm_client():
+    """根據 LLM_PROVIDER 設定建立對應的 LLM 客戶端"""
+    s = get_settings()
+    if s.llm_provider == "ollama":
+        # 使用本地 Ollama（OpenAI 相容 API）
+        return ChatOpenAI(
+            model=s.ollama_model,
+            base_url="http://localhost:11434/v1",
+            api_key="ollama",  # Ollama 不需要真實 key，但欄位不能空
+            temperature=0.9,
+        )
+    elif s.llm_provider == "google":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(
+            model=s.google_model,
+            google_api_key=s.google_api_key,
+            temperature=0.9,
+        )
+    else:
+        return ChatOpenAI(
+            model=s.openai_model,
+            api_key=s.openai_api_key,
+            temperature=0.9,
+        )
+
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
@@ -352,11 +381,7 @@ async def generate_scam_samples(
 
     # 建立 LLM 客戶端（若未提供）
     if llm_client is None:
-        llm_client = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            temperature=0.9,  # 較高溫度以增加多樣性
-        )
+        llm_client = _build_llm_client()
 
     # 建構 Prompt 訊息
     prompt_messages = [

@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.models.access_log import AccessLog, AUDIT_VALID_ACTIONS as VALID_ACTIONS
+from app.models.access_log import AccessLog, VALID_ACTIONS
 
 
 # ── 創世雜湊常數 ──────────────────────────────────────────────────────────────

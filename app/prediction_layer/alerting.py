@@ -14,9 +14,10 @@ from app.models.alert_event import AlertEvent, VALID_RISK_LEVELS
 
 logger = logging.getLogger(__name__)
 
-# 風險等級判斷閾值
-HIGH_RISK_THRESHOLD = 0.3    # 異常比例 >= 30% 為高風險
-MEDIUM_RISK_THRESHOLD = 0.1  # 異常比例 >= 10% 為中風險
+# 風險等級判斷閾值（基於異常向量比例）
+# 注意：此閾值基於「異常比例」，與 risk_vector.py 的「綜合風險分數」閾值不同
+HIGH_RISK_THRESHOLD = 0.3    # 異常比例 >= 30% 為高風險（異常比例維度）
+MEDIUM_RISK_THRESHOLD = 0.1  # 異常比例 >= 10% 為中風險（異常比例維度）
 
 
 def determine_risk_level(anomaly_ratio: float, trend_is_emerging: bool) -> str:

@@ -55,13 +55,13 @@ async def list_alerts(
     需求：3.2、5.1
     """
     service = get_alerting_service()
-    alerts = service.get_alerts(limit=limit)
+    alerts = service.get_alerts(limit=limit * 10)  # 多取一些供篩選後再限制
 
     # 套用風險等級篩選
     if risk_level:
         alerts = [a for a in alerts if a.risk_level == risk_level]
 
-    # 套用筆數上限（get_alerts 已限制，但篩選後需再次限制）
+    # 套用筆數上限
     alerts = alerts[:limit]
 
     return [

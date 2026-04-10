@@ -58,7 +58,8 @@ def calculate_risk_score(
     Returns:
         風險分數（0.0 ~ 1.0）
     """
-    # 基礎分數來自異常比例（最高 0.6）
+    # 基礎分數來自異常比例（anomaly_ratio >= 0.3 時達到上限 0.6）
+    # 乘以 2.0 使 30% 異常比例即可達到基礎分數上限，避免過度依賴單一指標
     base_score = min(anomaly_ratio * 2.0, 0.6)
 
     # 趨勢加成（最高 0.3）

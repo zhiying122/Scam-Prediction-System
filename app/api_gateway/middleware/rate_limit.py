@@ -222,19 +222,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_key = self._get_client_key(request)
         rate_limit = self._get_rate_limit(request)
 
-        # 記錄本次請求並取得當前視窗計數
-        current_count, oldest_timestamp = self.counter.add_request(client_key)
+        # 先檢查當前計數（不記錄本次請求），確保精確限制
+        pre_count = self.counter.get_count(client_key)
 
-        # 超過速率限制：回傳 HTTP 429
-        if current_count > rate_limit:
-            # 計算 Retry-After：距離最舊請求離開視窗的剩餘秒數
+        # 超過速率限制：回傳 HTTP 429（在記錄請求前檢查，避免多允許一次）
+        if pre_count >= rate_limit:
             now = time.time()
-            retry_after = max(1, int(oldest_timestamp + self.window_seconds - now) + 1)
+            # 估算 Retry-After：取最舊請求的時間戳，計算視窗何時重置
+            timestamps = self.counter._counters.get(client_key)
+            if timestamps:
+                oldest = timestamps[0]
+                retry_after = max(1, int(oldest + self.window_seconds - now))
+            else:
+                retry_after = max(1, self.window_seconds)
 
             logger.warning(
                 "速率限制超過 | 客戶端: %s | 當前計數: %d | 上限: %d | Retry-After: %d 秒",
                 client_key,
-                current_count,
+                pre_count,
                 rate_limit,
                 retry_after,
             )
@@ -253,9 +258,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "Retry-After": str(retry_after),
                     "X-RateLimit-Limit": str(rate_limit),
                     "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": str(int(oldest_timestamp + self.window_seconds)),
+                    "X-RateLimit-Reset": str(int(now + self.window_seconds)),
                 },
             )
+
+        # 記錄本次請求
+        current_count, oldest_timestamp = self.counter.add_request(client_key)
 
         # 在回應標頭附上速率限制資訊
         response = await call_next(request)

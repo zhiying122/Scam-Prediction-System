@@ -30,6 +30,9 @@ def _increment_version(version: str) -> str:
 
     Returns:
         遞增後的版本號（例如：1.1.0）
+
+    Raises:
+        ValueError: 若版本號格式不符合 X.Y.Z
     """
     try:
         parts = version.split(".")
@@ -38,7 +41,7 @@ def _increment_version(version: str) -> str:
             return f"{major}.{minor + 1}.{patch}"
     except (ValueError, IndexError):
         pass
-    return version + ".1"
+    raise ValueError(f"版本號格式不合法：'{version}'，期望格式為 X.Y.Z（例如：1.0.0）")
 
 
 class ModelVersionRepository:

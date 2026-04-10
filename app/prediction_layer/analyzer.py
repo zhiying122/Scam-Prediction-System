@@ -248,6 +248,11 @@ class PredictionAnalyzer:
         hourly_counts: dict[str, int] = defaultdict(int)
         for v in vectors_data:
             created_at = v.get("created_at")
+            if isinstance(created_at, str):
+                try:
+                    created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
             if isinstance(created_at, datetime):
                 hour_key = created_at.strftime("%Y-%m-%dT%H:00:00")
                 hourly_counts[hour_key] += 1

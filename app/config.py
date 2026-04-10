@@ -83,19 +83,20 @@ class Settings(BaseSettings):
     qdrant_vector_size: int = Field(default=384, description="語意向量維度（MiniLM 輸出）")
 
     # ── LLM API 設定 ──────────────────────────────────────────────────────────
-    llm_provider: Literal["openai", "google", "azure"] = Field(
+    llm_provider: Literal["openai", "google", "azure", "ollama"] = Field(
         default="openai", description="LLM 服務提供商"
     )
     openai_api_key: str = Field(default="", description="OpenAI API 金鑰")
     openai_model: str = Field(default="gpt-4o", description="OpenAI 模型名稱")
     google_api_key: str = Field(default="", description="Google Gemini API 金鑰")
-    google_model: str = Field(default="gemini-1.5-pro", description="Google 模型名稱")
+    google_model: str = Field(default="gemini-2.0-flash", description="Google 模型名稱")
     azure_openai_api_key: str = Field(default="", description="Azure OpenAI API 金鑰")
     azure_openai_endpoint: str = Field(default="", description="Azure OpenAI 端點 URL")
     azure_openai_deployment: str = Field(default="", description="Azure OpenAI 部署名稱")
+    ollama_model: str = Field(default="llama3.1:8b", description="Ollama 本地模型名稱")
 
     # LLM 呼叫參數
-    llm_timeout_seconds: int = Field(default=60, description="LLM API 呼叫逾時秒數")
+    llm_timeout_seconds: int = Field(default=300, description="LLM API 呼叫逾時秒數")
     llm_max_retries: int = Field(default=3, description="LLM API 最大重試次數")
     llm_retry_initial_delay: float = Field(default=1.0, description="重試初始延遲秒數")
     llm_retry_backoff_multiplier: float = Field(default=2.0, description="重試退避倍數")
@@ -141,4 +142,6 @@ def get_settings() -> Settings:
     使用 lru_cache 確保全域只有一個 Settings 實例，
     避免重複讀取環境變數。
     """
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     return Settings()
