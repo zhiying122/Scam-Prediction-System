@@ -1,340 +1,304 @@
 """
-全域 CSS 樣式注入模組
-
-提供暗色系科技感主題，包含：
-- 深色背景 + 霓虹藍/紅漸層
-- 卡片式 UI 元件
-- 動畫效果（脈衝、漸入）
-- 自訂 metric、button、sidebar 樣式
+ScamOracle 全域 CSS — 專業商務風
+參考：ceogo.com.tw 風格
+- 深綠頂部導覽列（logo 左、選單中、狀態右）
+- 米白/白色主體，無多餘空白
+- 卡片白底、細邊框、輕陰影
+- 所有文字清晰可讀
 """
 
 GLOBAL_CSS = """
 <style>
-/* ── 全域字體與背景 ─────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ── 基礎重置 ─────────────────────────────────────────────────────────────── */
 html, body, [class*="css"] {
-    font-family: 'Inter', 'Microsoft JhengHei', sans-serif;
+    font-family: 'Inter', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif !important;
 }
 
+/* ── 主背景 ──────────────────────────────────────────────────────────────── */
 .stApp {
-    background: linear-gradient(135deg, #0a0e1a 0%, #0d1b2a 50%, #0a0e1a 100%);
-    color: #e2e8f0;
+    background-color: #F5F4F0 !important;
+    color: #1a2332 !important;
 }
 
-/* ── 側邊欄 ─────────────────────────────────────────────────────────────── */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0d1b2a 0%, #0a1628 100%);
-    border-right: 1px solid rgba(0, 212, 255, 0.15);
-}
+/* ── 隱藏 Streamlit 預設元素 ─────────────────────────────────────────────── */
+#MainMenu { visibility: hidden !important; }
+footer { visibility: hidden !important; }
+header { visibility: hidden !important; }
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 
-[data-testid="stSidebar"] .stRadio label {
-    color: #94a3b8 !important;
-    transition: color 0.2s;
+/* ── 壓縮所有多餘空白 ────────────────────────────────────────────────────── */
+.main .block-container {
+    padding-top: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 2rem !important;
+    max-width: 100% !important;
 }
-
-[data-testid="stSidebar"] .stRadio label:hover {
-    color: #00d4ff !important;
+section[data-testid="stMain"] > div:first-child {
+    padding-top: 0 !important;
 }
+.stMarkdown { margin-bottom: 0 !important; }
+div[data-testid="stVerticalBlock"] > div { gap: 0 !important; }
 
-/* ── 標題樣式 ────────────────────────────────────────────────────────────── */
-h1 {
-    background: linear-gradient(90deg, #00d4ff, #7c3aed);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700 !important;
-    letter-spacing: -0.5px;
-}
-
-h2, h3 {
-    color: #e2e8f0 !important;
-    font-weight: 600 !important;
+/* ── 頁面內容區域 ────────────────────────────────────────────────────────── */
+.page-body {
+    padding: 24px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 /* ── Metric 卡片 ─────────────────────────────────────────────────────────── */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(124, 58, 237, 0.05));
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: 12px;
-    padding: 16px !important;
-    transition: border-color 0.3s, transform 0.2s;
+    background: white !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 10px !important;
+    padding: 16px 20px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    transition: box-shadow 0.2s !important;
 }
-
 [data-testid="stMetric"]:hover {
-    border-color: rgba(0, 212, 255, 0.5);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
 }
-
 [data-testid="stMetricLabel"] {
-    color: #94a3b8 !important;
-    font-size: 0.8rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #6B7280 !important;
+    font-size: 0.72rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    font-weight: 600 !important;
 }
-
 [data-testid="stMetricValue"] {
-    color: #00d4ff !important;
+    color: #14532d !important;
     font-weight: 700 !important;
-    font-size: 1.8rem !important;
+    font-size: 1.7rem !important;
 }
-
-[data-testid="stMetricDelta"] {
-    font-size: 0.85rem !important;
-}
+[data-testid="stMetricDelta"] { font-size: 0.8rem !important; }
 
 /* ── 按鈕 ────────────────────────────────────────────────────────────────── */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+    background: #166534 !important;
     color: white !important;
     border: none !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     font-weight: 600 !important;
-    letter-spacing: 0.3px;
-    transition: opacity 0.2s, transform 0.2s !important;
-    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+    font-size: 0.875rem !important;
+    box-shadow: 0 1px 4px rgba(22,101,52,0.2) !important;
+    transition: background 0.15s !important;
 }
-
 .stButton > button[kind="primary"]:hover {
-    opacity: 0.9 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4) !important;
+    background: #14532d !important;
 }
-
 .stButton > button:not([kind="primary"]) {
-    background: rgba(255, 255, 255, 0.05) !important;
-    color: #94a3b8 !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    transition: all 0.2s !important;
+    background: white !important;
+    color: #374151 !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 6px !important;
+    font-size: 0.875rem !important;
 }
-
 .stButton > button:not([kind="primary"]):hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: #e2e8f0 !important;
-    border-color: rgba(0, 212, 255, 0.3) !important;
+    border-color: #166534 !important;
+    color: #166534 !important;
 }
 
 /* ── 輸入框 ──────────────────────────────────────────────────────────────── */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea,
 .stSelectbox > div > div > div {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(0, 212, 255, 0.2) !important;
-    border-radius: 8px !important;
-    color: #e2e8f0 !important;
-    transition: border-color 0.2s;
+    background: white !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 6px !important;
+    color: #1a2332 !important;
+    font-size: 0.875rem !important;
 }
-
 .stTextInput > div > div > input:focus,
 .stTextArea > div > div > textarea:focus {
-    border-color: rgba(0, 212, 255, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1) !important;
+    border-color: #166534 !important;
+    box-shadow: 0 0 0 2px rgba(22,101,52,0.12) !important;
 }
 
 /* ── 進度條 ──────────────────────────────────────────────────────────────── */
 .stProgress > div > div > div > div {
-    background: linear-gradient(90deg, #00d4ff, #7c3aed) !important;
-    border-radius: 4px;
+    background: linear-gradient(90deg, #166534, #22c55e) !important;
 }
+.stProgress > div > div > div { background: #E5E7EB !important; }
 
-.stProgress > div > div > div {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-radius: 4px;
-}
-
-/* ── Alert / Info / Success / Warning / Error ────────────────────────────── */
-.stAlert {
-    border-radius: 10px !important;
-    border: none !important;
-}
-
-[data-testid="stNotification"] {
-    border-radius: 10px !important;
-}
-
+/* ── Alert ───────────────────────────────────────────────────────────────── */
 div[data-testid="stNotification"][kind="success"] {
-    background: rgba(16, 185, 129, 0.1) !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
-    color: #6ee7b7 !important;
+    background: #F0FDF4 !important; border: 1px solid #BBF7D0 !important;
+    color: #166534 !important; border-radius: 8px !important;
 }
-
 div[data-testid="stNotification"][kind="error"] {
-    background: rgba(239, 68, 68, 0.1) !important;
-    border: 1px solid rgba(239, 68, 68, 0.3) !important;
-    color: #fca5a5 !important;
+    background: #FEF2F2 !important; border: 1px solid #FECACA !important;
+    color: #991B1B !important; border-radius: 8px !important;
 }
-
 div[data-testid="stNotification"][kind="warning"] {
-    background: rgba(245, 158, 11, 0.1) !important;
-    border: 1px solid rgba(245, 158, 11, 0.3) !important;
-    color: #fcd34d !important;
+    background: #FFFBEB !important; border: 1px solid #FDE68A !important;
+    color: #92400E !important; border-radius: 8px !important;
 }
-
 div[data-testid="stNotification"][kind="info"] {
-    background: rgba(59, 130, 246, 0.1) !important;
-    border: 1px solid rgba(59, 130, 246, 0.3) !important;
-    color: #93c5fd !important;
+    background: #EFF6FF !important; border: 1px solid #BFDBFE !important;
+    color: #1E40AF !important; border-radius: 8px !important;
 }
 
 /* ── Expander ────────────────────────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(0, 212, 255, 0.15) !important;
+    background: white !important;
+    border: 1px solid #E5E7EB !important;
     border-radius: 8px !important;
-    color: #94a3b8 !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
 }
-
 .streamlit-expanderContent {
-    background: rgba(255, 255, 255, 0.02) !important;
-    border: 1px solid rgba(0, 212, 255, 0.1) !important;
+    background: #FAFAFA !important;
+    border: 1px solid #E5E7EB !important;
     border-top: none !important;
     border-radius: 0 0 8px 8px !important;
 }
 
-/* ── DataFrame / Table ───────────────────────────────────────────────────── */
+/* ── DataFrame ───────────────────────────────────────────────────────────── */
 .stDataFrame {
-    border: 1px solid rgba(0, 212, 255, 0.15) !important;
-    border-radius: 10px !important;
-    overflow: hidden;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    background: white !important;
 }
 
-/* ── Divider ─────────────────────────────────────────────────────────────── */
-hr {
-    border-color: rgba(0, 212, 255, 0.1) !important;
+/* ── 標題 ────────────────────────────────────────────────────────────────── */
+h1 {
+    color: #14532d !important;
+    font-weight: 700 !important;
+    -webkit-text-fill-color: #14532d !important;
+    background: none !important;
+    font-size: 1.6rem !important;
+    margin-bottom: 4px !important;
 }
-
-/* ── Caption / Small text ────────────────────────────────────────────────── */
-.stCaption, small, .caption {
-    color: #64748b !important;
+h2 {
+    color: #1a2332 !important;
+    font-weight: 600 !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 4px !important;
 }
-
-/* ── Checkbox ────────────────────────────────────────────────────────────── */
-.stCheckbox label {
-    color: #94a3b8 !important;
+h3 {
+    color: #374151 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
 }
+hr { border-color: #E5E7EB !important; margin: 1rem 0 !important; }
+.stCaption, small { color: #9CA3AF !important; font-size: 0.78rem !important; }
+.stCheckbox label { color: #374151 !important; font-size: 0.875rem !important; }
 
-/* ── Slider ──────────────────────────────────────────────────────────────── */
-.stSlider > div > div > div > div {
-    background: linear-gradient(90deg, #00d4ff, #7c3aed) !important;
+/* ── Column 等高對齊 ─────────────────────────────────────────────────────── */
+div[data-testid="stHorizontalBlock"] {
+    align-items: stretch !important;
 }
-
-/* ── Spinner ─────────────────────────────────────────────────────────────── */
-.stSpinner > div {
-    border-top-color: #00d4ff !important;
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+    display: flex !important;
+    flex-direction: column !important;
 }
-
-/* ── 自訂卡片元件 ────────────────────────────────────────────────────────── */
-.cyber-card {
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(124, 58, 237, 0.05));
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: 12px;
-    padding: 20px;
-    margin: 8px 0;
-    transition: border-color 0.3s, transform 0.2s;
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
+    flex: 1 !important;
+}
+.stSlider > div > div > div > div { background: #166534 !important; }
+.stSpinner > div { border-top-color: #166534 !important; }
 
-.cyber-card:hover {
-    border-color: rgba(0, 212, 255, 0.4);
+/* ── 功能卡片 ────────────────────────────────────────────────────────────── */
+.feature-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 24px 20px;
+    height: 100%;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+.feature-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     transform: translateY(-2px);
 }
+.feature-card-icon { display: none; }
+.feature-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #166534;
+    margin-bottom: 8px;
+}
+.feature-card-desc { font-size: 0.85rem; color: #6B7280; line-height: 1.6; }
 
-/* ── 脈衝動畫（用於警示） ────────────────────────────────────────────────── */
-@keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.3); }
-    50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+/* ── cyber-card 相容 ─────────────────────────────────────────────────────── */
+.cyber-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 6px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+.cyber-card:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
 }
 
-.alert-pulse {
-    animation: pulse-glow 2s infinite;
-}
-
-/* ── 漸入動畫 ────────────────────────────────────────────────────────────── */
+/* ── 動畫 ────────────────────────────────────────────────────────────────── */
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+.fade-in { animation: fadeInUp 0.35s ease-out; }
 
-.fade-in {
-    animation: fadeInUp 0.5s ease-out;
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 4px rgba(239,68,68,0.3); }
+    50% { box-shadow: 0 0 14px rgba(239,68,68,0.5); }
 }
+.alert-pulse { animation: pulse-glow 2s infinite; }
 
-/* ── 霓虹文字 ────────────────────────────────────────────────────────────── */
-.neon-text {
-    color: #00d4ff;
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-}
-
-.neon-red {
-    color: #ff4757;
-    text-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
-}
-
-/* ── 風險等級徽章 ────────────────────────────────────────────────────────── */
+/* ── 徽章 ────────────────────────────────────────────────────────────────── */
 .badge-high {
-    background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA;
+    padding: 2px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
-
 .badge-medium {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fcd34d;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A;
+    padding: 2px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
-
 .badge-low {
-    background: rgba(16, 185, 129, 0.15);
-    color: #6ee7b7;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0;
+    padding: 2px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
-
-/* ── 隱藏 Streamlit 預設元素 ─────────────────────────────────────────────── */
-#MainMenu { visibility: hidden; }
-footer { visibility: hidden; }
-header { visibility: hidden; }
-
-/* ── 主內容區域 ──────────────────────────────────────────────────────────── */
-.main .block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1200px;
-}
+.neon-text { color: #166534; font-weight: 600; }
+.neon-red { color: #DC2626; font-weight: 600; }
 </style>
 """
 
 
 def inject_css() -> None:
-    """注入全域 CSS 樣式到 Streamlit 頁面"""
     import streamlit as st
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 
 def card(content: str, glow: bool = False) -> str:
-    """生成卡片 HTML"""
     extra = ' alert-pulse' if glow else ''
     return f'<div class="cyber-card{extra} fade-in">{content}</div>'
 
 
 def badge(text: str, level: str = "medium") -> str:
-    """生成風險等級徽章 HTML"""
     cls = {"高": "badge-high", "中": "badge-medium", "低": "badge-low"}.get(level, "badge-medium")
     return f'<span class="{cls}">{text}</span>'
 
 
 def neon(text: str, color: str = "blue") -> str:
-    """生成霓虹文字 HTML"""
     cls = "neon-red" if color == "red" else "neon-text"
     return f'<span class="{cls}">{text}</span>'

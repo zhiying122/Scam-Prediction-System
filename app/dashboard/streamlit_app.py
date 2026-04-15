@@ -1,69 +1,26 @@
 """
-詐騙預測系統 — Streamlit 主儀表板
-
-多頁面儀表板，提供以下功能：
-  頁面 1：熱詞排行榜
-  頁面 2：XAI 話術分析
-  頁面 3：沙盤推演
-  頁面 4：受害風險地圖
-
-啟動指令：streamlit run app/dashboard/streamlit_app.py
+ScamOracle — AI 詐騙進化預測系統
+啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
 import streamlit as st
 from datetime import datetime
 from dotenv import load_dotenv
-from app.dashboard.styles import inject_css
+import os
 
-# 載入 .env 檔案（必須在所有 os.environ 讀取之前）
 load_dotenv()
 
-# ── 頁面設定 ──────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="ScamOracle — 詐騙預測系統",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# 注入全域 CSS（必須在 set_page_config 之後）
+from app.dashboard.styles import inject_css
 inject_css()
 
-# ── 側邊欄頁面選擇 ────────────────────────────────────────────────────────────
-st.sidebar.markdown("""
-<div style="text-align:center;padding:10px 0 20px;">
-    <div style="font-size:2.5rem;">🛡️</div>
-    <div style="font-size:1.1rem;font-weight:700;background:linear-gradient(90deg,#00d4ff,#7c3aed);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-    ScamOracle</div>
-    <div style="font-size:0.7rem;color:#64748b;letter-spacing:1px;text-transform:uppercase;">
-    AI 詐騙進化預測系統</div>
-</div>
-""", unsafe_allow_html=True)
-
-PAGES = {
-    "🏠 系統總覽": "overview",
-    "🚨 即時威脅監控": "threat_monitor",
-    "💬 詐騙對話模擬器": "simulator",
-    "🧬 話術 DNA 圖譜": "dna_map",
-    "📅 話術進化時間軸": "evolution",
-    "🎯 詐騙免疫訓練": "training",
-    "🤖 LLM 話術生成": "llm_demo",
-    "🔍 XAI 話術分析": "xai",
-    "🔥 熱詞排行榜": "hotwords",
-    "🧪 沙盤推演": "sandbox",
-    "🗺️ 受害風險地圖": "risk_map",
-    "📊 模型準確率評估": "evaluation",
-}
-
-selected_page = st.sidebar.radio("選擇頁面", list(PAGES.keys()))
-page_key = PAGES[selected_page]
-
-st.sidebar.markdown("---")
-st.sidebar.caption(f"系統時間：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
-# ── LLM 設定狀態（從環境變數讀取，不在前端暴露）────────────────────────────
-import os
+# ── LLM 設定（從環境變數讀取）────────────────────────────────────────────────
 _provider = os.environ.get("LLM_PROVIDER", "openai").lower()
 _openai_key = os.environ.get("OPENAI_API_KEY", "")
 _google_key = os.environ.get("GOOGLE_API_KEY", "")
@@ -82,25 +39,16 @@ elif _openai_key and _openai_key != "sk-your-openai-api-key-here":
     st.session_state["llm_provider"] = "openai"
     _llm_ready = True
 
-if _llm_ready:
-    provider_label = {"ollama": "Ollama (本地)", "google": "Gemini", "openai": "OpenAI"}.get(
-        st.session_state.get("llm_provider", "openai"), "OpenAI"
-    )
-    st.sidebar.success(f"✅ LLM API 已就緒（{provider_label}）")
-else:
-    st.sidebar.warning("⚠️ 未設定 LLM API Key\n請在 .env 檔案中設定")
-
-# ── 快取管理器（全域共用）────────────────────────────────────────────────────
-from app.dashboard.pages.cache import DashboardCache, format_cache_status
+# ── 快取管理器 ────────────────────────────────────────────────────────────────
+from app.dashboard.page_modules.cache import DashboardCache, format_cache_status
 
 @st.cache_resource
 def get_cache() -> DashboardCache:
-    """取得全域快取管理器（Streamlit session 共用）"""
     return DashboardCache()
 
 cache = get_cache()
 
-# ── 真實資料（來源：165 反詐騙專線統計、警政署報告）────────────────────────
+# ── 真實資料 ──────────────────────────────────────────────────────────────────
 import sys
 import os as _os
 sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..', '..'))
@@ -110,17 +58,13 @@ from data.taiwan_scam_data import (
     MODEL_PERFORMANCE, ANNUAL_STATS,
 )
 
-# 熱詞資料（真實統計）
 MOCK_KEYWORD_FREQ = REAL_HOTWORDS
-
-# 風險向量資料（基於真實案件統計計算）
 total_cases = sum(TAIWAN_SCAM_CASES_BY_REGION.values())
 MOCK_RISK_VECTORS: list[dict] = []
 for scam_type, stats in SCAM_TYPE_STATS.items():
     risk_score = min(0.95, stats["cases"] / 20000 + stats["avg_loss_ntd"] / 2000000)
     audience = "中老年族群" if scam_type in ["假冒銀行客服", "假冒政府機關"] else \
                "年輕族群" if scam_type in ["投資詐騙", "購物詐騙"] else "一般民眾"
-    # 找案件最多的縣市
     top_region = max(TAIWAN_SCAM_CASES_BY_REGION, key=lambda k: TAIWAN_SCAM_CASES_BY_REGION[k])
     MOCK_RISK_VECTORS.append({
         "scam_cluster_label": scam_type,
@@ -134,7 +78,6 @@ for scam_type, stats in SCAM_TYPE_STATS.items():
 
 
 def show_cache_warning(is_from_cache: bool, cached_at) -> None:
-    """若使用快取資料，顯示警告橫幅"""
     status_msg = format_cache_status(is_from_cache, cached_at)
     if is_from_cache:
         st.warning(status_msg)
@@ -142,10 +85,284 @@ def show_cache_warning(is_from_cache: bool, cached_at) -> None:
         st.success(status_msg)
 
 
+# ── 導覽選單定義 ──────────────────────────────────────────────────────────────
+NAV_ITEMS = [
+    ("", "首頁", "home"),
+    ("", "威脅監控", "threat_monitor"),
+    ("", "對話模擬器", "simulator"),
+    ("", "DNA 圖譜", "dna_map"),
+    ("", "進化時間軸", "evolution"),
+    ("", "免疫訓練", "training"),
+    ("", "LLM 生成", "llm_demo"),
+    ("", "XAI 分析", "xai"),
+    ("", "熱詞排行", "hotwords"),
+    ("", "沙盤推演", "sandbox"),
+    ("", "風險地圖", "risk_map"),
+    ("", "模型評估", "evaluation"),
+]
+
+PAGE_TITLES = {
+    "home": ("首頁", ""),
+    "threat_monitor": ("即時威脅監控", "模擬 SOC 安全操作中心，即時監控台灣詐騙威脅態勢"),
+    "simulator": ("詐騙對話模擬器", "與 AI 扮演的詐騙犯對話，練習識破詐騙手法"),
+    "dna_map": ("話術 DNA 圖譜", "各詐騙類型的心理操控特徵分布與相互關聯"),
+    "evolution": ("話術進化時間軸", "追蹤詐騙話術從 2021 到 2024 的演化歷程"),
+    "training": ("詐騙免疫訓練", "互動式防詐訓練，通過測驗獲得防詐免疫證書"),
+    "llm_demo": ("LLM 話術生成", "呼叫 GPT-4o 生成多種變形話術並進行 XAI 分析"),
+    "xai": ("XAI 話術分析", "可解釋性 AI 高亮顯示詐騙話術的心理操控特徵"),
+    "hotwords": ("熱詞排行榜", "詐騙話術中出現頻率最高的關鍵詞統計"),
+    "sandbox": ("沙盤推演", "模擬不同詐騙情境的風險評估與預測"),
+    "risk_map": ("受害風險地圖", "依年齡層與地區呈現詐騙受害風險指數"),
+    "evaluation": ("模型準確率評估", "AI 模型在各詐騙類型上的分類準確率評估"),
+}
+
+# ── 讀取 query params 決定當前頁面 ───────────────────────────────────────────
+params = st.query_params
+page_key = params.get("page", "home")
+valid_keys = {k for _, _, k in NAV_ITEMS}
+if page_key not in valid_keys:
+    page_key = "home"
+
+# ── LLM 狀態文字 ─────────────────────────────────────────────────────────────
+if _llm_ready:
+    provider_label = {"ollama": "Ollama", "google": "Gemini", "openai": "OpenAI"}.get(
+        st.session_state.get("llm_provider", "openai"), "OpenAI"
+    )
+    llm_status_html = f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">● LLM: {provider_label}</span>'
+else:
+    llm_status_html = '<span style="color:#fcd34d;font-size:0.72rem;font-weight:600;">⚠ 未設定 LLM</span>'
+
+# ── 建立導覽選單 HTML ─────────────────────────────────────────────────────────
+nav_items_html = ""
+for _icon, _label, _key in NAV_ITEMS:
+    _is_active = (page_key == _key)
+    _active_cls = "nav-active" if _is_active else ""
+    nav_items_html += f'<a href="?page={_key}" class="nav-item {_active_cls}">{_label}</a>'
+
+st.markdown(f"""
+<style>
+.top-bar {{
+    background: linear-gradient(135deg, #14532d 0%, #166534 100%);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}}
+.top-bar-logo {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none !important;
+}}
+.top-bar-logo-text {{
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+}}
+.top-bar-logo-sub {{
+    color: rgba(255,255,255,0.6);
+    font-size: 0.62rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}}
+.top-bar-right {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.7);
+}}
+.status-dot {{
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #86efac;
+    display: inline-block;
+    margin-right: 4px;
+}}
+.nav-bar {{
+    background: #166534;
+    padding: 0 32px;
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    overflow-x: auto;
+    margin-bottom: 0;
+}}
+.nav-item {{
+    color: rgba(255,255,255,0.85) !important;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 11px 16px;
+    text-decoration: none !important;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}}
+.nav-item:hover {{
+    background: rgba(255,255,255,0.1);
+    color: white !important;
+    text-decoration: none !important;
+}}
+.nav-active {{
+    color: white !important;
+    font-weight: 700;
+    border-bottom: 2px solid white;
+    background: rgba(255,255,255,0.12);
+}}
+.main .block-container {{
+    padding-top: 0 !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+    max-width: 100% !important;
+}}
+section[data-testid="stMain"] > div {{
+    padding-top: 0 !important;
+}}
+</style>
+<div class="top-bar">
+    <a href="?page=home" class="top-bar-logo">
+        <span style="font-size:1.5rem;line-height:1;">🛡️</span>
+        <div>
+            <div class="top-bar-logo-text">ScamOracle</div>
+            <div class="top-bar-logo-sub">AI 詐騙進化預測系統</div>
+        </div>
+    </a>
+    <div class="top-bar-right">
+        <span><span class="status-dot"></span>系統運行中</span>
+        <span style="color:rgba(255,255,255,0.3);">|</span>
+        {llm_status_html}
+    </div>
+</div>
+<div class="nav-bar">
+    {nav_items_html}
+</div>
+""", unsafe_allow_html=True)
+
+# ── 麵包屑（非首頁才顯示）────────────────────────────────────────────────────
+if page_key != "home":
+    _title, _desc = PAGE_TITLES.get(page_key, (page_key, ""))
+    st.markdown(f"""
+    <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
+    font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
+        <a href="?page=home" style="color:#166534;text-decoration:none;">🏠 首頁</a>
+        <span style="color:#D1D5DB;">›</span>
+        <span style="color:#374151;font-weight:500;">{_title}</span>
+    </div>
+    <div style="background:white;border-bottom:1px solid #E5E7EB;padding:16px 32px 14px;">
+        <div style="font-size:1.25rem;font-weight:700;color:#14532d;">{_title}</div>
+        {("<div style='color:#6B7280;font-size:0.875rem;margin-top:3px;'>" + _desc + "</div>") if _desc else ""}
+    </div>
+    """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 首頁：介紹頁面
+# ══════════════════════════════════════════════════════════════════════════════
+if page_key == "home":
+    import pandas as pd
+
+    # Hero 區塊
+    st.markdown("""
+    <div class="hero-section fade-in">
+        <div class="hero-badge">AI-POWERED ANTI-SCAM INTELLIGENCE</div>
+        <div class="hero-title">🛡️ ScamOracle</div>
+        <div class="hero-subtitle">
+            從被動防禦到主動預測<br>
+            運用生成式 AI 構築下一代防詐護城河
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 統計數字
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("2023 年詐騙案件", "83,000 件", "↑ 27% vs 2022")
+    col2.metric("年度損失金額", "88.2 億元", "↑ 28% vs 2022")
+    col3.metric("XAI 分類準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "↑ 規則式基準")
+    col4.metric("預警提前時間", "24 小時", "↓ 傳統需 14 天")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 系統功能")
+
+    # 功能卡片 — 用單一 CSS Grid 確保同排等高
+    st.markdown("""
+    <style>
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: 1fr;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+    .feature-grid .feature-card {
+        margin: 0;
+        height: auto;
+        min-height: unset;
+    }
+    </style>
+    <div class="feature-grid fade-in">
+        <div class="feature-card">
+            <div class="feature-card-title">LLM 話術裂變生成</div>
+            <div class="feature-card-desc">GPT-4o / Gemini / Llama 驅動，從種子情境自動生成數百種詐騙變種話術</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-title">XAI 可解釋性分析</div>
+            <div class="feature-card-desc">高亮顯示觸發心理操控特徵的具體片段，非黑盒子，每個判斷都有依據</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-title">免疫訓練平台</div>
+            <div class="feature-card-desc">互動式防詐訓練，體驗真實詐騙話術，通過測驗獲得防詐免疫證書</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-title">異常偵測預警</div>
+            <div class="feature-card-desc">Isolation Forest 時間序列分析，24 小時內偵測新興詐騙手法趨勢</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-title">受害風險地圖</div>
+            <div class="feature-card-desc">依年齡層與地區呈現風險指數，精準定位高風險族群與地區</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-title">Risk Vector API</div>
+            <div class="feature-card-desc">標準化風險向量 API，可串接銀行、電信商、保險公司即時防詐系統</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 台灣詐騙現況（資料來源：警政署 165 專線）")
+
+    scam_df = pd.DataFrame([
+        {"詐騙類型": k, "2023年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
+        for k, v in sorted(SCAM_TYPE_STATS.items(), key=lambda x: x[1]['cases'], reverse=True)
+    ])
+    st.dataframe(scam_df, use_container_width=True, hide_index=True)
+
+    st.markdown("""
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
+    padding:20px;text-align:center;margin-top:24px;">
+        <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
+        ScamOracle 的使命</div>
+        <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
+        在詐騙話術出現之前就預測它 — 讓防詐從被動應對變成主動預防
+        </div>
+        <div style="color:#6B7280;font-size:0.82rem;margin-top:8px;">
+        情境種子 → LLM 裂變 → NLP 萃取 → XAI 高亮 → 異常偵測 → Risk Vector → API 串接金融機構
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 頁面 0：系統總覽
 # ══════════════════════════════════════════════════════════════════════════════
-if page_key == "overview":
+elif page_key == "overview":
     st.markdown("""
     <div class="fade-in" style="text-align:center;padding:20px 0 10px;">
         <div style="font-size:1rem;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">
@@ -399,7 +616,7 @@ elif page_key == "llm_demo":
 elif page_key == "threat_monitor":
     import time
     import pandas as pd
-    from app.dashboard.pages.threat_monitor import (
+    from app.dashboard.page_modules.threat_monitor import (
         get_current_threat_summary, generate_live_alerts, THREAT_LEVELS, EVOLUTION_TIMELINE
     )
 
@@ -481,7 +698,7 @@ elif page_key == "threat_monitor":
 # 頁面：詐騙對話模擬器
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "simulator":
-    from app.dashboard.pages.scam_simulator import (
+    from app.dashboard.page_modules.scam_simulator import (
         SIMULATOR_SCENARIOS, SimulatorSession,
         build_simulator_prompt, analyze_user_response, SCAM_BUSTING_TIPS
     )
@@ -670,7 +887,7 @@ elif page_key == "simulator":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "dna_map":
     import pandas as pd
-    from app.dashboard.pages.dna_map import (
+    from app.dashboard.page_modules.dna_map import (
         build_similarity_matrix, get_bubble_positions,
         get_top_similar_pairs, SCAM_TYPE_VECTORS, SCAM_TYPE_KEYWORDS,
         SCAM_DANGER_LEVEL, SCAM_CASE_COUNT
@@ -768,7 +985,7 @@ elif page_key == "dna_map":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "evolution":
     import pandas as pd
-    from app.dashboard.pages.threat_monitor import EVOLUTION_TIMELINE
+    from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
     st.title("📅 詐騙話術進化時間軸")
     st.markdown("追蹤詐騙話術從 2021 到 2024 的演化歷程，揭示詐騙犯如何隨技術進步升級手法。")
@@ -853,7 +1070,7 @@ elif page_key == "training":
     st.title("🎯 詐騙免疫訓練")
     st.markdown("透過真實詐騙話術練習，提升你的防詐識別能力，完成訓練後獲得防詐免疫證書。")
 
-    from app.dashboard.pages.training import (
+    from app.dashboard.page_modules.training import (
         DIFFICULTY_LEVELS, SCAM_TYPES, TAG_EXPLANATIONS,
         TrainingSession, TrainingQuestion,
         build_training_prompt, evaluate_answer, generate_certificate_html,
@@ -1127,7 +1344,7 @@ elif page_key == "hotwords":
     st.title("🔥 熱詞排行榜")
     st.markdown("顯示近期詐騙話術中出現頻率最高的關鍵詞，每 24 小時自動更新。")
 
-    from app.dashboard.pages.hotwords import compute_hotword_ranking, get_hotword_page_data
+    from app.dashboard.page_modules.hotwords import compute_hotword_ranking, get_hotword_page_data
 
     def fetch_hotword_data():
         """從後端取得熱詞資料（示範：直接使用 mock 資料）"""
@@ -1302,7 +1519,7 @@ elif page_key == "sandbox":
     st.title("🧪 沙盤推演")
     st.markdown("設定詐騙情境參數，模擬預測可能出現的詐騙變種特徵與風險等級。")
 
-    from app.dashboard.pages.sandbox import (
+    from app.dashboard.page_modules.sandbox import (
         SandboxParams, run_sandbox_simulation,
         VALID_SCENARIO_TYPES, VALID_TARGET_AUDIENCES,
     )
@@ -1378,7 +1595,7 @@ elif page_key == "risk_map":
     st.title("🗺️ 受害風險地圖")
     st.markdown("依年齡層與地區維度呈現受害風險指數，資料來源為預測層輸出的風險向量。")
 
-    from app.dashboard.pages.risk_map import build_risk_map, get_risk_map_summary, VALID_REGIONS, VALID_AGE_GROUPS
+    from app.dashboard.page_modules.risk_map import build_risk_map, get_risk_map_summary, VALID_REGIONS, VALID_AGE_GROUPS
     import pandas as pd
 
     # 篩選選項
