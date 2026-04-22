@@ -29,6 +29,9 @@ load_dotenv()
 
 def _build_llm_client():
     """根據 LLM_PROVIDER 設定建立對應的 LLM 客戶端"""
+    # 清除快取確保讀到最新 .env
+    get_settings.cache_clear()
+    load_dotenv(override=True)
     s = get_settings()
     if s.llm_provider == "ollama":
         # 使用本地 Ollama（OpenAI 相容 API）

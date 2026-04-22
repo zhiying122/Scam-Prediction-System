@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     azure_openai_api_key: str = Field(default="", description="Azure OpenAI API 金鑰")
     azure_openai_endpoint: str = Field(default="", description="Azure OpenAI 端點 URL")
     azure_openai_deployment: str = Field(default="", description="Azure OpenAI 部署名稱")
-    ollama_model: str = Field(default="llama3.1:8b", description="Ollama 本地模型名稱")
+    ollama_model: str = Field(default="llama3.2", description="Ollama 本地模型名稱")
 
     # LLM 呼叫參數
     llm_timeout_seconds: int = Field(default=300, description="LLM API 呼叫逾時秒數")

@@ -392,7 +392,7 @@ if page_key == "home":
         <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
         AEGIS CORE 的使命</div>
         <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
-        在詐騙話術出現之前就預測它 — 讓防詐從被動應對變成主動預防
+        透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
         <div style="color:#6B7280;font-size:0.82rem;margin-top:8px;">
         情境種子 → LLM 裂變 → NLP 萃取 → XAI 高亮 → 異常偵測 → Risk Vector → API 串接金融機構
@@ -514,7 +514,7 @@ elif page_key == "overview":
         <div style="color:#991B1B;font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;">
         AEGIS CORE 的使命</div>
         <div style="color:#1a2332;font-size:1rem;margin-top:8px;">
-        在詐騙話術出現之前就預測它 — 讓防詐從被動應對變成主動預防
+        透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -525,7 +525,7 @@ elif page_key == "overview":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "llm_demo":
     st.title("LLM 話術生成 Demo")
-    st.markdown("輸入基礎詐騙情境，呼叫 GPT-4o 生成多種變形話術，並即時進行 XAI 分析。")
+    st.markdown("輸入基礎詐騙情境，呼叫 LLM 生成多種變形話術，並即時進行 XAI 分析。")
 
     import json
     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
@@ -540,8 +540,9 @@ elif page_key == "llm_demo":
     }
 
     has_api_key = bool(st.session_state.get("openai_api_key"))
+    _current_provider = st.session_state.get("llm_provider", "openai")
     if not has_api_key:
-        st.warning("請在左側側邊欄輸入 OpenAI API Key 以啟用真實 LLM 生成。未設定時將使用示範資料。")
+        st.warning("未偵測到 LLM 設定，將使用示範資料。請在 .env 設定 LLM_PROVIDER。")
 
     with st.form("llm_form"):
         col1, col2 = st.columns(2)
@@ -564,11 +565,12 @@ elif page_key == "llm_demo":
     if submitted:
         if has_api_key:
             # 真實 LLM 呼叫
-            with st.spinner("正在呼叫 GPT-4o 生成話術..."):
+            with st.spinner(f"正在呼叫 {_current_provider.capitalize()} 生成話術..."):
                 try:
                     import asyncio
                     import os
-                    os.environ["OPENAI_API_KEY"] = st.session_state["openai_api_key"]
+                    if _current_provider != "ollama":
+                        os.environ["OPENAI_API_KEY"] = st.session_state["openai_api_key"]
 
                     from app.scam_engine.generator import generate_scam_samples
                     result = asyncio.run(generate_scam_samples(
@@ -582,7 +584,7 @@ elif page_key == "llm_demo":
                         samples = []
                     else:
                         samples = result.get("samples", [])
-                        st.success(f"成功生成 {len(samples)} 個話術樣本（真實 GPT-4o 輸出）")
+                        st.success(f"成功生成 {len(samples)} 個話術樣本（{_current_provider.capitalize()} 輸出）")
                 except Exception as e:
                     st.error(f"呼叫失敗：{e}")
                     samples = []
