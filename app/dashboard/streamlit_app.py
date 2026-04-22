@@ -166,7 +166,7 @@ st.markdown(f"""
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 92px;
+    height: 100px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }}
 .top-bar-logo {{
@@ -177,7 +177,7 @@ st.markdown(f"""
     margin-left: 0;
 }}
 .top-bar-logo img {{
-    margin-right: 6px;
+    margin-right: -20px;
 }}
 .top-bar-logo-text {{
     color: white;
@@ -187,6 +187,7 @@ st.markdown(f"""
     letter-spacing: 2.5px;
     line-height: 1.2;
     text-transform: uppercase;
+    margin-left: -2px;
 }}
 .top-bar-logo-sub {{
     color: rgba(255,255,255,0.6);
@@ -257,7 +258,7 @@ section[data-testid="stMain"] > div {{
 </style>
 <div class="top-bar">
     <a href="?page=home" class="top-bar-logo">
-        <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:80px;width:auto;">
+        <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:90px;width:auto;">
         <div>
             <div class="top-bar-logo-text">AEGIS CORE</div>
             <div class="top-bar-logo-sub">AI 詐騙進化預測系統</div>
@@ -299,13 +300,20 @@ if page_key == "home":
     # Hero 區塊
     st.markdown("""
     <div class="hero-section fade-in">
-        <div class="hero-badge">AI-POWERED ANTI-SCAM INTELLIGENCE</div>
-        <div class="hero-title">ScamOracle</div>
-        <div class="hero-subtitle">
-            從被動防禦到主動預測<br>
-            運用生成式 AI 構築下一代防詐護城河
+        <div style="overflow:hidden;white-space:nowrap;width:100%;">
+            <div style="display:inline-block;animation:marquee 20s linear infinite;
+            color:#1a2332;font-size:0.85rem;letter-spacing:1px;">
+                系統提醒：預測結果僅供參考。詐騙手法日新月異，AI 技術雖能提升防禦力，但您的警覺心仍是最後一道關鍵防線。若遇到疑似詐騙情境，請務必秉持「不聽、不信、不點擊」原則，並即刻撥打 165 反詐騙專線求證。 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                系統提醒：預測結果僅供參考。詐騙手法日新月異，AI 技術雖能提升防禦力，但您的警覺心仍是最後一道關鍵防線。若遇到疑似詐騙情境，請務必秉持「不聽、不信、不點擊」原則，並即刻撥打 165 反詐騙專線求證。 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </div>
         </div>
     </div>
+    <style>
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    </style>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
