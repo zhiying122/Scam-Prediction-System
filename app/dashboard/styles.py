@@ -10,6 +10,7 @@ ScamOracle 全域 CSS — 專業商務風
 GLOBAL_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&display=swap');
 
 /* ── 基礎重置 ─────────────────────────────────────────────────────────────── */
 html, body, [class*="css"] {

@@ -12,7 +12,7 @@ load_dotenv()
 
 st.set_page_config(
     page_title="ScamOracle — 詐騙預測系統",
-    page_icon="🛡️",
+    page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -22,21 +22,30 @@ inject_css()
 
 # ── LLM 設定（從環境變數讀取）────────────────────────────────────────────────
 _provider = os.environ.get("LLM_PROVIDER", "openai").lower()
+_fallback = os.environ.get("LLM_FALLBACK", "").lower()
 _openai_key = os.environ.get("OPENAI_API_KEY", "")
 _google_key = os.environ.get("GOOGLE_API_KEY", "")
 
 _llm_ready = False
-if _provider == "ollama":
-    st.session_state["openai_api_key"] = "ollama"
-    st.session_state["llm_provider"] = "ollama"
+
+# 優先嘗試主要 provider
+if _provider == "openai" and _openai_key and _openai_key != "sk-your-openai-api-key-here":
+    st.session_state["openai_api_key"] = _openai_key
+    st.session_state["llm_provider"] = "openai"
     _llm_ready = True
 elif _provider == "google" and _google_key and _google_key != "your-google-api-key-here":
     st.session_state["openai_api_key"] = _google_key
     st.session_state["llm_provider"] = "google"
     _llm_ready = True
-elif _openai_key and _openai_key != "sk-your-openai-api-key-here":
-    st.session_state["openai_api_key"] = _openai_key
-    st.session_state["llm_provider"] = "openai"
+elif _provider == "ollama":
+    st.session_state["openai_api_key"] = "ollama"
+    st.session_state["llm_provider"] = "ollama"
+    _llm_ready = True
+
+# 主要 provider 不可用時，fallback 到備案
+if not _llm_ready and _fallback == "ollama":
+    st.session_state["openai_api_key"] = "ollama"
+    st.session_state["llm_provider"] = "ollama"
     _llm_ready = True
 
 # ── 快取管理器 ────────────────────────────────────────────────────────────────
@@ -139,34 +148,52 @@ for _icon, _label, _key in NAV_ITEMS:
     _active_cls = "nav-active" if _is_active else ""
     nav_items_html += f'<a href="?page={_key}" class="nav-item {_active_cls}">{_label}</a>'
 
+# ── 讀取 Logo 圖片（base64）──────────────────────────────────────────────────
+import base64
+import pathlib
+
+_logo_path = pathlib.Path(__file__).parent / "static" / "logo.png"
+if _logo_path.exists():
+    logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
+else:
+    logo_b64 = ""
+
 st.markdown(f"""
 <style>
 .top-bar {{
     background: linear-gradient(135deg, #14532d 0%, #166534 100%);
-    padding: 0 32px;
+    padding: 0 32px 0 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 56px;
+    height: 92px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }}
 .top-bar-logo {{
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0;
     text-decoration: none !important;
+    margin-left: 0;
+}}
+.top-bar-logo img {{
+    margin-right: 6px;
 }}
 .top-bar-logo-text {{
     color: white;
-    font-size: 1.1rem;
+    font-family: 'Orbitron', 'Rajdhani', monospace;
+    font-size: 1.35rem;
     font-weight: 700;
+    letter-spacing: 2.5px;
     line-height: 1.2;
+    text-transform: uppercase;
 }}
 .top-bar-logo-sub {{
     color: rgba(255,255,255,0.6);
-    font-size: 0.62rem;
-    letter-spacing: 0.8px;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
     text-transform: uppercase;
+    margin-top: 2px;
 }}
 .top-bar-right {{
     display: flex;
@@ -217,20 +244,22 @@ st.markdown(f"""
 }}
 .main .block-container {{
     padding-top: 0 !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     padding-bottom: 1.5rem !important;
     max-width: 100% !important;
 }}
 section[data-testid="stMain"] > div {{
     padding-top: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
 }}
 </style>
 <div class="top-bar">
     <a href="?page=home" class="top-bar-logo">
-        <span style="font-size:1.5rem;line-height:1;">🛡️</span>
+        <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:80px;width:auto;">
         <div>
-            <div class="top-bar-logo-text">ScamOracle</div>
+            <div class="top-bar-logo-text">AEGIS CORE</div>
             <div class="top-bar-logo-sub">AI 詐騙進化預測系統</div>
         </div>
     </a>
@@ -271,7 +300,7 @@ if page_key == "home":
     st.markdown("""
     <div class="hero-section fade-in">
         <div class="hero-badge">AI-POWERED ANTI-SCAM INTELLIGENCE</div>
-        <div class="hero-title">🛡️ ScamOracle</div>
+        <div class="hero-title">ScamOracle</div>
         <div class="hero-subtitle">
             從被動防禦到主動預測<br>
             運用生成式 AI 構築下一代防詐護城河
