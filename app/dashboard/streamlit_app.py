@@ -1,5 +1,5 @@
 """
-ScamOracle — AI 詐騙進化預測系統
+AEGIS CORE — AI 詐騙進化預測系統
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
@@ -11,7 +11,7 @@ import os
 load_dotenv()
 
 st.set_page_config(
-    page_title="ScamOracle — 詐騙預測系統",
+    page_title="AEGIS CORE — 詐騙預測系統",
     page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -139,7 +139,7 @@ if _llm_ready:
     )
     llm_status_html = f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">● LLM: {provider_label}</span>'
 else:
-    llm_status_html = '<span style="color:#fcd34d;font-size:0.72rem;font-weight:600;">⚠ 未設定 LLM</span>'
+    llm_status_html = '<span style="color:#92400E;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
 # ── 建立導覽選單 HTML ─────────────────────────────────────────────────────────
 nav_items_html = ""
@@ -166,7 +166,7 @@ st.markdown(f"""
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 100px;
+    height: 90px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }}
 .top-bar-logo {{
@@ -177,12 +177,12 @@ st.markdown(f"""
     margin-left: 0;
 }}
 .top-bar-logo img {{
-    margin-right: -20px;
+    margin-right: -30px;
 }}
 .top-bar-logo-text {{
     color: white;
     font-family: 'Orbitron', 'Rajdhani', monospace;
-    font-size: 1.35rem;
+    font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 2.5px;
     line-height: 1.2;
@@ -243,6 +243,10 @@ st.markdown(f"""
     border-bottom: 2px solid white;
     background: rgba(255,255,255,0.12);
 }}
+@keyframes soft-glow {{
+    0%, 100% {{ opacity: 0.3; transform: scale(0.9); }}
+    50% {{ opacity: 0.7; transform: scale(1.1); }}
+}}
 .main .block-container {{
     padding-top: 0 !important;
     padding-left: 0 !important;
@@ -258,7 +262,12 @@ section[data-testid="stMain"] > div {{
 </style>
 <div class="top-bar">
     <a href="?page=home" class="top-bar-logo">
-        <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:90px;width:auto;">
+        <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;width:50px;height:50px;border-radius:50%;
+            background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
+            filter:blur(6px);animation:soft-glow 3s ease-in-out infinite;"></div>
+            <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:100px;width:auto;position:relative;z-index:1;">
+        </div>
         <div>
             <div class="top-bar-logo-text">AEGIS CORE</div>
             <div class="top-bar-logo-sub">AI 詐騙進化預測系統</div>
@@ -281,13 +290,9 @@ if page_key != "home":
     st.markdown(f"""
     <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
     font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
-        <a href="?page=home" style="color:#166534;text-decoration:none;">🏠 首頁</a>
+        <a href="?page=home" style="color:#166534;text-decoration:none;">首頁</a>
         <span style="color:#D1D5DB;">›</span>
         <span style="color:#374151;font-weight:500;">{_title}</span>
-    </div>
-    <div style="background:white;border-bottom:1px solid #E5E7EB;padding:16px 32px 14px;">
-        <div style="font-size:1.25rem;font-weight:700;color:#14532d;">{_title}</div>
-        {("<div style='color:#6B7280;font-size:0.875rem;margin-top:3px;'>" + _desc + "</div>") if _desc else ""}
     </div>
     """, unsafe_allow_html=True)
 
@@ -385,7 +390,7 @@ if page_key == "home":
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
     padding:20px;text-align:center;margin-top:24px;">
         <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
-        ScamOracle 的使命</div>
+        AEGIS CORE 的使命</div>
         <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
         在詐騙話術出現之前就預測它 — 讓防詐從被動應對變成主動預防
         </div>
@@ -402,10 +407,10 @@ if page_key == "home":
 elif page_key == "overview":
     st.markdown("""
     <div class="fade-in" style="text-align:center;padding:20px 0 10px;">
-        <div style="font-size:1rem;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">
+        <div style="font-size:1rem;color:#4B5563;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">
         AI-POWERED ANTI-SCAM INTELLIGENCE</div>
-        <h1 style="font-size:3rem;margin:0;">ScamOracle</h1>
-        <p style="color:#94a3b8;font-size:1.1rem;margin-top:8px;">
+        <h1 style="font-size:3rem;margin:0;">AEGIS CORE</h1>
+        <p style="color:#374151;font-size:1.1rem;margin-top:8px;">
         從被動防禦到主動預測 — 運用生成式 AI 構築下一代防詐護城河</p>
     </div>
     """, unsafe_allow_html=True)
@@ -424,25 +429,25 @@ elif page_key == "overview":
     with col_a:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🤖</div>
-            <div style="font-weight:600;color:#00d4ff;margin-bottom:6px;">LLM 話術裂變生成</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">GPT-4o / Gemini / Llama 驅動，從種子情境自動生成數百種詐騙變種話術</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#166534;margin-bottom:6px;">LLM 話術裂變生成</div>
+            <div style="color:#374151;font-size:0.9rem;">GPT-4o / Gemini / Llama 驅動，從種子情境自動生成數百種詐騙變種話術</div>
         </div>
         """, unsafe_allow_html=True)
     with col_b:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🔍</div>
-            <div style="font-weight:600;color:#00d4ff;margin-bottom:6px;">XAI 可解釋性分析</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">高亮顯示觸發心理操控特徵的具體片段，非黑盒子，每個判斷都有依據</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#166534;margin-bottom:6px;">XAI 可解釋性分析</div>
+            <div style="color:#374151;font-size:0.9rem;">高亮顯示觸發心理操控特徵的具體片段，非黑盒子，每個判斷都有依據</div>
         </div>
         """, unsafe_allow_html=True)
     with col_c:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🎯</div>
-            <div style="font-weight:600;color:#00d4ff;margin-bottom:6px;">免疫訓練平台</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">互動式防詐訓練，體驗真實詐騙話術，通過測驗獲得防詐免疫證書</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#166534;margin-bottom:6px;">免疫訓練平台</div>
+            <div style="color:#374151;font-size:0.9rem;">互動式防詐訓練，體驗真實詐騙話術，通過測驗獲得防詐免疫證書</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -452,35 +457,35 @@ elif page_key == "overview":
     with col_d:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">⚡</div>
-            <div style="font-weight:600;color:#7c3aed;margin-bottom:6px;">異常偵測預警</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">Isolation Forest 時間序列分析，24 小時內偵測新興詐騙手法趨勢</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">異常偵測預警</div>
+            <div style="color:#374151;font-size:0.9rem;">Isolation Forest 時間序列分析，24 小時內偵測新興詐騙手法趨勢</div>
         </div>
         """, unsafe_allow_html=True)
     with col_e:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🗺️</div>
-            <div style="font-weight:600;color:#7c3aed;margin-bottom:6px;">受害風險地圖</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">依年齡層與地區呈現風險指數，精準定位高風險族群與地區</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">受害風險地圖</div>
+            <div style="color:#374151;font-size:0.9rem;">依年齡層與地區呈現風險指數，精準定位高風險族群與地區</div>
         </div>
         """, unsafe_allow_html=True)
     with col_f:
         st.markdown("""
         <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;">📡</div>
-            <div style="font-weight:600;color:#7c3aed;margin-bottom:6px;">Risk Vector API</div>
-            <div style="color:#94a3b8;font-size:0.9rem;">標準化風險向量 API，可串接銀行、電信商、保險公司即時防詐系統</div>
+            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
+            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">Risk Vector API</div>
+            <div style="color:#374151;font-size:0.9rem;">標準化風險向量 API，可串接銀行、電信商、保險公司即時防詐系統</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("""
     <div style="text-align:center;padding:10px 0;">
-        <div style="color:#64748b;font-size:0.85rem;letter-spacing:1px;">
+        <div style="color:#4B5563;font-size:0.85rem;letter-spacing:1px;">
         SYSTEM PIPELINE
         </div>
-        <div style="color:#94a3b8;margin-top:12px;font-size:0.95rem;">
+        <div style="color:#374151;margin-top:12px;font-size:0.95rem;">
         情境種子輸入 → LLM 話術裂變 → NLP 特徵萃取 → XAI 可解釋高亮 → 異常偵測預警 → Risk Vector 輸出 → API 串接金融機構
         </div>
     </div>
@@ -488,7 +493,7 @@ elif page_key == "overview":
 
     # ── 真實數據展示 ──────────────────────────────────────────────────────────
     st.markdown("---")
-    st.subheader("📊 台灣詐騙現況（資料來源：警政署 165 專線）")
+    st.subheader("台灣詐騙現況（資料來源：警政署 165 專線）")
     import pandas as pd
     col_s1, col_s2, col_s3 = st.columns(3)
     col_s1.metric("2023 年總案件數", "83,000 件", "↑ 27% vs 2022")
@@ -504,11 +509,11 @@ elif page_key == "overview":
 
     st.markdown("---")
     st.markdown("""
-    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
+    <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;text-align:center;">
-        <div style="color:#fca5a5;font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;">
-        ScamOracle 的使命</div>
-        <div style="color:#e2e8f0;font-size:1rem;margin-top:8px;">
+        <div style="color:#991B1B;font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;">
+        AEGIS CORE 的使命</div>
+        <div style="color:#1a2332;font-size:1rem;margin-top:8px;">
         在詐騙話術出現之前就預測它 — 讓防詐從被動應對變成主動預防
         </div>
     </div>
@@ -519,7 +524,7 @@ elif page_key == "overview":
 # 頁面 LLM：真實 LLM 話術生成 Demo
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "llm_demo":
-    st.title("🤖 LLM 話術生成 Demo")
+    st.title("LLM 話術生成 Demo")
     st.markdown("輸入基礎詐騙情境，呼叫 GPT-4o 生成多種變形話術，並即時進行 XAI 分析。")
 
     import json
@@ -536,7 +541,7 @@ elif page_key == "llm_demo":
 
     has_api_key = bool(st.session_state.get("openai_api_key"))
     if not has_api_key:
-        st.warning("⚠️ 請在左側側邊欄輸入 OpenAI API Key 以啟用真實 LLM 生成。未設定時將使用示範資料。")
+        st.warning("請在左側側邊欄輸入 OpenAI API Key 以啟用真實 LLM 生成。未設定時將使用示範資料。")
 
     with st.form("llm_form"):
         col1, col2 = st.columns(2)
@@ -554,7 +559,7 @@ elif page_key == "llm_demo":
             sample_count = st.slider("生成樣本數量", min_value=3, max_value=10, value=5)
             show_xai = st.checkbox("同時執行 XAI 分析", value=True)
 
-        submitted = st.form_submit_button("🚀 生成話術", type="primary")
+        submitted = st.form_submit_button("生成話術", type="primary")
 
     if submitted:
         if has_api_key:
@@ -577,7 +582,7 @@ elif page_key == "llm_demo":
                         samples = []
                     else:
                         samples = result.get("samples", [])
-                        st.success(f"✅ 成功生成 {len(samples)} 個話術樣本（真實 GPT-4o 輸出）")
+                        st.success(f"成功生成 {len(samples)} 個話術樣本（真實 GPT-4o 輸出）")
                 except Exception as e:
                     st.error(f"呼叫失敗：{e}")
                     samples = []
@@ -600,7 +605,7 @@ elif page_key == "llm_demo":
                     "target_audience": audience,
                 },
             ]
-            st.info("📋 使用示範資料（請設定 API Key 以啟用真實生成）")
+            st.info("使用示範資料（請設定 API Key 以啟用真實生成）")
 
         if samples:
             st.markdown("---")
@@ -657,7 +662,7 @@ elif page_key == "threat_monitor":
         get_current_threat_summary, generate_live_alerts, THREAT_LEVELS, EVOLUTION_TIMELINE
     )
 
-    st.title("🚨 即時威脅監控中心")
+    st.title("即時威脅監控中心")
     st.markdown("模擬 SOC 安全操作中心，即時監控台灣詐騙威脅態勢。")
 
     summary = get_current_threat_summary()
@@ -665,13 +670,13 @@ elif page_key == "threat_monitor":
 
     # 威脅等級橫幅
     st.markdown(f"""
-    <div style="background:rgba(255,71,87,0.1);border:2px solid {level_info['color']};
+    <div style="background:#FEF2F2;border:2px solid {level_info['color']};
     border-radius:12px;padding:16px;text-align:center;margin-bottom:20px;
     animation:pulse-glow 2s infinite;" class="alert-pulse">
         <div style="font-size:2rem;">{level_info['icon']}</div>
         <div style="font-size:1.3rem;font-weight:700;color:{level_info['color']};">
         當前威脅等級：{level_info['label']}</div>
-        <div style="color:#94a3b8;font-size:0.85rem;">最後更新：{summary['last_updated']}</div>
+        <div style="color:#374151;font-size:0.85rem;">最後更新：{summary['last_updated']}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -687,29 +692,29 @@ elif page_key == "threat_monitor":
     col_l, col_r = st.columns([3, 2])
 
     with col_l:
-        st.subheader("📡 即時預警事件串流")
-        if st.button("🔄 刷新事件", key="refresh_alerts"):
+        st.subheader("即時預警事件串流")
+        if st.button("刷新事件", key="refresh_alerts"):
             st.rerun()
 
         alerts = generate_live_alerts(10)
         for alert in alerts:
             lvl = THREAT_LEVELS[alert["level"]]
             st.markdown(f"""
-            <div style="background:rgba(255,255,255,0.03);border-left:3px solid {lvl['color']};
+            <div style="background:white;border-left:3px solid {lvl['color']};
             padding:10px 14px;margin:6px 0;border-radius:0 8px 8px 0;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <span style="color:{lvl['color']};font-weight:600;font-size:0.85rem;">
                     {lvl['icon']} {alert['level']} | {alert['id']}</span>
-                    <span style="color:#64748b;font-size:0.8rem;">{alert['time']}</span>
+                    <span style="color:#4B5563;font-size:0.8rem;">{alert['time']}</span>
                 </div>
-                <div style="color:#e2e8f0;font-size:0.9rem;margin-top:4px;">{alert['tactic']}</div>
-                <div style="color:#94a3b8;font-size:0.8rem;margin-top:2px;">
+                <div style="color:#1a2332;font-size:0.9rem;margin-top:4px;">{alert['tactic']}</div>
+                <div style="color:#374151;font-size:0.8rem;margin-top:2px;">
                 {alert['scam_type']} | {alert['region']} | 偵測 {alert['cases_detected']} 件 | 風險分數 {alert['risk_score']}</div>
             </div>
             """, unsafe_allow_html=True)
 
     with col_r:
-        st.subheader("📊 威脅分布")
+        st.subheader("威脅分布")
         from data.taiwan_scam_data import SCAM_TYPE_STATS
         threat_df = pd.DataFrame([
             {"類型": k, "案件數": v["cases"], "趨勢": v["trend"]}
@@ -717,16 +722,16 @@ elif page_key == "threat_monitor":
         ])
         st.bar_chart(threat_df.set_index("類型")["案件數"])
 
-        st.subheader("🌍 高風險地區 TOP 5")
+        st.subheader("高風險地區 TOP 5")
         from data.taiwan_scam_data import TAIWAN_SCAM_CASES_BY_REGION
         top5 = sorted(TAIWAN_SCAM_CASES_BY_REGION.items(), key=lambda x: x[1], reverse=True)[:5]
         for i, (region, cases) in enumerate(top5, 1):
             pct = cases / sum(TAIWAN_SCAM_CASES_BY_REGION.values())
             st.markdown(f"""
             <div style="display:flex;justify-content:space-between;padding:6px 0;
-            border-bottom:1px solid rgba(255,255,255,0.05);">
-                <span style="color:#e2e8f0;">#{i} {region}</span>
-                <span style="color:#00d4ff;font-weight:600;">{cases:,} 件 ({pct:.1%})</span>
+            border-bottom:1px solid #E5E7EB;">
+                <span style="color:#1a2332;">#{i} {region}</span>
+                <span style="color:#166534;font-weight:600;">{cases:,} 件 ({pct:.1%})</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -750,7 +755,7 @@ elif page_key == "simulator":
         "情緒勒索": "#721c24", "權威偽裝": "#004085", "利益誘導": "#4a235a",
     }
 
-    st.title("💬 詐騙對話模擬器")
+    st.title("詐騙對話模擬器")
     st.markdown("與 AI 扮演的詐騙犯進行真實對話，系統即時標記每句話的操控手法。練習識破詐騙！")
 
     # 初始化 session
@@ -761,26 +766,26 @@ elif page_key == "simulator":
 
     if sim is None or sim.is_ended:
         # 設定畫面
-        st.subheader("⚙️ 選擇詐騙情境")
+        st.subheader("選擇詐騙情境")
         scenario = st.selectbox("詐騙類型", list(SIMULATOR_SCENARIOS.keys()))
         info = SIMULATOR_SCENARIOS[scenario]
 
         st.markdown(f"""
         <div class="cyber-card">
-            <div style="color:#00d4ff;font-weight:600;margin-bottom:8px;">🎭 詐騙犯角色</div>
-            <div style="color:#e2e8f0;">{info['scammer_persona']}</div>
-            <div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;">目標：{info['goal']}</div>
-            <div style="color:#fcd34d;font-size:0.85rem;margin-top:4px;">難度：{info['difficulty']}</div>
+            <div style="color:#166534;font-weight:600;margin-bottom:8px;">詐騙犯角色</div>
+            <div style="color:#1a2332;">{info['scammer_persona']}</div>
+            <div style="color:#374151;font-size:0.85rem;margin-top:8px;">目標：{info['goal']}</div>
+            <div style="color:#92400E;font-size:0.85rem;margin-top:4px;">難度：{info['difficulty']}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("**💡 提示：** 嘗試識破詐騙！說出你的懷疑、要求掛斷電話、或說要報警。")
+        st.markdown("**提示：** 嘗試識破詐騙！說出你的懷疑、要求掛斷電話、或說要報警。")
 
         has_llm = bool(st.session_state.get("openai_api_key"))
         if not has_llm:
-            st.warning("⚠️ 未設定 LLM API Key，對話模擬器需要 LLM 才能運作。請先設定 API Key。")
+            st.warning("未設定 LLM API Key，對話模擬器需要 LLM 才能運作。請先設定 API Key。")
 
-        if st.button("🚀 開始模擬", type="primary", disabled=not has_llm):
+        if st.button("開始模擬", type="primary", disabled=not has_llm):
             new_sim = SimulatorSession(scenario=scenario)
             opening = info["opening"].replace("{name}", "您")
             new_sim.add_message("assistant", opening)
@@ -801,7 +806,7 @@ elif page_key == "simulator":
         st.markdown("---")
 
         # 對話記錄
-        st.subheader("💬 對話記錄")
+        st.subheader("對話記錄")
         for msg in sim.messages:
             if msg["role"] == "assistant":
                 # 詐騙犯的話 - XAI 高亮
@@ -833,21 +838,21 @@ elif page_key == "simulator":
                 ) if xai.triggered_tags else ""
 
                 st.markdown(f"""
-                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
+                <div style="background:#FEF2F2;border:1px solid #FECACA;
                 border-radius:10px;padding:12px;margin:8px 0;">
-                    <div style="color:#fca5a5;font-size:0.8rem;margin-bottom:6px;">
-                    🎭 {info.get('scammer_persona','詐騙犯')}</div>
-                    <div style="color:#e2e8f0;line-height:1.7;">{content_html}</div>
+                    <div style="color:#991B1B;font-size:0.8rem;margin-bottom:6px;">
+                    {info.get('scammer_persona','詐騙犯')}</div>
+                    <div style="color:#1a2332;line-height:1.7;">{content_html}</div>
                     {f'<div style="margin-top:8px;">{tags_html}</div>' if tags_html else ''}
                 </div>
                 """, unsafe_allow_html=True)
 
             else:
                 st.markdown(f"""
-                <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
+                <div style="background:#F0FDF4;border:1px solid #BBF7D0;
                 border-radius:10px;padding:12px;margin:8px 0;text-align:right;">
-                    <div style="color:#93c5fd;font-size:0.8rem;margin-bottom:6px;">👤 你</div>
-                    <div style="color:#e2e8f0;">{msg['content']}</div>
+                    <div style="color:#1D4ED8;font-size:0.8rem;margin-bottom:6px;">你</div>
+                    <div style="color:#1a2332;">{msg['content']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -862,9 +867,9 @@ elif page_key == "simulator":
 
             col_btn1, col_btn2 = st.columns([3, 1])
             with col_btn1:
-                send = st.button("📤 發送", type="primary", use_container_width=True)
+                send = st.button("發送", type="primary", use_container_width=True)
             with col_btn2:
-                if st.button("🚪 結束", use_container_width=True):
+                if st.button("結束", use_container_width=True):
                     sim.is_ended = True
                     sim.end_reason = "escaped"
                     st.rerun()
@@ -903,18 +908,18 @@ elif page_key == "simulator":
             # 結束畫面
             st.markdown("---")
             if sim.end_reason == "escaped" or sim.user_resistance_score >= 3:
-                st.success(f"🎉 恭喜！你成功識破了詐騙！識破分數：{sim.user_resistance_score}")
+                st.success(f"恭喜！你成功識破了詐騙！識破分數：{sim.user_resistance_score}")
                 st.balloons()
             else:
-                st.error("⚠️ 這次被詐騙犯牽著走了，下次要更謹慎！")
+                st.error("這次被詐騙犯牽著走了，下次要更謹慎！")
 
             tips = SCAM_BUSTING_TIPS.get(sim.scenario, [])
             if tips:
-                st.subheader("💡 防詐重點提醒")
+                st.subheader("防詐重點提醒")
                 for tip in tips:
                     st.markdown(f"- {tip}")
 
-            if st.button("🔄 再試一次", type="primary"):
+            if st.button("再試一次", type="primary"):
                 st.session_state["sim_session"] = None
                 st.rerun()
 
@@ -930,11 +935,11 @@ elif page_key == "dna_map":
         SCAM_DANGER_LEVEL, SCAM_CASE_COUNT
     )
 
-    st.title("🧬 詐騙話術 DNA 圖譜")
+    st.title("詐騙話術 DNA 圖譜")
     st.markdown("各詐騙類型的心理操控特徵分布與相互關聯，揭示詐騙話術的「基因結構」。")
 
     # 心理特徵雷達圖
-    st.subheader("📊 心理操控特徵分布矩陣")
+    st.subheader("心理操控特徵分布矩陣")
     st.caption("各詐騙類型在五大心理操控維度上的強度（0=無，1=極強）")
 
     dims = ["信任建立", "緊迫感製造", "情緒勒索", "權威偽裝", "利益誘導"]
@@ -957,19 +962,19 @@ elif page_key == "dna_map":
     col_sim1, col_sim2 = st.columns(2)
 
     with col_sim1:
-        st.subheader("🔗 話術相似度 TOP 5")
+        st.subheader("話術相似度 TOP 5")
         st.caption("相似度高代表這兩種詐騙使用相似的心理操控手法")
         pairs = get_top_similar_pairs(5)
         for pair in pairs:
             pct = int(pair["similarity"] * 100)
             st.markdown(f"""
-            <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="padding:8px 0;border-bottom:1px solid #E5E7EB;">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span style="color:#e2e8f0;font-size:0.9rem;">
+                    <span style="color:#1a2332;font-size:0.9rem;">
                     {pair['type1']} ↔ {pair['type2']}</span>
-                    <span style="color:#00d4ff;font-weight:600;">{pct}%</span>
+                    <span style="color:#166534;font-weight:600;">{pct}%</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;">
+                <div style="background:#E5E7EB;border-radius:4px;height:6px;">
                     <div style="background:linear-gradient(90deg,#00d4ff,#7c3aed);
                     width:{pct}%;height:100%;border-radius:4px;"></div>
                 </div>
@@ -977,18 +982,18 @@ elif page_key == "dna_map":
             """, unsafe_allow_html=True)
 
     with col_sim2:
-        st.subheader("⚠️ 危險等級排行")
+        st.subheader("危險等級排行")
         st.caption("基於案件數量、平均損失與心理操控強度綜合評分")
         sorted_danger = sorted(SCAM_DANGER_LEVEL.items(), key=lambda x: x[1], reverse=True)
         for scam_type, danger in sorted_danger:
             color = "#ff4757" if danger >= 8.5 else "#ff6b35" if danger >= 7.5 else "#ffd32a"
             st.markdown(f"""
-            <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="padding:8px 0;border-bottom:1px solid #E5E7EB;">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span style="color:#e2e8f0;font-size:0.9rem;">{scam_type}</span>
+                    <span style="color:#1a2332;font-size:0.9rem;">{scam_type}</span>
                     <span style="color:{color};font-weight:700;">{danger}/10</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;">
+                <div style="background:#E5E7EB;border-radius:4px;height:6px;">
                     <div style="background:{color};width:{danger*10}%;height:100%;border-radius:4px;"></div>
                 </div>
             </div>
@@ -997,24 +1002,36 @@ elif page_key == "dna_map":
     st.markdown("---")
 
     # 各類型關鍵詞
-    st.subheader("🔑 各類型核心話術關鍵詞")
-    cols = st.columns(3)
-    for i, (scam_type, keywords) in enumerate(SCAM_TYPE_KEYWORDS.items()):
-        with cols[i % 3]:
-            kw_html = " ".join(
-                f'<span style="background:rgba(0,212,255,0.1);color:#00d4ff;'
-                f'padding:3px 8px;border-radius:10px;font-size:0.8rem;margin:2px;'
-                f'display:inline-block;">{kw}</span>'
-                for kw in keywords
-            )
-            st.markdown(f"""
-            <div class="cyber-card" style="margin-bottom:10px;">
-                <div style="font-weight:600;color:#e2e8f0;margin-bottom:8px;">{scam_type}</div>
-                <div>{kw_html}</div>
-                <div style="color:#64748b;font-size:0.8rem;margin-top:8px;">
-                2023年案件：{SCAM_CASE_COUNT[scam_type]:,} 件</div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.subheader("各類型核心話術關鍵詞")
+
+    # 用 CSS Grid 確保等高對齊
+    cards_html = ""
+    for scam_type, keywords in SCAM_TYPE_KEYWORDS.items():
+        kw_html = " ".join(
+            '<span style="background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;'
+            'padding:3px 8px;border-radius:10px;font-size:0.8rem;margin:2px;'
+            'display:inline-block;">' + kw + '</span>'
+            for kw in keywords
+        )
+        cards_html += (
+            '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;'
+            'padding:20px;display:flex;flex-direction:column;justify-content:space-between;">'
+            '<div>'
+            '<div style="font-weight:700;color:#1a2332;margin-bottom:10px;font-size:0.95rem;">'
+            + scam_type + '</div>'
+            '<div style="margin-bottom:10px;">' + kw_html + '</div>'
+            '</div>'
+            '<div style="color:#4B5563;font-size:0.8rem;margin-top:auto;">'
+            '2023年案件：<strong>' + f"{SCAM_CASE_COUNT[scam_type]:,}" + '</strong> 件</div>'
+            '</div>'
+        )
+
+    grid_html = (
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:12px;">'
+        + cards_html
+        + '</div>'
+    )
+    st.markdown(grid_html, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1024,7 +1041,7 @@ elif page_key == "evolution":
     import pandas as pd
     from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
-    st.title("📅 詐騙話術進化時間軸")
+    st.title("詐騙話術進化時間軸")
     st.markdown("追蹤詐騙話術從 2021 到 2024 的演化歷程，揭示詐騙犯如何隨技術進步升級手法。")
 
     scam_type = st.selectbox("選擇詐騙類型", list(EVOLUTION_TIMELINE.keys()))
@@ -1040,60 +1057,60 @@ elif page_key == "evolution":
 
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        st.subheader("📈 平均損失趨勢")
+        st.subheader("平均損失趨勢")
         st.line_chart(df_trend["平均損失（元）"])
     with col_t2:
-        st.subheader("📈 案件數趨勢")
+        st.subheader("案件數趨勢")
         st.line_chart(df_trend["案件數"])
 
     st.markdown("---")
-    st.subheader("🕐 話術演化歷程")
+    st.subheader("話術演化歷程")
 
     for i, event in enumerate(timeline):
         year = event["year"]
         is_latest = (i == len(timeline) - 1)
-        border_color = "#ff4757" if is_latest else "#00d4ff"
-        badge = "🆕 最新手法" if is_latest else f"第 {i+1} 代"
+        border_color = "#DC2626" if is_latest else "#166534"
+        badge = "最新手法" if is_latest else f"第 {i+1} 代"
 
         kw_html = " ".join(
-            f'<span style="background:rgba(0,212,255,0.1);color:#00d4ff;'
-            f'padding:2px 8px;border-radius:10px;font-size:0.8rem;">{kw}</span>'
+            f'<span style="background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;'
+            f'padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:500;">{kw}</span>'
             for kw in event["keywords"]
         )
 
         st.markdown(f"""
         <div style="border-left:3px solid {border_color};padding:16px 20px;margin:12px 0;
-        background:rgba(255,255,255,0.02);border-radius:0 10px 10px 0;">
+        background:white;border-radius:0 10px 10px 0;border:1px solid #E5E7EB;border-left:3px solid {border_color};">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                 <span style="background:{border_color};color:white;padding:4px 12px;
                 border-radius:20px;font-weight:700;font-size:0.9rem;">{year}</span>
-                <span style="color:#94a3b8;font-size:0.85rem;">{badge}</span>
+                <span style="color:#374151;font-size:0.85rem;font-weight:500;">{badge}</span>
             </div>
-            <div style="font-size:1.05rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">
+            <div style="font-size:1.05rem;font-weight:700;color:#1a2332;margin-bottom:8px;">
             {event['method']}</div>
             <div style="margin-bottom:10px;">{kw_html}</div>
-            <div style="background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);
+            <div style="background:#FEF2F2;border:1px solid #FECACA;
             border-radius:8px;padding:10px;margin-bottom:8px;">
-                <span style="color:#fca5a5;font-size:0.85rem;">🆕 新手法：</span>
-                <span style="color:#e2e8f0;font-size:0.9rem;">{event['new_tactic']}</span>
+                <span style="color:#991B1B;font-size:0.85rem;font-weight:600;">新手法：</span>
+                <span style="color:#374151;font-size:0.9rem;">{event['new_tactic']}</span>
             </div>
             <div style="display:flex;gap:20px;">
-                <span style="color:#94a3b8;font-size:0.85rem;">
-                平均損失：<span style="color:#fcd34d;">NT$ {event['avg_loss']:,}</span></span>
-                <span style="color:#94a3b8;font-size:0.85rem;">
-                案件數：<span style="color:#00d4ff;">{event['cases']:,} 件</span></span>
+                <span style="color:#374151;font-size:0.85rem;">
+                平均損失：<strong style="color:#DC2626;">NT$ {event['avg_loss']:,}</strong></span>
+                <span style="color:#374151;font-size:0.85rem;">
+                案件數：<strong style="color:#166534;">{event['cases']:,} 件</strong></span>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown(f"""
-    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);
+    <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;">
-        <div style="color:#fca5a5;font-weight:600;margin-bottom:8px;">⚠️ ScamOracle 預測：2025 年趨勢</div>
-        <div style="color:#e2e8f0;">
-        基於話術演化模式，預測 2025 年將出現更多 <strong style="color:#ff4757;">AI 深偽 + 即時語音合成</strong> 的複合型詐騙，
-        結合個人資料洩露進行精準詐騙。ScamOracle 的 LLM 生成引擎已開始模擬這類新型話術，
+        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：2025 年趨勢</div>
+        <div style="color:#374151;">
+        基於話術演化模式，預測 2025 年將出現更多 <strong style="color:#DC2626;">AI 深偽 + 即時語音合成</strong> 的複合型詐騙，
+        結合個人資料洩露進行精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
         提前訓練防詐模型。
         </div>
     </div>
@@ -1104,7 +1121,7 @@ elif page_key == "evolution":
 # 頁面：詐騙免疫訓練
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "training":
-    st.title("🎯 詐騙免疫訓練")
+    st.title("詐騙免疫訓練")
     st.markdown("透過真實詐騙話術練習，提升你的防詐識別能力，完成訓練後獲得防詐免疫證書。")
 
     from app.dashboard.page_modules.training import (
@@ -1137,7 +1154,7 @@ elif page_key == "training":
     # ── 設定畫面（尚未開始）──────────────────────────────────────────────────
     if session is None or (session.completed and st.session_state.get("training_restart")):
         st.session_state["training_restart"] = False
-        st.subheader("⚙️ 訓練設定")
+        st.subheader("訓練設定")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -1149,19 +1166,19 @@ elif page_key == "training":
             scam_type = st.selectbox("選擇詐騙類型", SCAM_TYPES)
 
         st.markdown("---")
-        st.subheader("📖 訓練說明")
+        st.subheader("訓練說明")
         st.markdown("""
         1. 系統會生成真實詐騙話術樣本
         2. 閱讀後選擇你認為包含的**心理操控特徵**
         3. 系統給出 XAI 解析與得分
-        4. 累積達到通過門檻即可獲得**防詐免疫證書** 🏅
+        4. 累積達到通過門檻即可獲得**防詐免疫證書** 
         """)
 
         has_llm = bool(st.session_state.get("openai_api_key"))
         if not has_llm:
-            st.warning("⚠️ 未設定 LLM API Key，將使用內建示範題目進行訓練")
+            st.warning("未設定 LLM API Key，將使用內建示範題目進行訓練")
 
-        if st.button("🚀 開始訓練", type="primary", use_container_width=True):
+        if st.button("開始訓練", type="primary", use_container_width=True):
             with st.spinner("正在生成訓練題目..."):
                 questions = []
 
@@ -1235,7 +1252,7 @@ elif page_key == "training":
             st.caption(f"題目 {session.current_index + 1} / {session.total_questions}　｜　目前得分：{session.score}/{session.current_index}")
 
             st.markdown("---")
-            st.subheader(f"📨 詐騙話術樣本 #{session.current_index + 1}")
+            st.subheader(f"詐騙話術樣本 #{session.current_index + 1}")
 
             # 顯示話術文本
             st.markdown(
@@ -1249,7 +1266,7 @@ elif page_key == "training":
 
             if not st.session_state["training_answered"]:
                 # 作答區
-                st.subheader("🤔 你認為這段話術包含哪些心理操控手法？")
+                st.subheader("你認為這段話術包含哪些心理操控手法？")
                 st.caption("可多選，選完後按「提交答案」")
 
                 selected_tags = []
@@ -1264,7 +1281,7 @@ elif page_key == "training":
                         ):
                             selected_tags.append(tag)
 
-                if st.button("✅ 提交答案", type="primary", use_container_width=True):
+                if st.button("提交答案", type="primary", use_container_width=True):
                     result = evaluate_answer(q, selected_tags)
                     if result["is_correct"]:
                         session.score += 1
@@ -1281,12 +1298,12 @@ elif page_key == "training":
                 result = st.session_state["training_last_result"]
                 if result:
                     if result["is_correct"]:
-                        st.success(f"🎉 答對了！{result['feedback']}")
+                        st.success(f"答對了！{result['feedback']}")
                     else:
-                        st.error(f"❌ 答錯了。{result['feedback']}")
+                        st.error(f"答錯了。{result['feedback']}")
 
                     # XAI 高亮顯示
-                    st.subheader("🔍 XAI 解析")
+                    st.subheader("XAI 解析")
                     highlighter = XAIHighlighter()
                     xai = highlighter.highlight(q.content)
 
@@ -1314,7 +1331,7 @@ elif page_key == "training":
 
                     # 特徵說明
                     if result["correct_tags"]:
-                        st.subheader("📚 心理操控特徵解說")
+                        st.subheader("心理操控特徵解說")
                         for tag in result["correct_tags"]:
                             bg = TAG_COLORS.get(tag, "#eee")
                             fg = TAG_TEXT_COLORS.get(tag, "#333")
@@ -1326,7 +1343,7 @@ elif page_key == "training":
                                 unsafe_allow_html=True,
                             )
 
-                if st.button("➡️ 下一題", type="primary", use_container_width=True):
+                if st.button("下一題", type="primary", use_container_width=True):
                     session.current_index += 1
                     st.session_state["training_answered"] = False
                     st.session_state["training_last_result"] = None
@@ -1341,7 +1358,7 @@ elif page_key == "training":
         threshold = DIFFICULTY_LEVELS.get(session.difficulty, {}).get("pass_score", 70)
 
         st.markdown("---")
-        st.subheader("🏁 訓練完成！")
+        st.subheader("訓練完成！")
 
         col1, col2, col3 = st.columns(3)
         col1.metric("最終得分", f"{score_pct:.0f}%")
@@ -1350,24 +1367,24 @@ elif page_key == "training":
 
         if passed:
             st.balloons()
-            st.success(f"🎉 恭喜通過 {session.difficulty} 訓練！你已具備識別「{session.scam_type}」的能力。")
-            st.subheader("🏅 你的防詐免疫證書")
+            st.success(f"恭喜通過 {session.difficulty} 訓練！你已具備識別「{session.scam_type}」的能力。")
+            st.subheader(" 你的防詐免疫證書")
             cert_html = generate_certificate_html(session)
             st.markdown(cert_html, unsafe_allow_html=True)
-            st.caption("💡 截圖保存或分享給家人朋友，一起提升防詐意識！")
+            st.caption("截圖保存或分享給家人朋友，一起提升防詐意識！")
         else:
-            st.warning(f"⚠️ 未達通過門檻（{threshold}%），建議再練習一次。")
-            st.info("💡 提示：仔細觀察話術中的緊迫感用詞、權威身份聲稱和利益誘惑。")
+            st.warning(f"未達通過門檻（{threshold}%），建議再練習一次。")
+            st.info("提示：仔細觀察話術中的緊迫感用詞、權威身份聲稱和利益誘惑。")
 
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("🔄 再練一次（相同設定）", use_container_width=True):
+            if st.button("再練一次（相同設定）", use_container_width=True):
                 st.session_state["training_session"] = None
                 st.session_state["training_answered"] = False
                 st.session_state["training_last_result"] = None
                 st.rerun()
         with col_b:
-            if st.button("⚙️ 更換設定重新開始", use_container_width=True):
+            if st.button("更換設定重新開始", use_container_width=True):
                 st.session_state["training_session"] = None
                 st.session_state["training_answered"] = False
                 st.session_state["training_last_result"] = None
@@ -1378,7 +1395,7 @@ elif page_key == "training":
 # 頁面 1：熱詞排行榜
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "hotwords":
-    st.title("🔥 熱詞排行榜")
+    st.title("熱詞排行榜")
     st.markdown("顯示近期詐騙話術中出現頻率最高的關鍵詞，每 24 小時自動更新。")
 
     from app.dashboard.page_modules.hotwords import compute_hotword_ranking, get_hotword_page_data
@@ -1409,14 +1426,14 @@ elif page_key == "hotwords":
         # 建立圖表資料（保留頻率值以供顯示）
         chart_data = {word: data[word] for word in ranking if word in data}
 
-        st.subheader("📊 熱詞頻率長條圖")
+        st.subheader("熱詞頻率長條圖")
         import pandas as pd
         df_chart = pd.DataFrame(
             list(chart_data.items()), columns=["關鍵詞", "出現次數"]
         ).set_index("關鍵詞")
         st.bar_chart(df_chart)
 
-        st.subheader("📋 排行榜明細")
+        st.subheader("排行榜明細")
         import pandas as pd
         rank_df = pd.DataFrame(
             [{"排名": i + 1, "關鍵詞": word, "出現次數": data.get(word, 0)}
@@ -1431,7 +1448,7 @@ elif page_key == "hotwords":
 # 頁面 2：XAI 話術分析
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "xai":
-    st.title("🔍 XAI 話術分析")
+    st.title("XAI 話術分析")
     st.markdown("輸入詐騙話術文字，系統將高亮顯示觸發心理操控特徵的片段，並列出對應標籤。")
 
     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
@@ -1466,7 +1483,7 @@ elif page_key == "xai":
         placeholder="請輸入要分析的詐騙話術文字...",
     )
 
-    if st.button("🔍 開始分析", type="primary"):
+    if st.button("開始分析", type="primary"):
         if not input_text.strip():
             st.warning("請輸入文字後再進行分析。")
         else:
@@ -1482,7 +1499,7 @@ elif page_key == "xai":
             st.markdown("---")
 
             # ── 高亮顯示 ──────────────────────────────────────────────────
-            st.subheader("📝 高亮分析結果")
+            st.subheader("高亮分析結果")
 
             if result.spans:
                 # 建立 HTML 高亮文字
@@ -1518,7 +1535,7 @@ elif page_key == "xai":
 
             # ── 標籤圖例 ──────────────────────────────────────────────────
             st.markdown("---")
-            st.subheader("🏷️ 顏色圖例")
+            st.subheader("顏色圖例")
             legend_cols = st.columns(len(TAG_COLORS))
             for col, (tag, bg) in zip(legend_cols, TAG_COLORS.items()):
                 fg = TAG_TEXT_COLORS[tag]
@@ -1530,7 +1547,7 @@ elif page_key == "xai":
 
             # ── 觸發標籤列表 ──────────────────────────────────────────────
             st.markdown("---")
-            st.subheader("📌 觸發的心理特徵標籤")
+            st.subheader("觸發的心理特徵標籤")
             if result.triggered_tags:
                 for tag in result.triggered_tags:
                     bg = TAG_COLORS.get(tag, "#eeeeee")
@@ -1553,7 +1570,7 @@ elif page_key == "xai":
 # 頁面 3：沙盤推演
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "sandbox":
-    st.title("🧪 沙盤推演")
+    st.title("沙盤推演")
     st.markdown("設定詐騙情境參數，模擬預測可能出現的詐騙變種特徵與風險等級。")
 
     from app.dashboard.page_modules.sandbox import (
@@ -1585,7 +1602,7 @@ elif page_key == "sandbox":
                 min_value=1, max_value=90, value=7,
             )
 
-        submitted = st.form_submit_button("🚀 執行推演", type="primary")
+        submitted = st.form_submit_button("執行推演", type="primary")
 
     if submitted:
         def fetch_sandbox_result():
@@ -1605,9 +1622,9 @@ elif page_key == "sandbox":
 
         # ── 結果顯示 ──────────────────────────────────────────────────────
         st.markdown("---")
-        st.subheader("📊 推演結果")
+        st.subheader("推演結果")
 
-        risk_color = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(result.predicted_risk_level, "⚪")
+        risk_color = {"高": "●", "中": "●", "低": "●"}.get(result.predicted_risk_level, "○")
         col1, col2, col3 = st.columns(3)
         col1.metric("預測風險等級", f"{risk_color} {result.predicted_risk_level}")
         col2.metric("預測信心分數", f"{result.confidence_score:.0%}")
@@ -1616,12 +1633,12 @@ elif page_key == "sandbox":
         st.info(result.summary)
 
         if result.predicted_features:
-            st.subheader("⚠️ 預測高風險特徵")
+            st.subheader("預測高風險特徵")
             for i, feature in enumerate(result.predicted_features, 1):
                 st.markdown(f"**{i}.** {feature}")
 
         if result.related_cluster_labels:
-            st.subheader("🔗 相關詐騙類群")
+            st.subheader("相關詐騙類群")
             st.write("、".join(result.related_cluster_labels))
 
 
@@ -1629,14 +1646,14 @@ elif page_key == "sandbox":
 # 頁面 4：受害風險地圖
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "risk_map":
-    st.title("🗺️ 受害風險地圖")
+    st.title("受害風險地圖")
     st.markdown("依年齡層與地區維度呈現受害風險指數，資料來源為預測層輸出的風險向量。")
 
     from app.dashboard.page_modules.risk_map import build_risk_map, get_risk_map_summary, VALID_REGIONS, VALID_AGE_GROUPS
     import pandas as pd
 
     # 篩選選項
-    with st.expander("🔧 篩選設定", expanded=False):
+    with st.expander("篩選設定", expanded=False):
         selected_regions = st.multiselect(
             "選擇地區（留空顯示全部）",
             sorted(VALID_REGIONS),
@@ -1672,30 +1689,30 @@ elif page_key == "risk_map":
 
     # ── 摘要指標 ──────────────────────────────────────────────────────────
     summary = get_risk_map_summary(risk_map)
-    overall_icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(summary["overall_risk_level"], "⚪")
+    overall_icon = {"高": "●", "中": "●", "低": "●"}.get(summary["overall_risk_level"], "○")
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("整體風險等級", f"{overall_icon} {summary['overall_risk_level']}")
-    col2.metric("🔴 高風險區域", summary["high_risk_count"])
-    col3.metric("🟡 中風險區域", summary["medium_risk_count"])
-    col4.metric("🟢 低風險區域", summary["low_risk_count"])
+    col2.metric("高風險區域", summary["high_risk_count"])
+    col3.metric("中風險區域", summary["medium_risk_count"])
+    col4.metric("低風險區域", summary["low_risk_count"])
 
     if summary.get("highest_risk"):
         hr = summary["highest_risk"]
         st.error(
-            f"⚠️ 最高風險：**{hr['age_group']}** × **{hr['region']}**"
+            f"最高風險：**{hr['age_group']}** × **{hr['region']}**"
             f"（風險指數 {hr['risk_index']:.2f}，主要詐騙類型：{hr['dominant_scam_type']}）"
         )
 
     st.markdown("---")
 
     # ── 風險地圖表格 ──────────────────────────────────────────────────────
-    st.subheader("📋 風險指數明細表")
+    st.subheader("風險指數明細表")
 
     if risk_map.entries:
         rows = []
         for entry in risk_map.entries:
-            risk_icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(entry.risk_level, "⚪")
+            risk_icon = {"高": "●", "中": "●", "低": "●"}.get(entry.risk_level, "○")
             rows.append({
                 "年齡層": entry.age_group,
                 "地區": entry.region,
@@ -1719,7 +1736,7 @@ elif page_key == "risk_map":
 # 頁面 7：模型準確率評估
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "evaluation":
-    st.title("📊 模型準確率評估")
+    st.title("模型準確率評估")
     st.markdown("基於 165 反詐騙通報案例與正常對話的混合測試集，評估 XAI 規則式分類器效能。")
 
     import pandas as pd
@@ -1728,7 +1745,7 @@ elif page_key == "evaluation":
     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
 
     # ── 真實效能指標（直接展示）──────────────────────────────────────────────
-    st.subheader("📈 模型效能指標（基於真實資料測試）")
+    st.subheader("模型效能指標（基於真實資料測試）")
     st.caption(f"測試集：{MODEL_PERFORMANCE['test_samples']} 筆（詐騙 {MODEL_PERFORMANCE['scam_samples']} 筆 + 正常 {MODEL_PERFORMANCE['normal_samples']} 筆）｜評估日期：{MODEL_PERFORMANCE['evaluation_date']}")
 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -1741,7 +1758,7 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 月度趨勢圖 ────────────────────────────────────────────────────────────
-    st.subheader("📈 台灣詐騙案件月度趨勢（2023-2024）")
+    st.subheader("台灣詐騙案件月度趨勢（2023-2024）")
     st.caption("資料來源：內政部警政署 165 反詐騙諮詢專線統計")
     df_trend = pd.DataFrame(MONTHLY_TREND)
     df_trend = df_trend.set_index("month")
@@ -1756,10 +1773,10 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 各詐騙類型統計 ────────────────────────────────────────────────────────
-    st.subheader("📊 各詐騙類型案件統計（2023年）")
+    st.subheader("各詐騙類型案件統計（2023年）")
     scam_rows = []
     for stype, stats in SCAM_TYPE_STATS.items():
-        trend_icon = "📈" if stats["trend"] == "上升" else "📉" if stats["trend"] == "下降" else "➡️"
+        trend_icon = "↑" if stats["trend"] == "上升" else "↓" if stats["trend"] == "下降" else "→"
         scam_rows.append({
             "詐騙類型": stype,
             "案件數": f"{stats['cases']:,}",
@@ -1771,9 +1788,9 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 互動式測試（用真實詐騙樣本）─────────────────────────────────────────
-    st.subheader("🧪 即時分類測試（真實詐騙話術樣本）")
+    st.subheader("即時分類測試（真實詐騙話術樣本）")
 
-    if st.button("▶️ 執行評估", type="primary"):
+    if st.button("執行評估", type="primary"):
         with st.spinner("正在分析真實詐騙話術樣本..."):
             classifier = PsychologicalClassifier()
             highlighter = XAIHighlighter()
@@ -1800,11 +1817,11 @@ elif page_key == "evaluation":
                 y_pred.append(1 if predicted_scam else 0)
                 results_data.append({
                     "文字摘要": text[:40] + "...",
-                    "真實標籤": "🔴 詐騙" if is_scam else "🟢 正常",
-                    "預測標籤": "🔴 詐騙" if predicted_scam else "🟢 正常",
+                    "真實標籤": "詐騙" if is_scam else "正常",
+                    "預測標籤": "詐騙" if predicted_scam else "正常",
                     "觸發特徵": ", ".join(tags) if tags else "無",
                     "覆蓋率": f"{xai.coverage_ratio:.1%}",
-                    "結果": "✅ 正確" if (is_scam == predicted_scam) else "❌ 錯誤",
+                    "結果": "正確" if (is_scam == predicted_scam) else "錯誤",
                 })
 
             y_true_arr = np.array(y_true)

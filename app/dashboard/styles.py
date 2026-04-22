@@ -166,6 +166,94 @@ div[data-testid="stNotification"][kind="info"] {
     overflow: hidden !important;
     background: white !important;
 }
+/* 表格標題置中，數值靠右 */
+.stDataFrame th {
+    text-align: center !important;
+    font-weight: 600 !important;
+}
+.stDataFrame td {
+    text-align: right !important;
+}
+.stDataFrame td:first-child {
+    text-align: left !important;
+}
+[data-testid="stDataFrame"] [role="columnheader"] {
+    text-align: center !important;
+    justify-content: center !important;
+}
+[data-testid="stDataFrame"] [role="gridcell"] {
+    text-align: right !important;
+    justify-content: flex-end !important;
+}
+/* glide-data-grid 內部 cell 對齊 */
+[data-testid="stDataFrame"] canvas + div [role="columnheader"] span,
+[data-testid="stDataFrame"] .dvn-scroller [role="columnheader"] {
+    text-align: center !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+[data-testid="stDataFrame"] .dvn-scroller [role="gridcell"] {
+    text-align: right !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+}
+/* st.table 對齊 */
+.stTable thead th {
+    text-align: center !important;
+    font-weight: 600 !important;
+    background: #F9FAFB !important;
+}
+.stTable tbody td {
+    text-align: right !important;
+}
+.stTable tbody td:first-child {
+    text-align: left !important;
+}
+
+/* ── Pandas Styler HTML 表格美化 ─────────────────────────────────────────── */
+table.dataframe,
+[data-testid="stMarkdownContainer"] table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    background: white !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    font-size: 0.875rem !important;
+    margin: 8px 0 !important;
+}
+table.dataframe th,
+[data-testid="stMarkdownContainer"] table th {
+    text-align: center !important;
+    font-weight: 600 !important;
+    background: #F9FAFB !important;
+    color: #374151 !important;
+    padding: 10px 14px !important;
+    border-bottom: 2px solid #E5E7EB !important;
+    font-size: 0.82rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+}
+table.dataframe td,
+[data-testid="stMarkdownContainer"] table td {
+    text-align: right !important;
+    padding: 8px 14px !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+    color: #374151 !important;
+}
+table.dataframe td:first-child,
+[data-testid="stMarkdownContainer"] table td:first-child {
+    text-align: left !important;
+    font-weight: 500 !important;
+}
+table.dataframe tbody tr:hover,
+[data-testid="stMarkdownContainer"] table tbody tr:hover {
+    background: #F9FAFB !important;
+}
+table.dataframe tbody tr:last-child td,
+[data-testid="stMarkdownContainer"] table tbody tr:last-child td {
+    border-bottom: none !important;
+}
 
 /* ── 標題 ────────────────────────────────────────────────────────────────── */
 h1 {
