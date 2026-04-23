@@ -24,6 +24,17 @@ router = APIRouter(prefix="/data", tags=["資料匯入"])
 _importer = DataImporter()
 _pii_remover = PiiRemover()
 
+# ── In-Memory 儲存（模擬 PostgreSQL）─────────────────────────────────────────
+# ⚠️ 此 in-memory 儲存僅供 development/testing 環境使用。
+# production 環境應切換至 PostgreSQL 以確保匯入資料持久化。
+_imported_records_store: list[dict] = []
+"""PII 去識別化後的匯入資料儲存列表"""
+
+
+def get_imported_records_store() -> list[dict]:
+    """取得 in-memory 匯入資料儲存列表（供其他模組存取或測試注入使用）"""
+    return _imported_records_store
+
 
 class DataImportResponse(BaseModel):
     """資料匯入回應模型"""
@@ -90,10 +101,14 @@ async def import_case_data(
     # 執行 PII 去識別化
     cleaned_records = _pii_remover.remove_from_batch(result.records)
 
+    # 儲存清理後的資料至 in-memory store（模擬 PostgreSQL 持久化）
+    _imported_records_store.extend(cleaned_records)
+
     logger.info(
-        "資料匯入完成：批次 %s，共 %d 筆，PII 去識別化完成",
+        "資料匯入完成：批次 %s，共 %d 筆，PII 去識別化完成，已儲存至 store（累計 %d 筆）",
         result.batch_id,
         len(cleaned_records),
+        len(_imported_records_store),
     )
 
     return DataImportResponse(

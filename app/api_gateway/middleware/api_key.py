@@ -9,6 +9,7 @@ API 金鑰驗證中介軟體
 
 import json
 import logging
+import os
 from typing import Callable
 
 from fastapi import Request, Response
@@ -18,10 +19,10 @@ from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
-# ── 模擬 PostgreSQL API 金鑰資料表（測試用 in-memory 字典）─────────────────────
-# 實際生產環境應改為查詢 PostgreSQL 資料庫
-# 格式：{api_key: {"client_id": str, "plan": str, "rate_limit": int, "is_active": bool}}
-_VALID_API_KEYS: dict[str, dict] = {
+# ── 硬編碼的開發/測試用 API 金鑰（僅作為 fallback）─────────────────────────────
+# ⚠️ 此硬編碼金鑰僅供 development/testing 環境使用。
+# 實際生產環境應透過環境變數 API_KEYS 或 PostgreSQL 資料庫載入金鑰。
+_HARDCODED_DEV_KEYS: dict[str, dict] = {
     "test-key-001": {
         "client_id": "client-financial-001",
         "plan": "standard",
@@ -41,6 +42,65 @@ _VALID_API_KEYS: dict[str, dict] = {
         "is_active": False,  # 已撤銷的金鑰
     },
 }
+
+
+def _load_api_keys_from_env() -> dict[str, dict]:
+    """
+    從環境變數載入 API 金鑰配置
+
+    優先從環境變數 API_KEYS 載入 JSON 格式的金鑰配置。
+    若環境變數未設定，在 development/testing 環境 fallback 到硬編碼金鑰；
+    在 production 環境中使用硬編碼金鑰時記錄警告日誌。
+
+    環境變數格式範例：
+        API_KEYS='{"key1": {"client_id": "...", "plan": "...", "rate_limit": 100, "is_active": true}}'
+
+    Returns:
+        API 金鑰字典
+    """
+    api_keys_json = os.environ.get("API_KEYS")
+
+    if api_keys_json:
+        try:
+            keys = json.loads(api_keys_json)
+            logger.info("已從環境變數 API_KEYS 載入 %d 組 API 金鑰", len(keys))
+            return keys
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.error("環境變數 API_KEYS 格式無效，無法解析 JSON: %s", e)
+
+    # 環境變數未設定或解析失敗，檢查執行環境
+    app_env = os.environ.get("APP_ENV", "development").lower()
+
+    if app_env in ("development", "testing"):
+        logger.debug(
+            "環境變數 API_KEYS 未設定，%s 環境使用硬編碼 fallback 金鑰",
+            app_env,
+        )
+        return _HARDCODED_DEV_KEYS.copy()
+
+    # production 環境使用硬編碼金鑰時記錄警告
+    logger.warning(
+        "⚠️ 生產環境未設定環境變數 API_KEYS，使用硬編碼 fallback 金鑰。"
+        "請儘速設定 API_KEYS 環境變數或連接資料庫。"
+    )
+    return _HARDCODED_DEV_KEYS.copy()
+
+
+# 格式：{api_key: {"client_id": str, "plan": str, "rate_limit": int, "is_active": bool}}
+# ⚠️ _VALID_API_KEYS 的 in-memory 字典僅供 development/testing 環境使用。
+# production 環境應從 PostgreSQL 或外部金鑰管理服務載入。
+_VALID_API_KEYS: dict[str, dict] = _load_api_keys_from_env()
+
+# ── 環境檢查：production 環境警告 ─────────────────────────────────────────────
+try:
+    from app.config import get_settings as _get_settings
+    if _get_settings().app_env == "production":
+        logger.warning(
+            "⚠️ [api_key.py] _VALID_API_KEYS 使用 in-memory 字典儲存，"
+            "production 環境應切換至 PostgreSQL 或外部金鑰管理服務。"
+        )
+except Exception:
+    pass  # 設定載入失敗時不影響模組初始化
 
 # 不需要 API 金鑰驗證的路徑白名單
 _EXEMPT_PATHS: set[str] = {

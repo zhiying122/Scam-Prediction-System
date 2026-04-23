@@ -120,7 +120,20 @@ class SlidingWindowCounter:
 
 
 # 全域滑動視窗計數器實例（模擬 Redis 共享狀態）
+# ⚠️ 此 in-memory 計數器僅供 development/testing 環境使用。
+# production 環境應切換至 Redis 以支援多進程共享狀態與持久化。
 _global_counter = SlidingWindowCounter(window_seconds=_WINDOW_SECONDS)
+
+# ── 環境檢查：production 環境警告 ─────────────────────────────────────────────
+try:
+    from app.config import get_settings as _get_settings
+    if _get_settings().app_env == "production":
+        logger.warning(
+            "⚠️ [rate_limit.py] SlidingWindowCounter 使用 in-memory 儲存，"
+            "production 環境應切換至 Redis 以支援多進程共享狀態。"
+        )
+except Exception:
+    pass  # 設定載入失敗時不影響模組初始化
 
 
 def get_rate_limit_counter() -> SlidingWindowCounter:

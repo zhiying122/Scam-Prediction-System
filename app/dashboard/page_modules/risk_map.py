@@ -29,6 +29,39 @@ VALID_REGIONS = {
 }
 
 
+# 描述性受眾標籤 → VALID_AGE_GROUPS 年齡範圍的映射表
+AGE_GROUP_MAPPING: dict[str, list[str]] = {
+    "中老年族群": ["45-59歲", "60歲以上"],
+    "年輕族群": ["18-29歲", "18歲以下"],
+    "學生族群": ["18歲以下", "18-29歲"],
+    "商業人士": ["30-44歲", "45-59歲"],
+    "一般民眾": ["18歲以下", "18-29歲", "30-44歲", "45-59歲", "60歲以上"],
+}
+
+
+def _matches_age_group(target_audience: str, age_group: str) -> bool:
+    """
+    檢查風險向量的 target_audience 是否與指定的 age_group 匹配。
+
+    使用 AGE_GROUP_MAPPING 將描述性標籤（如「中老年族群」）映射到
+    VALID_AGE_GROUPS 的年齡範圍（如「45-59歲」），再檢查是否包含
+    指定的 age_group。
+
+    Args:
+        target_audience: 風險向量的目標受眾描述
+        age_group: 要匹配的年齡層分類
+
+    Returns:
+        是否匹配
+    """
+    if target_audience in AGE_GROUP_MAPPING:
+        return age_group in AGE_GROUP_MAPPING[target_audience]
+    # 若 target_audience 本身就是 VALID_AGE_GROUPS 中的值，直接比對
+    if target_audience in VALID_AGE_GROUPS:
+        return target_audience == age_group
+    return False
+
+
 @dataclass
 class RiskMapEntry:
     """
@@ -105,7 +138,9 @@ def compute_risk_index(risk_vectors: list[dict[str, Any]], age_group: str, regio
         score = rv.get("risk_score", 0.0)
 
         # 若向量包含年齡層或地區資訊，則納入計算
-        if age_group in target or region in location or (not target and not location):
+        age_match = _matches_age_group(target, age_group) if target else False
+        region_match = region in location if location else False
+        if age_match or region_match or (not target and not location):
             relevant_scores.append(score)
 
     if not relevant_scores:
@@ -157,7 +192,9 @@ def build_risk_map(
             for rv in risk_vectors:
                 target = rv.get("target_audience", "")
                 location = rv.get("region", "")
-                if age_group in target or region in location or (not target and not location):
+                age_match = _matches_age_group(target, age_group) if target else False
+                region_match = region in location if location else False
+                if age_match or region_match or (not target and not location):
                     case_count += 1
                     scam_type = rv.get("scam_cluster_label", "未分類")
                     scam_type_counts[scam_type] = scam_type_counts.get(scam_type, 0) + 1

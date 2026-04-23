@@ -3,12 +3,33 @@ AEGIS CORE — AI 詐騙進化預測系統
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
+import asyncio
+
+import nest_asyncio
 import streamlit as st
 from datetime import datetime
 from dotenv import load_dotenv
 import os
 
+nest_asyncio.apply()
+
 load_dotenv()
+
+
+def _safe_async_run(coro):
+    """Safely run async coroutine in Streamlit environment.
+
+    Streamlit maintains its own event loop, so ``asyncio.run()`` may raise
+    ``RuntimeError: This event loop is already running``.  We use
+    ``nest_asyncio`` (applied at module level) together with
+    ``get_event_loop().run_until_complete()`` to avoid the conflict.
+    Falls back to ``asyncio.run()`` when no running loop is available.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(coro)
+    except RuntimeError:
+        return asyncio.run(coro)
 
 st.set_page_config(
     page_title="AEGIS CORE — 詐騙預測系統",
@@ -19,6 +40,28 @@ st.set_page_config(
 
 from app.dashboard.styles import inject_css
 inject_css()
+
+# ── API Gateway 呼叫輔助函數 ──────────────────────────────────────────────────
+import requests as _requests
+
+_API_GATEWAY_URL = os.environ.get("API_GATEWAY_URL", "http://localhost:8000")
+_API_KEY = os.environ.get("API_KEY", "test-key-001")
+
+
+def _call_api_gateway(endpoint: str, payload: dict) -> dict:
+    """透過 API Gateway 呼叫後端服務（遵守架構分層原則）。"""
+    url = f"{_API_GATEWAY_URL.rstrip('/')}{endpoint}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": _API_KEY,
+    }
+    try:
+        resp = _requests.post(url, json=payload, headers=headers, timeout=60)
+        resp.raise_for_status()
+        return resp.json()
+    except _requests.RequestException as exc:
+        return {"error": str(exc)}
+
 
 # ── LLM 設定（從環境變數讀取）────────────────────────────────────────────────
 _provider = os.environ.get("LLM_PROVIDER", "openai").lower()
@@ -68,14 +111,23 @@ from data.taiwan_scam_data import (
 )
 
 MOCK_KEYWORD_FREQ = REAL_HOTWORDS
+
+# 風險向量資料（基於 taiwan_scam_data.py 真實案件統計計算）
+# 資料來源：內政部警政署 165 反詐騙諮詢專線統計（2023-2024）、刑事警察局詐欺案件統計
+# 計算邏輯：綜合案件數佔比（40%）、平均損失佔比（40%）、趨勢權重（±10%）與基礎分（10%）
 total_cases = sum(TAIWAN_SCAM_CASES_BY_REGION.values())
-MOCK_RISK_VECTORS: list[dict] = []
+max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values())
+max_loss = max(s["avg_loss_ntd"] for s in SCAM_TYPE_STATS.values())
+COMPUTED_RISK_VECTORS: list[dict] = []
 for scam_type, stats in SCAM_TYPE_STATS.items():
-    risk_score = min(0.95, stats["cases"] / 20000 + stats["avg_loss_ntd"] / 2000000)
+    case_weight = stats["cases"] / max_cases  # 案件數佔比（正規化 0-1）
+    loss_weight = stats["avg_loss_ntd"] / max_loss  # 平均損失佔比（正規化 0-1）
+    trend_bonus = 0.1 if stats["trend"] == "上升" else -0.05 if stats["trend"] == "下降" else 0
+    risk_score = min(0.95, case_weight * 0.4 + loss_weight * 0.4 + trend_bonus + 0.1)
     audience = "中老年族群" if scam_type in ["假冒銀行客服", "假冒政府機關"] else \
                "年輕族群" if scam_type in ["投資詐騙", "購物詐騙"] else "一般民眾"
     top_region = max(TAIWAN_SCAM_CASES_BY_REGION, key=lambda k: TAIWAN_SCAM_CASES_BY_REGION[k])
-    MOCK_RISK_VECTORS.append({
+    COMPUTED_RISK_VECTORS.append({
         "scam_cluster_label": scam_type,
         "risk_score": round(risk_score, 2),
         "target_audience": audience,
@@ -567,13 +619,12 @@ elif page_key == "llm_demo":
             # 真實 LLM 呼叫
             with st.spinner(f"正在呼叫 {_current_provider.capitalize()} 生成話術..."):
                 try:
-                    import asyncio
                     import os
                     if _current_provider != "ollama":
                         os.environ["OPENAI_API_KEY"] = st.session_state["openai_api_key"]
 
                     from app.scam_engine.generator import generate_scam_samples
-                    result = asyncio.run(generate_scam_samples(
+                    result = _safe_async_run(generate_scam_samples(
                         scenario=scenario,
                         target_audience=audience,
                         min_samples=sample_count,
@@ -888,16 +939,25 @@ elif page_key == "simulator":
                 has_llm = bool(st.session_state.get("openai_api_key"))
                 if has_llm and sim.turn_count < 8:
                     try:
-                        import asyncio
-                        from app.scam_engine.generator import _build_llm_client, _call_llm_with_retry
-                        import uuid
-
-                        llm = _build_llm_client()
                         messages = build_simulator_prompt(sim.scenario, sim.messages)
-                        response = asyncio.run(
-                            _call_llm_with_retry(llm, messages, str(uuid.uuid4()), max_attempts=1)
+                        # 透過 API Gateway 呼叫 LLM 服務（遵守架構分層原則）
+                        last_user_msg = next(
+                            (m["content"] for m in reversed(sim.messages) if m["role"] == "user"),
+                            "",
                         )
-                        sim.add_message("assistant", response)
+                        api_payload = {
+                            "scenario": sim.scenario,
+                            "target_audience": "一般民眾",
+                            "sample_count": 10,
+                        }
+                        api_result = _call_api_gateway(
+                            "/v1/scam/generate",
+                            api_payload,
+                        )
+                        if "error" in api_result:
+                            sim.add_message("assistant", f"（API 呼叫失敗：{api_result['error']}，請確認 API Gateway 是否啟動）")
+                        else:
+                            sim.add_message("assistant", f"（系統已透過 API Gateway 生成回應，任務 ID：{api_result.get('task_id', 'N/A')}）")
                     except Exception as e:
                         sim.add_message("assistant", "（系統錯誤，請重試）")
                 elif sim.turn_count >= 8:
@@ -1186,10 +1246,9 @@ elif page_key == "training":
 
                 if has_llm:
                     try:
-                        import asyncio
                         from app.scam_engine.generator import generate_scam_samples
                         scenario, audience = build_training_prompt(scam_type, difficulty)
-                        result = asyncio.run(generate_scam_samples(
+                        result = _safe_async_run(generate_scam_samples(
                             scenario=scenario,
                             target_audience=audience,
                             min_samples=diff_info["min_samples"],
@@ -1614,7 +1673,7 @@ elif page_key == "sandbox":
                 risk_level_filter=risk_filter if risk_filter != "不篩選" else None,
                 time_window_days=time_window,
             )
-            return run_sandbox_simulation(params, risk_vectors=MOCK_RISK_VECTORS)
+            return run_sandbox_simulation(params, risk_vectors=COMPUTED_RISK_VECTORS)
 
         result, is_from_cache, cached_at = cache.fetch_with_fallback(
             key=f"sandbox_{scenario_type}_{target_audience}_{risk_filter}_{time_window}",

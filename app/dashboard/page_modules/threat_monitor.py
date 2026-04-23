@@ -5,9 +5,14 @@
 顯示當前威脅等級、新興話術偵測、預警事件流。
 """
 
-import random
 from datetime import datetime, timedelta
 from typing import Any
+
+from data.taiwan_scam_data import (
+    SCAM_TYPE_STATS,
+    MONTHLY_TREND,
+    TAIWAN_SCAM_CASES_BY_REGION,
+)
 
 
 # 威脅等級定義
@@ -88,54 +93,301 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "new_tactic": "使用深偽技術偽造名人推薦影片，結合 AI 話術",
         },
     ],
+    "假冒政府機關": [
+        {
+            "year": 2021,
+            "keywords": ["檢察官", "監管帳戶", "洗錢防制"],
+            "method": "電話假冒檢察官要求轉帳",
+            "avg_loss": 280000,
+            "cases": 7800,
+            "new_tactic": "利用境外電話偽裝來電顯示為政府機關號碼",
+        },
+        {
+            "year": 2022,
+            "keywords": ["健保局", "個資外洩", "法院傳票"],
+            "method": "假冒健保局 + 法院傳票恐嚇",
+            "avg_loss": 300000,
+            "cases": 8200,
+            "new_tactic": "結合假冒健保局與法院雙重身份施壓",
+        },
+        {
+            "year": 2023,
+            "keywords": ["刑事局", "凍結帳戶", "公文傳真"],
+            "method": "假公文 + 假刑事局偵查員",
+            "avg_loss": 320000,
+            "cases": 8765,
+            "new_tactic": "傳送偽造公文 PDF 與假偵查員證件照片",
+        },
+        {
+            "year": 2024,
+            "keywords": ["數位身分證", "MyData", "政府APP"],
+            "method": "假冒政府數位服務 + 釣魚連結",
+            "avg_loss": 340000,
+            "cases": 8900,
+            "new_tactic": "偽裝政府數位服務平台，騙取數位身分驗證資訊",
+        },
+    ],
+    "愛情詐騙": [
+        {
+            "year": 2021,
+            "keywords": ["交友軟體", "海外工作", "匯款"],
+            "method": "交友軟體假身份 + 海外急難匯款",
+            "avg_loss": 350000,
+            "cases": 4800,
+            "new_tactic": "大量使用盜用照片建立假交友檔案",
+        },
+        {
+            "year": 2022,
+            "keywords": ["視訊交友", "投資邀約", "感情操控"],
+            "method": "感情培養 + 投資邀約複合詐騙",
+            "avg_loss": 380000,
+            "cases": 5500,
+            "new_tactic": "結合愛情與投資詐騙，先培養感情再引導投資",
+        },
+        {
+            "year": 2023,
+            "keywords": ["AI聊天", "深偽視訊", "跨境匯款"],
+            "method": "AI 聊天機器人 + 深偽視訊通話",
+            "avg_loss": 420000,
+            "cases": 6543,
+            "new_tactic": "使用 AI 聊天維持長期互動，深偽視訊增加信任",
+        },
+        {
+            "year": 2024,
+            "keywords": ["虛擬伴侶", "語音克隆", "情感AI"],
+            "method": "AI 虛擬伴侶 + 語音克隆技術",
+            "avg_loss": 460000,
+            "cases": 7200,
+            "new_tactic": "利用語音克隆與情感 AI 打造高度擬真虛擬伴侶",
+        },
+    ],
+    "購物詐騙": [
+        {
+            "year": 2021,
+            "keywords": ["網拍", "假賣家", "貨到付款"],
+            "method": "網拍假賣家 + 貨到付款空包裹",
+            "avg_loss": 12000,
+            "cases": 20500,
+            "new_tactic": "大量建立一頁式購物網站販售假商品",
+        },
+        {
+            "year": 2022,
+            "keywords": ["社群團購", "直播帶貨", "退款詐騙"],
+            "method": "社群團購詐騙 + 假退款客服",
+            "avg_loss": 14000,
+            "cases": 19800,
+            "new_tactic": "利用社群平台直播帶貨，收款後不出貨",
+        },
+        {
+            "year": 2023,
+            "keywords": ["電商平台", "假客服", "重複扣款"],
+            "method": "假電商客服 + 重複扣款退款話術",
+            "avg_loss": 15000,
+            "cases": 18234,
+            "new_tactic": "偽裝電商平台客服，以重複扣款為由騙取帳密",
+        },
+        {
+            "year": 2024,
+            "keywords": ["AI客服", "假評價", "跨境電商"],
+            "method": "AI 假客服 + 跨境電商詐騙",
+            "avg_loss": 16000,
+            "cases": 17000,
+            "new_tactic": "使用 AI 客服機器人自動化詐騙流程，規模化操作",
+        },
+    ],
+    "中獎詐騙": [
+        {
+            "year": 2021,
+            "keywords": ["中獎通知", "手續費", "稅金"],
+            "method": "簡訊中獎通知 + 預繳手續費",
+            "avg_loss": 40000,
+            "cases": 5800,
+            "new_tactic": "大量發送假中獎簡訊，要求預繳稅金與手續費",
+        },
+        {
+            "year": 2022,
+            "keywords": ["抽獎活動", "社群分享", "釣魚連結"],
+            "method": "社群假抽獎活動 + 釣魚網站",
+            "avg_loss": 42000,
+            "cases": 5200,
+            "new_tactic": "在社群平台建立假抽獎活動，騙取個資與金融資訊",
+        },
+        {
+            "year": 2023,
+            "keywords": ["電子發票", "載具中獎", "假官網"],
+            "method": "假電子發票中獎 + 偽造財政部網站",
+            "avg_loss": 45000,
+            "cases": 4321,
+            "new_tactic": "偽造電子發票中獎通知，建立假財政部兌獎網站",
+        },
+        {
+            "year": 2024,
+            "keywords": ["NFT空投", "加密獎勵", "假DApp"],
+            "method": "假加密貨幣空投 + 惡意智能合約",
+            "avg_loss": 48000,
+            "cases": 3800,
+            "new_tactic": "利用假 NFT 空投與加密獎勵，誘導連接錢包竊取資產",
+        },
+    ],
+    "工作詐騙": [
+        {
+            "year": 2021,
+            "keywords": ["海外工作", "高薪", "培訓費"],
+            "method": "假海外高薪工作 + 預繳培訓費",
+            "avg_loss": 75000,
+            "cases": 5600,
+            "new_tactic": "以東南亞高薪工作為誘餌，收取培訓費與簽證費",
+        },
+        {
+            "year": 2022,
+            "keywords": ["柬埔寨", "緬甸", "人口販運"],
+            "method": "跨境工作詐騙 + 人口販運",
+            "avg_loss": 85000,
+            "cases": 6500,
+            "new_tactic": "以高薪工作誘騙至東南亞，限制人身自由從事詐騙",
+        },
+        {
+            "year": 2023,
+            "keywords": ["居家工作", "刷單", "保證金"],
+            "method": "假居家工作 + 刷單詐騙",
+            "avg_loss": 95000,
+            "cases": 7654,
+            "new_tactic": "以居家兼職為名，誘導刷單並要求繳交保證金",
+        },
+        {
+            "year": 2024,
+            "keywords": ["AI標註", "遠端工作", "數據標記"],
+            "method": "假 AI 數據標註工作 + 預付費用",
+            "avg_loss": 105000,
+            "cases": 8500,
+            "new_tactic": "偽裝 AI 公司招募數據標註員，收取設備費與培訓費",
+        },
+    ],
 }
 
-# 即時預警事件（模擬串流資料）
-def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
-    """生成模擬的即時預警事件串流"""
-    scam_types = ["假冒銀行客服", "投資詐騙", "假冒政府機關", "愛情詐騙", "工作詐騙"]
-    regions = ["台北市", "新北市", "台中市", "高雄市", "桃園市", "台南市"]
-    tactics = [
-        "偵測到新型 AI 語音詐騙話術",
-        "發現假冒官方 LINE 帳號群組",
-        "新興加密貨幣投資詐騙變種",
-        "深偽技術視訊詐騙案例上升",
-        "假冒政府機關簡訊大量發送",
-        "工作詐騙招募廣告異常增加",
-        "愛情詐騙跨境匯款模式出現",
-        "購物平台假賣家帳號激增",
-    ]
+# 預警事件描述對照表（基於真實詐騙類型）
+_TACTIC_DESCRIPTIONS: dict[str, str] = {
+    "假冒銀行客服": "偵測到新型 AI 語音詐騙話術",
+    "投資詐騙": "新興加密貨幣投資詐騙變種",
+    "假冒政府機關": "假冒政府機關簡訊大量發送",
+    "愛情詐騙": "愛情詐騙跨境匯款模式出現",
+    "購物詐騙": "購物平台假賣家帳號激增",
+    "中獎詐騙": "中獎詐騙簡訊與釣魚連結增加",
+    "工作詐騙": "工作詐騙招募廣告異常增加",
+}
 
-    alerts = []
-    now = datetime.now()
+
+def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
+    """基於真實統計數據生成確定性預警事件。
+
+    使用 SCAM_TYPE_STATS 的案件數計算風險分數，
+    使用 TAIWAN_SCAM_CASES_BY_REGION 取得真實地區，
+    每次呼叫相同 n 值回傳相同結果。
+    """
+    # 按案件數降序排列詐騙類型（確定性排序）
+    sorted_types = sorted(
+        SCAM_TYPE_STATS.items(), key=lambda x: x[1]["cases"], reverse=True
+    )
+    max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values())
+
+    # 按案件數降序排列地區
+    sorted_regions = sorted(
+        TAIWAN_SCAM_CASES_BY_REGION.items(), key=lambda x: x[1], reverse=True
+    )
+
+    alerts: list[dict[str, Any]] = []
+    num_types = len(sorted_types)
+    num_regions = len(sorted_regions)
+
     for i in range(n):
-        minutes_ago = random.randint(1, 120)
-        risk_score = random.uniform(0.5, 0.98)
-        level = "CRITICAL" if risk_score > 0.85 else "HIGH" if risk_score > 0.7 else "MEDIUM"
+        scam_name, stats = sorted_types[i % num_types]
+        region_name, _ = sorted_regions[i % num_regions]
+
+        # 風險分數：案件數 / 最大案件數，確定性計算
+        risk_score = round(stats["cases"] / max_cases, 3)
+        level = (
+            "CRITICAL" if risk_score > 0.85
+            else "HIGH" if risk_score > 0.7
+            else "MEDIUM"
+        )
+
+        # 固定時間偏移：每筆預警間隔 15 分鐘
+        minutes_ago = (i + 1) * 15
+        base_time = datetime(2024, 1, 1, 12, 0, 0)
+        alert_time = base_time - timedelta(minutes=minutes_ago)
+
+        tactic = _TACTIC_DESCRIPTIONS.get(scam_name, f"{scam_name}相關預警")
+
         alerts.append({
             "id": f"ALT-{2024100 + i}",
-            "time": (now - timedelta(minutes=minutes_ago)).strftime("%H:%M:%S"),
-            "scam_type": random.choice(scam_types),
-            "region": random.choice(regions),
-            "tactic": random.choice(tactics),
-            "risk_score": round(risk_score, 3),
+            "time": alert_time.strftime("%H:%M:%S"),
+            "scam_type": scam_name,
+            "region": region_name,
+            "tactic": tactic,
+            "risk_score": risk_score,
             "level": level,
-            "cases_detected": random.randint(3, 50),
+            "cases_detected": stats["cases"] // 365,  # 日均案件數
         })
 
     return sorted(alerts, key=lambda a: a["time"], reverse=True)
 
 
 def get_current_threat_summary() -> dict[str, Any]:
-    """取得當前威脅摘要統計"""
+    """基於真實統計數據動態計算當前威脅摘要。
+
+    - active_threats: 趨勢為「上升」的詐騙類型數量
+    - new_variants_24h: 基於最新月份案件數 / 30 的日均新變種估算
+    - total_cases_today: 最新月份案件數 / 30（日均）
+    - ai_scam_ratio: 趨勢上升類型案件數佔總案件數比例
+    - highest_risk_type: 案件數最多的詐騙類型
+    - highest_risk_region: 案件數最多的地區
+    """
+    # 計算趨勢上升的類型數量
+    rising_types = {
+        name: stats
+        for name, stats in SCAM_TYPE_STATS.items()
+        if stats["trend"] == "上升"
+    }
+    active_threats = len(rising_types)
+
+    # 最新月份的日均案件數
+    latest_month = MONTHLY_TREND[-1]
+    total_cases_today = latest_month["cases"] // 30
+
+    # 新變種估算：上升趨勢類型的日均案件數
+    rising_daily = sum(s["cases"] for s in rising_types.values()) // 365
+    new_variants_24h = rising_daily
+
+    # AI 詐騙比例：上升趨勢類型案件數 / 總案件數
+    total_cases_all = sum(s["cases"] for s in SCAM_TYPE_STATS.values())
+    rising_cases = sum(s["cases"] for s in rising_types.values())
+    ai_scam_ratio = round(rising_cases / total_cases_all, 2) if total_cases_all else 0.0
+
+    # 最高風險類型：案件數最多
+    highest_risk_type = max(SCAM_TYPE_STATS, key=lambda k: SCAM_TYPE_STATS[k]["cases"])
+
+    # 最高風險地區：案件數最多
+    highest_risk_region = max(
+        TAIWAN_SCAM_CASES_BY_REGION, key=TAIWAN_SCAM_CASES_BY_REGION.get  # type: ignore[arg-type]
+    )
+
+    # 整體威脅等級
+    overall_level = "HIGH" if active_threats >= 3 else "MEDIUM" if active_threats >= 1 else "LOW"
+
+    # 趨勢判斷
+    if len(MONTHLY_TREND) >= 2:
+        trend = "上升" if MONTHLY_TREND[-1]["cases"] > MONTHLY_TREND[-2]["cases"] else "穩定"
+    else:
+        trend = "穩定"
+
     return {
-        "overall_level": "HIGH",
-        "active_threats": 23,
-        "new_variants_24h": 7,
-        "total_cases_today": 284,
-        "highest_risk_type": "投資詐騙",
-        "highest_risk_region": "新北市",
-        "ai_scam_ratio": 0.34,  # 34% 的詐騙使用 AI 技術
-        "trend": "上升",
+        "overall_level": overall_level,
+        "active_threats": active_threats,
+        "new_variants_24h": new_variants_24h,
+        "total_cases_today": total_cases_today,
+        "highest_risk_type": highest_risk_type,
+        "highest_risk_region": highest_risk_region,
+        "ai_scam_ratio": ai_scam_ratio,
+        "trend": trend,
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }

@@ -79,8 +79,8 @@ class MockRedisCache:
     """
     模擬 Redis 快取（in-memory 實作）
 
-    在測試環境中替代實際 Redis 連線，
-    提供相同的 get/set 介面。
+    ⚠️ 此 in-memory 實作僅供 development/testing 環境使用。
+    production 環境應切換至實際 Redis 連線，以支援分散式快取與持久化。
     """
 
     def __init__(self) -> None:
@@ -109,14 +109,29 @@ class RiskVectorRepository:
 
     提供 RiskVector 的 CRUD 操作，
     使用 in-memory 儲存模擬 PostgreSQL，並同步更新 Redis 快取。
+
+    ⚠️ 此儲存庫的 _store 與 _cache 為 in-memory 實作，
+    僅供 development/testing 環境使用。production 環境應切換至
+    PostgreSQL（_store）與 Redis（_cache）以確保資料持久化。
     """
 
     def __init__(self, redis_cache: MockRedisCache | None = None) -> None:
-        # in-memory 儲存（模擬 PostgreSQL）
+        # ⚠️ in-memory 儲存（模擬 PostgreSQL）— 僅供 development/testing 使用
         self._store: dict[str, RiskVector] = {}
-        # Redis 快取（mock）
+        # ⚠️ Redis 快取（mock）— 僅供 development/testing 使用
         self._cache = redis_cache or MockRedisCache()
         self._cache_ttl = 86400  # 24 小時 TTL
+
+        # 環境檢查：production 環境警告
+        try:
+            from app.config import get_settings
+            if get_settings().app_env == "production":
+                logger.warning(
+                    "⚠️ [risk_vector.py] RiskVectorRepository 使用 in-memory 儲存，"
+                    "production 環境應切換至 PostgreSQL 與 Redis 以確保資料持久化。"
+                )
+        except Exception:
+            pass  # 設定載入失敗時不影響儲存庫初始化
 
     def save(self, risk_vector: RiskVector) -> RiskVector:
         """

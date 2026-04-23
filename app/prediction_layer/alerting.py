@@ -92,13 +92,28 @@ class AlertingService:
 
     負責生成 AlertEvent 並通知已訂閱的操作人員。
     通知機制使用 in-memory 佇列模擬（實際部署時替換為 WebSocket / SMTP）。
+
+    ⚠️ 此服務的 _alert_store 與 _subscribed_operators 為 in-memory 儲存，
+    僅供 development/testing 環境使用。production 環境應切換至 PostgreSQL
+    以確保預警事件持久化與高可用性。
     """
 
     def __init__(self) -> None:
-        # in-memory 儲存（模擬 PostgreSQL）
+        # ⚠️ in-memory 儲存（模擬 PostgreSQL）— 僅供 development/testing 使用
         self._alert_store: list[AlertEvent] = []
-        # 已訂閱的操作人員列表（模擬）
+        # ⚠️ 已訂閱的操作人員列表（模擬）— 僅供 development/testing 使用
         self._subscribed_operators: list[str] = []
+
+        # 環境檢查：production 環境警告
+        try:
+            from app.config import get_settings
+            if get_settings().app_env == "production":
+                logger.warning(
+                    "⚠️ [alerting.py] AlertingService._alert_store 使用 in-memory 儲存，"
+                    "production 環境應切換至 PostgreSQL 以確保預警事件持久化。"
+                )
+        except Exception:
+            pass  # 設定載入失敗時不影響服務初始化
 
     def subscribe_operator(self, operator_id: str) -> None:
         """

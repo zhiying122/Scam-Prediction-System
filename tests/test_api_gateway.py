@@ -698,3 +698,85 @@ class TestScamScriptNotExposed:
             if isinstance(data, list):
                 for item in data:
                     assert "content" not in item or "scam_script" not in str(item).lower()
+
+
+# ── 完整分析端點測試 ──────────────────────────────────────────────────────────
+
+class TestAnalyzeBatchEndpoint:
+    """POST /v1/analyze/batch 完整分析端點測試"""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_client(self) -> None:
+        """每個測試重置速率限制計數器，避免被先前測試耗盡配額"""
+        from app.api_gateway.middleware.rate_limit import get_rate_limit_counter
+        counter = get_rate_limit_counter()
+        # 清除所有客戶端的計數
+        counter._counters.clear()
+        self._client = TestClient(app, raise_server_exceptions=False)
+        self._api_key = "test-key-001"
+
+    def test_analyze_batch_endpoint_exists(self) -> None:
+        """POST /v1/analyze/batch 端點應存在並回傳 200"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            headers={"X-API-Key": self._api_key},
+            json={"texts": ["您好，我是銀行客服，請立即驗證您的帳戶。"]},
+        )
+        assert response.status_code == 200
+
+    def test_analyze_batch_response_structure(self) -> None:
+        """回應應包含 results、total_count、processed_count、skipped_count"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            headers={"X-API-Key": self._api_key},
+            json={"texts": ["投資獲利，保證報酬，立即加入。"]},
+        )
+        data = response.json()
+        assert "results" in data
+        assert "total_count" in data
+        assert "processed_count" in data
+        assert "skipped_count" in data
+        assert data["total_count"] == 1
+
+    def test_analyze_batch_result_has_keywords_and_tags(self) -> None:
+        """每個分析結果應包含 keywords、psychological_tags、cluster_label"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            headers={"X-API-Key": self._api_key},
+            json={"texts": ["請立即轉帳，否則帳戶凍結！"]},
+        )
+        data = response.json()
+        result = data["results"][0]
+        assert "keywords" in result
+        assert "psychological_tags" in result
+        assert "cluster_label" in result
+        assert isinstance(result["keywords"], list)
+        assert isinstance(result["psychological_tags"], list)
+
+    def test_analyze_batch_does_not_expose_embedding(self) -> None:
+        """回應不應包含原始嵌入向量"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            headers={"X-API-Key": self._api_key},
+            json={"texts": ["您好，我是銀行客服。"]},
+        )
+        data = response.json()
+        result = data["results"][0]
+        assert "embedding" not in result
+
+    def test_analyze_batch_requires_api_key(self) -> None:
+        """缺少 API 金鑰應回傳 401"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            json={"texts": ["測試文本"]},
+        )
+        assert response.status_code == 401
+
+    def test_analyze_batch_empty_texts_returns_422(self) -> None:
+        """空文本列表應回傳 422 驗證錯誤"""
+        response = self._client.post(
+            "/v1/analyze/batch",
+            headers={"X-API-Key": self._api_key},
+            json={"texts": []},
+        )
+        assert response.status_code == 422

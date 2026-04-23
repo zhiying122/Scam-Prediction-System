@@ -36,7 +36,27 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """應用程式生命週期管理（啟動與關閉）"""
     logger.info("API Gateway 啟動中 | 環境: %s | 版本: 1.0.0", settings.app_env)
+
+    # 啟動預測分析排程器（每 24 小時執行一次異常偵測與趨勢分析）
+    try:
+        from app.prediction_layer.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        scheduler.start()
+        logger.info("預測分析排程器已啟動")
+    except Exception as exc:
+        logger.error("排程器啟動失敗（不影響 API 服務）：%s", exc)
+
     yield
+
+    # 停止排程器
+    try:
+        from app.prediction_layer.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        scheduler.stop()
+        logger.info("預測分析排程器已停止")
+    except Exception as exc:
+        logger.warning("排程器停止時發生錯誤：%s", exc)
+
     logger.info("API Gateway 正在關閉...")
 
 

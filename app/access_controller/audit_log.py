@@ -23,14 +23,28 @@ GENESIS_HASH = "0" * 64
 
 
 # ── In-Memory 日誌儲存（模擬 PostgreSQL append-only 資料表）────────────────────
+# ⚠️ 此 in-memory 日誌鏈僅供 development/testing 環境使用。
+# production 環境應切換至 PostgreSQL append-only 資料表，以確保日誌持久化與防竄改。
 
 _log_chain: list[AccessLog] = []
 """
-In-memory 日誌鏈（測試用）
+In-memory 日誌鏈（僅供 development/testing 使用）
 
 模擬 PostgreSQL append-only 資料表，
 正式環境應替換為資料庫寫入操作。
 """
+
+# ── 環境檢查：production 環境警告 ─────────────────────────────────────────────
+try:
+    from app.config import get_settings as _get_settings
+    if _get_settings().app_env == "production":
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "⚠️ [audit_log.py] _log_chain 使用 in-memory 儲存，"
+            "production 環境應切換至 PostgreSQL append-only 資料表以確保日誌持久化。"
+        )
+except Exception:
+    pass  # 設定載入失敗時不影響模組初始化
 
 
 # ── 雜湊計算函數 ──────────────────────────────────────────────────────────────

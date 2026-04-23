@@ -6,17 +6,45 @@
 需求：3.2、5.1
 """
 
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
 
 from app.prediction_layer.alerting import AlertingService
+from data.taiwan_scam_data import SCAM_TYPE_STATS
 
 router = APIRouter(prefix="/predictions", tags=["預測預警"])
 
 # 全域共用的 AlertingService 實例（in-memory 儲存）
 _alerting_service = AlertingService()
+
+# 固定命名空間 UUID，用於從詐騙類型名稱產生確定性 risk_vector_id
+_SCAM_TYPE_UUID_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+# 基於真實統計數據填充種子預警事件（僅限趨勢上升的詐騙類型）
+for _scam_type, _stats in SCAM_TYPE_STATS.items():
+    if _stats["trend"] != "上升":
+        continue
+    _cases = _stats["cases"]
+    _avg_loss = _stats["avg_loss_ntd"]
+    # 風險等級判定：案件數 > 10000 為高，> 5000 為中，其餘為低
+    if _cases > 10000:
+        _risk_level = "高"
+    elif _cases > 5000:
+        _risk_level = "中"
+    else:
+        _risk_level = "低"
+    _alerting_service.create_alert_from_params(
+        risk_level=_risk_level,
+        trigger_features=[
+            f"偵測到{_scam_type}案件數持續上升（2023年{_cases}件）",
+            f"平均損失 NT${_avg_loss:,}",
+        ],
+        risk_vector_id=str(uuid.uuid5(_SCAM_TYPE_UUID_NAMESPACE, _scam_type)),
+        notified_operators=[],
+    )
 
 
 def get_alerting_service() -> AlertingService:
