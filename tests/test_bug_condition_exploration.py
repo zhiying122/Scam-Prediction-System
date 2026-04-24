@@ -74,7 +74,7 @@ class TestThreatMonitorDeterminism:
 
     def test_generate_live_alerts_deterministic(self):
         """連續呼叫兩次 generate_live_alerts()，結果應相同"""
-        from app.dashboard.pages.threat_monitor import generate_live_alerts
+        from app.dashboard.page_modules.threat_monitor import generate_live_alerts
 
         result1 = generate_live_alerts()
         result2 = generate_live_alerts()
@@ -85,7 +85,7 @@ class TestThreatMonitorDeterminism:
 
     def test_threat_summary_not_hardcoded(self):
         """get_current_threat_summary() 的數據應來自真實統計，非硬編碼常數"""
-        from app.dashboard.pages.threat_monitor import get_current_threat_summary
+        from app.dashboard.page_modules.threat_monitor import get_current_threat_summary
         from data.taiwan_scam_data import SCAM_TYPE_STATS
 
         summary = get_current_threat_summary()
@@ -150,7 +150,7 @@ class TestEvolutionTimelineCompleteness:
 
     def test_evolution_timeline_has_all_7_types(self):
         """EVOLUTION_TIMELINE 應包含所有 7 種詐騙類型"""
-        from app.dashboard.pages.threat_monitor import EVOLUTION_TIMELINE
+        from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
         actual_types = set(EVOLUTION_TIMELINE.keys())
         missing = self.EXPECTED_SCAM_TYPES - actual_types
@@ -161,7 +161,7 @@ class TestEvolutionTimelineCompleteness:
 
     def test_evolution_timeline_count(self):
         """EVOLUTION_TIMELINE 應恰好有 7 個 key"""
-        from app.dashboard.pages.threat_monitor import EVOLUTION_TIMELINE
+        from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
         assert len(EVOLUTION_TIMELINE) >= 7, (
             f"EVOLUTION_TIMELINE has only {len(EVOLUTION_TIMELINE)} types, expected >= 7"
@@ -192,7 +192,7 @@ class TestAgeGroupMismatch:
 
     def test_middle_aged_matches_45_59(self):
         """「中老年族群」的風險向量應被 45-59歲 年齡層匹配到（排除地區匹配）"""
-        from app.dashboard.pages.risk_map import compute_risk_index
+        from app.dashboard.page_modules.risk_map import compute_risk_index
 
         # 使用不同地區以隔離年齡層匹配邏輯
         vectors = self._make_risk_vectors("中老年族群", "高雄市", 0.8)
@@ -204,7 +204,7 @@ class TestAgeGroupMismatch:
 
     def test_middle_aged_matches_60_plus(self):
         """「中老年族群」的風險向量應被 60歲以上 年齡層匹配到（排除地區匹配）"""
-        from app.dashboard.pages.risk_map import compute_risk_index
+        from app.dashboard.page_modules.risk_map import compute_risk_index
 
         # 使用不同地區以隔離年齡層匹配邏輯
         vectors = self._make_risk_vectors("中老年族群", "高雄市", 0.8)
@@ -224,7 +224,7 @@ class TestAgeGroupMismatch:
 
         **Validates: Requirements 1.9**
         """
-        from app.dashboard.pages.risk_map import compute_risk_index
+        from app.dashboard.page_modules.risk_map import compute_risk_index
 
         # 使用不同地區以隔離年齡層匹配邏輯
         vectors = self._make_risk_vectors("中老年族群", "高雄市", risk_score)

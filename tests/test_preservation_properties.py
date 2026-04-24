@@ -13,10 +13,10 @@ from hypothesis import strategies as st
 from fastapi.testclient import TestClient
 
 from app.pattern_analyzer.xai_highlighter import XAIHighlighter
-from app.dashboard.pages.risk_map import compute_risk_index
+from app.dashboard.page_modules.risk_map import compute_risk_index
 from app.api_gateway.main import app
 from app.data_import.pii_remover import PiiRemover
-from app.dashboard.pages.hotwords import compute_hotword_ranking
+from app.dashboard.page_modules.hotwords import compute_hotword_ranking
 from data.taiwan_scam_data import SCAM_TYPE_STATS, REAL_HOTWORDS
 
 

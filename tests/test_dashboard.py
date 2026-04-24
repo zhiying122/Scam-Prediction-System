@@ -14,19 +14,19 @@ import pytest
 from hypothesis import given, settings as h_settings
 from hypothesis import strategies as st
 
-from app.dashboard.pages.hotwords import compute_hotword_ranking, get_hotword_page_data
-from app.dashboard.pages.sandbox import (
+from app.dashboard.page_modules.hotwords import compute_hotword_ranking, get_hotword_page_data
+from app.dashboard.page_modules.sandbox import (
     SandboxParams,
     run_sandbox_simulation,
     validate_sandbox_params,
 )
-from app.dashboard.pages.risk_map import (
+from app.dashboard.page_modules.risk_map import (
     RiskMapEntry,
     build_risk_map,
     compute_risk_index,
     get_risk_map_summary,
 )
-from app.dashboard.pages.cache import (
+from app.dashboard.page_modules.cache import (
     CacheEntry,
     DashboardCache,
     format_cache_status,

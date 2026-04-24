@@ -1,0 +1,16 @@
+{
+  "data": {
+    "scam_cases_by_region": {},
+    "scam_type_stats": {},
+    "monthly_trend": [],
+    "victim_age_distribution": {},
+    "annual_stats": {},
+    "source_name": "data.gov.tw",
+    "fetched_at": "2026-04-24T16:25:40.650394Z",
+    "hotwords": {},
+    "real_scam_scripts": []
+  },
+  "cached_at": "2026-04-24T16:25:40.651613+00:00",
+  "source_name": "data.gov.tw",
+  "version": 1
+}

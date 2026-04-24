@@ -348,6 +348,40 @@ if page_key != "home":
     </div>
     """, unsafe_allow_html=True)
 
+# ── 資料新鮮度指示器 ──────────────────────────────────────────────────────────
+def get_live_data_manager():
+    """取得 CacheManager 單例，供 Dashboard 使用"""
+    try:
+        from app.live_data import get_cache_manager
+        return get_cache_manager()
+    except Exception:
+        return None
+
+try:
+    from app.dashboard.pages.freshness import render_freshness_indicator
+    _live_mgr = get_live_data_manager()
+    if _live_mgr is not None:
+        _freshness_info = _live_mgr.get_freshness_info()
+        _freshness_text = render_freshness_indicator(_freshness_info)
+    else:
+        _freshness_text = "📋 顯示靜態預設資料（2023-2024）"
+
+    _fr_col1, _fr_col2 = st.columns([5, 1])
+    with _fr_col1:
+        st.caption(_freshness_text)
+    with _fr_col2:
+        if st.button("🔄 立即更新", key="freshness_refresh"):
+            try:
+                from app.live_data import get_fetch_scheduler
+                _sched = get_fetch_scheduler()
+                _sched.trigger_now()
+                st.success("已觸發資料更新")
+                st.rerun()
+            except Exception as _e:
+                st.warning(f"更新失敗：{_e}")
+except Exception:
+    pass  # 降級：不顯示新鮮度指示器
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 首頁：介紹頁面
 # ══════════════════════════════════════════════════════════════════════════════

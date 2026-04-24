@@ -46,9 +46,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.error("排程器啟動失敗（不影響 API 服務）：%s", exc)
 
+    # 啟動即時資料擷取排程器
+    try:
+        from app.live_data import get_fetch_scheduler
+        data_scheduler = get_fetch_scheduler()
+        data_scheduler.start()
+        logger.info("即時資料擷取排程器已啟動")
+    except Exception as exc:
+        logger.error("即時資料擷取排程器啟動失敗（不影響 API 服務）：%s", exc)
+
     yield
 
-    # 停止排程器
+    # 停止即時資料擷取排程器
+    try:
+        from app.live_data import get_fetch_scheduler
+        data_scheduler = get_fetch_scheduler()
+        data_scheduler.stop()
+        logger.info("即時資料擷取排程器已停止")
+    except Exception as exc:
+        logger.warning("即時資料擷取排程器停止時發生錯誤：%s", exc)
+
+    # 停止預測分析排程器
     try:
         from app.prediction_layer.scheduler import get_scheduler
         scheduler = get_scheduler()

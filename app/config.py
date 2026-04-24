@@ -133,6 +133,23 @@ class Settings(BaseSettings):
         default=5, description="預警通知逾時時間（分鐘）"
     )
 
+    # ── 即時資料擷取設定 ──────────────────────────────────────────────────────
+    data_fetch_interval_hours: int = Field(
+        default=6, description="資料擷取排程間隔（小時）"
+    )
+    data_fetch_timeout_seconds: int = Field(
+        default=30, description="單一來源 HTTP 請求逾時（秒）"
+    )
+    data_cache_file_path: str = Field(
+        default="data/live_cache.json", description="快取持久化檔案路徑"
+    )
+    data_source_failure_threshold: int = Field(
+        default=3, description="來源連續失敗停用閾值"
+    )
+    data_source_recovery_hours: int = Field(
+        default=1, description="來源停用後自動恢復時間（小時）"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
