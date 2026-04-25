@@ -23,7 +23,7 @@ THREAT_LEVELS = {
     "LOW":      {"label": "低",   "color": "#0be881", "icon": "🟢"},
 }
 
-# 詐騙話術進化時間軸資料（2021-2024）
+# 詐騙話術進化時間軸資料（2021-2026）
 EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
     "假冒銀行客服": [
         {
@@ -274,16 +274,19 @@ _TACTIC_DESCRIPTIONS: dict[str, str] = {
     "購物詐騙": "購物平台假賣家帳號激增",
     "中獎詐騙": "中獎詐騙簡訊與釣魚連結增加",
     "工作詐騙": "工作詐騙招募廣告異常增加",
+    "AI 深偽詐騙": "AI 深偽詐騙相關預警",
 }
 
 
 def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
-    """基於真實統計數據生成確定性預警事件。
+    """基於真實統計數據生成預警事件，使用當前真實時間。
 
     使用 SCAM_TYPE_STATS 的案件數計算風險分數，
     使用 TAIWAN_SCAM_CASES_BY_REGION 取得真實地區，
-    每次呼叫相同 n 值回傳相同結果。
+    時間戳基於當前系統時間，帶有不規則間隔。
     """
+    import hashlib
+
     # 按案件數降序排列詐騙類型（確定性排序）
     sorted_types = sorted(
         SCAM_TYPE_STATS.items(), key=lambda x: x[1]["cases"], reverse=True
@@ -295,6 +298,7 @@ def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
         TAIWAN_SCAM_CASES_BY_REGION.items(), key=lambda x: x[1], reverse=True
     )
 
+    now = datetime.now()
     alerts: list[dict[str, Any]] = []
     num_types = len(sorted_types)
     num_regions = len(sorted_regions)
@@ -303,7 +307,7 @@ def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
         scam_name, stats = sorted_types[i % num_types]
         region_name, _ = sorted_regions[i % num_regions]
 
-        # 風險分數：案件數 / 最大案件數，確定性計算
+        # 風險分數：案件數 / 最大案件數
         risk_score = round(stats["cases"] / max_cases, 3)
         level = (
             "CRITICAL" if risk_score > 0.85
@@ -311,22 +315,26 @@ def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
             else "MEDIUM"
         )
 
-        # 固定時間偏移：每筆預警間隔 15 分鐘
-        minutes_ago = (i + 1) * 15
-        base_time = datetime(2024, 1, 1, 12, 0, 0)
-        alert_time = base_time - timedelta(minutes=minutes_ago)
+        # 用 hash 產生不規則但確定性的時間偏移（避免整點）
+        seed = hashlib.md5(f"{scam_name}-{i}-{now.strftime('%Y%m%d%H')}".encode()).hexdigest()
+        base_minutes = (i + 1) * 12 + int(seed[:2], 16) % 9  # 不規則間隔
+        extra_seconds = int(seed[2:4], 16) % 60  # 不規則秒數
+        alert_time = now - timedelta(minutes=base_minutes, seconds=extra_seconds)
+
+        # 動態 alert ID：基於當前日期
+        alert_id = f"ALT-{now.strftime('%Y%m%d')}{i:02d}"
 
         tactic = _TACTIC_DESCRIPTIONS.get(scam_name, f"{scam_name}相關預警")
 
         alerts.append({
-            "id": f"ALT-{2024100 + i}",
+            "id": alert_id,
             "time": alert_time.strftime("%H:%M:%S"),
             "scam_type": scam_name,
             "region": region_name,
             "tactic": tactic,
             "risk_score": risk_score,
             "level": level,
-            "cases_detected": stats["cases"] // 365,  # 日均案件數
+            "cases_detected": stats["cases"] // 365,
         })
 
     return sorted(alerts, key=lambda a: a["time"], reverse=True)

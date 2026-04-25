@@ -198,7 +198,10 @@ nav_items_html = ""
 for _icon, _label, _key in NAV_ITEMS:
     _is_active = (page_key == _key)
     _active_cls = "nav-active" if _is_active else ""
-    nav_items_html += f'<a href="?page={_key}" class="nav-item {_active_cls}">{_label}</a>'
+    nav_items_html += (
+        f'<a href="?page={_key}" target="_top" '
+        f'class="nav-item {_active_cls}">{_label}</a>'
+    )
 
 # ── 讀取 Logo 圖片（base64）──────────────────────────────────────────────────
 import base64
@@ -209,6 +212,38 @@ if _logo_path.exists():
     logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
 else:
     logo_b64 = ""
+
+# ── 資料新鮮度（提前計算，嵌入 top-bar）──────────────────────────────────────
+def get_live_data_manager():
+    """取得 CacheManager 單例，供 Dashboard 使用"""
+    try:
+        from app.live_data import get_cache_manager
+        return get_cache_manager()
+    except Exception:
+        return None
+
+_freshness_text = ""
+try:
+    from app.dashboard.pages.freshness import render_freshness_indicator
+
+    # 每次頁面載入自動觸發資料擷取
+    try:
+        from app.live_data import get_fetch_scheduler
+        _sched = get_fetch_scheduler()
+        _sched.trigger_now()
+    except Exception:
+        pass
+
+    _live_mgr = get_live_data_manager()
+    if _live_mgr is not None:
+        _freshness_info = _live_mgr.get_freshness_info()
+        _freshness_text = render_freshness_indicator(_freshness_info)
+    else:
+        _freshness_text = "顯示靜態預設資料（2023-2024）"
+except Exception:
+    _freshness_text = ""
+
+_freshness_html = f'<div style="color:rgba(255,255,255,0.55);font-size:0.65rem;margin-top:2px;">{_freshness_text}</div>' if _freshness_text else ""
 
 st.markdown(f"""
 <style>
@@ -313,7 +348,7 @@ section[data-testid="stMain"] > div {{
 }}
 </style>
 <div class="top-bar">
-    <a href="?page=home" class="top-bar-logo">
+    <a href="?page=home" target="_top" class="top-bar-logo">
         <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
             <div style="position:absolute;width:50px;height:50px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
@@ -326,9 +361,14 @@ section[data-testid="stMain"] > div {{
         </div>
     </a>
     <div class="top-bar-right">
-        <span><span class="status-dot"></span>系統運行中</span>
-        <span style="color:rgba(255,255,255,0.3);">|</span>
-        {llm_status_html}
+        <div style="text-align:right;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span><span class="status-dot"></span>系統運行中</span>
+                <span style="color:rgba(255,255,255,0.3);">|</span>
+                {llm_status_html}
+            </div>
+            {_freshness_html}
+        </div>
     </div>
 </div>
 <div class="nav-bar">
@@ -342,45 +382,102 @@ if page_key != "home":
     st.markdown(f"""
     <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
     font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
-        <a href="?page=home" style="color:#166534;text-decoration:none;">首頁</a>
+        <a href="?page=home" target="_top" style="color:#166534;text-decoration:none;">首頁</a>
         <span style="color:#D1D5DB;">›</span>
         <span style="color:#374151;font-weight:500;">{_title}</span>
     </div>
     """, unsafe_allow_html=True)
 
-# ── 資料新鮮度指示器 ──────────────────────────────────────────────────────────
-def get_live_data_manager():
-    """取得 CacheManager 單例，供 Dashboard 使用"""
+# ── 從 live_data 層取得最新資料（取代直接 import 靜態資料）─────────────────────
+def _get_live_data():
+    """從 CacheManager 取得最新資料，資料為空時回傳 None（降級至靜態資料）"""
     try:
-        from app.live_data import get_cache_manager
-        return get_cache_manager()
+        mgr = get_live_data_manager()
+        if mgr is not None:
+            cached = mgr.load()
+            if cached is not None and cached.data.scam_type_stats:
+                return cached.data
     except Exception:
-        return None
+        pass
+    return None
 
-try:
-    from app.dashboard.pages.freshness import render_freshness_indicator
-    _live_mgr = get_live_data_manager()
-    if _live_mgr is not None:
-        _freshness_info = _live_mgr.get_freshness_info()
-        _freshness_text = render_freshness_indicator(_freshness_info)
+_live = _get_live_data()
+if _live is not None and _live.scam_cases_by_region and _live.scam_type_stats:
+    # 用 live data 覆蓋靜態資料變數，讓下游頁面無感切換
+    SCAM_TYPE_STATS = {k: {"cases": v.cases, "avg_loss_ntd": v.avg_loss_ntd, "trend": v.trend}
+                       for k, v in _live.scam_type_stats.items()}
+    TAIWAN_SCAM_CASES_BY_REGION = _live.scam_cases_by_region
+    VICTIM_AGE_DISTRIBUTION = _live.victim_age_distribution
+    MONTHLY_TREND = [{"month": e.month, "cases": e.cases, "amount_billion": e.amount_billion}
+                     for e in _live.monthly_trend]
+    ANNUAL_STATS = {k: {"total_cases": v.total_cases, "total_loss_billion": v.total_loss_billion}
+                    for k, v in _live.annual_stats.items()}
+    MOCK_KEYWORD_FREQ = _live.hotwords if _live.hotwords else REAL_HOTWORDS
+    if _live.real_scam_scripts:
+        REAL_SCAM_SCRIPTS = [s for s in _live.real_scam_scripts if "_model_performance" not in s]
+    # 重新計算風險向量
+    total_cases = sum(TAIWAN_SCAM_CASES_BY_REGION.values())
+    max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values()) if SCAM_TYPE_STATS else 1
+    max_loss = max(s["avg_loss_ntd"] for s in SCAM_TYPE_STATS.values()) if SCAM_TYPE_STATS else 1
+    COMPUTED_RISK_VECTORS = []
+    for scam_type, stats in SCAM_TYPE_STATS.items():
+        case_weight = stats["cases"] / max_cases
+        loss_weight = stats["avg_loss_ntd"] / max_loss
+        trend_bonus = 0.1 if stats["trend"] == "上升" else -0.05 if stats["trend"] == "下降" else 0
+        risk_score = min(0.95, case_weight * 0.4 + loss_weight * 0.4 + trend_bonus + 0.1)
+        audience = "中老年族群" if scam_type in ["假冒銀行客服", "假冒政府機關"] else \
+                   "年輕族群" if scam_type in ["投資詐騙", "購物詐騙"] else "一般民眾"
+        top_region = max(TAIWAN_SCAM_CASES_BY_REGION, key=lambda k: TAIWAN_SCAM_CASES_BY_REGION[k])
+        COMPUTED_RISK_VECTORS.append({
+            "scam_cluster_label": scam_type,
+            "risk_score": round(risk_score, 2),
+            "target_audience": audience,
+            "region": top_region,
+            "high_risk_features": [f"{scam_type}話術", f"平均損失 {stats['avg_loss_ntd']//10000} 萬元"],
+            "cases_2023": stats["cases"],
+            "trend": stats["trend"],
+        })
+
+# ── 動態計算最新年度統計（取代寫死的數據）────────────────────────────────────
+def _compute_latest_stats():
+    """從 ANNUAL_STATS 動態取得最新年度的統計，支援部分年度（Q1 等）"""
+    from datetime import datetime as _dt
+    current_year = _dt.now().year
+    current_month = _dt.now().month
+    numeric_years = sorted([k for k in ANNUAL_STATS if isinstance(k, (int, str)) and str(k).isdigit()], key=lambda x: int(x))
+    if not numeric_years:
+        return "N/A", 0, 0.0, "", "", ""
+
+    latest_year = str(numeric_years[-1])
+    latest = ANNUAL_STATS[numeric_years[-1]]
+    total_cases = latest["total_cases"]
+    total_loss = latest["total_loss_billion"]
+
+    # 判斷是否為當年度部分資料（尚未結束的年份）
+    is_partial = int(latest_year) == current_year
+    year_label = f"{latest_year} Q1" if is_partial and current_month <= 4 else latest_year
+    period_suffix = "（截至目前）" if is_partial else ""
+
+    # 與前一年同期或全年比較
+    prev_year = str(numeric_years[-2]) if len(numeric_years) >= 2 else None
+    if prev_year:
+        prev = ANNUAL_STATS[numeric_years[-2]]
+        if is_partial:
+            # 部分年度：與前一年全年比較，標註為累計
+            case_delta_str = f"累計 vs {prev_year}全年 {prev['total_cases']:,}"
+            loss_delta_str = f"累計 vs {prev_year}全年 {prev['total_loss_billion']}億"
+        else:
+            case_delta = (total_cases - prev["total_cases"]) / prev["total_cases"] * 100
+            loss_delta = (total_loss - prev["total_loss_billion"]) / prev["total_loss_billion"] * 100
+            case_delta_str = f"↑ {case_delta:.0f}% vs {prev_year}" if case_delta > 0 else f"↓ {abs(case_delta):.0f}% vs {prev_year}"
+            loss_delta_str = f"↑ {loss_delta:.0f}% vs {prev_year}" if loss_delta > 0 else f"↓ {abs(loss_delta):.0f}% vs {prev_year}"
     else:
-        _freshness_text = "📋 顯示靜態預設資料（2023-2024）"
+        case_delta_str = ""
+        loss_delta_str = ""
 
-    _fr_col1, _fr_col2 = st.columns([5, 1])
-    with _fr_col1:
-        st.caption(_freshness_text)
-    with _fr_col2:
-        if st.button("🔄 立即更新", key="freshness_refresh"):
-            try:
-                from app.live_data import get_fetch_scheduler
-                _sched = get_fetch_scheduler()
-                _sched.trigger_now()
-                st.success("已觸發資料更新")
-                st.rerun()
-            except Exception as _e:
-                st.warning(f"更新失敗：{_e}")
-except Exception:
-    pass  # 降級：不顯示新鮮度指示器
+    return year_label, total_cases, total_loss, case_delta_str, loss_delta_str, period_suffix
+
+_latest_year, _total_cases, _total_loss, _case_delta, _loss_delta, _period_suffix = _compute_latest_stats()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 首頁：介紹頁面
@@ -411,8 +508,8 @@ if page_key == "home":
 
     # 統計數字
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("2023 年詐騙案件", "83,000 件", "↑ 27% vs 2022")
-    col2.metric("年度損失金額", "88.2 億元", "↑ 28% vs 2022")
+    col1.metric(f"{_latest_year} 年詐騙案件", f"{_total_cases:,} 件", _case_delta)
+    col2.metric("年度損失金額", f"{_total_loss} 億元", _loss_delta)
     col3.metric("XAI 分類準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "↑ 規則式基準")
     col4.metric("預警提前時間", "24 小時", "↓ 傳統需 14 天")
 
@@ -467,7 +564,7 @@ if page_key == "home":
     st.markdown("### 台灣詐騙現況（資料來源：警政署 165 專線）")
 
     scam_df = pd.DataFrame([
-        {"詐騙類型": k, "2023年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
+        {"詐騙類型": k, f"{_latest_year}年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
         for k, v in sorted(SCAM_TYPE_STATS.items(), key=lambda x: x[1]['cases'], reverse=True)
     ])
     st.dataframe(scam_df, use_container_width=True, hide_index=True)
@@ -504,8 +601,8 @@ elif page_key == "overview":
     st.markdown("---")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("2023 年詐騙案件", "83,000 件", "↑ 27% vs 2022")
-    col2.metric("年度損失金額", "88.2 億元", "↑ 28% vs 2022")
+    col1.metric(f"{_latest_year} 年詐騙案件", f"{_total_cases:,} 件", _case_delta)
+    col2.metric("年度損失金額", f"{_total_loss} 億元", _loss_delta)
     col3.metric("XAI 分類準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "↑ 規則式基準")
     col4.metric("預警提前時間", "24 小時", "↓ 傳統需 14 天")
 
@@ -582,13 +679,13 @@ elif page_key == "overview":
     st.subheader("台灣詐騙現況（資料來源：警政署 165 專線）")
     import pandas as pd
     col_s1, col_s2, col_s3 = st.columns(3)
-    col_s1.metric("2023 年總案件數", "83,000 件", "↑ 27% vs 2022")
-    col_s2.metric("2023 年總損失", "88.2 億元", "↑ 28% vs 2022")
+    col_s1.metric(f"{_latest_year} 年總案件數", f"{_total_cases:,} 件", _case_delta)
+    col_s2.metric(f"{_latest_year} 年總損失", f"{_total_loss} 億元", _loss_delta)
     col_s3.metric("2024 上半年損失", "62.1 億元", "↑ 持續攀升")
 
     # 詐騙類型排行
     scam_df = pd.DataFrame([
-        {"詐騙類型": k, "2023年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
+        {"詐騙類型": k, f"{_latest_year}年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
         for k, v in sorted(SCAM_TYPE_STATS.items(), key=lambda x: x[1]['cases'], reverse=True)
     ])
     st.dataframe(scam_df, use_container_width=True, hide_index=True)
@@ -802,7 +899,6 @@ elif page_key == "threat_monitor":
 
     with col_r:
         st.subheader("威脅分布")
-        from data.taiwan_scam_data import SCAM_TYPE_STATS
         threat_df = pd.DataFrame([
             {"類型": k, "案件數": v["cases"], "趨勢": v["trend"]}
             for k, v in sorted(SCAM_TYPE_STATS.items(), key=lambda x: x[1]["cases"], reverse=True)
@@ -810,7 +906,6 @@ elif page_key == "threat_monitor":
         st.bar_chart(threat_df.set_index("類型")["案件數"])
 
         st.subheader("高風險地區 TOP 5")
-        from data.taiwan_scam_data import TAIWAN_SCAM_CASES_BY_REGION
         top5 = sorted(TAIWAN_SCAM_CASES_BY_REGION.items(), key=lambda x: x[1], reverse=True)[:5]
         for i, (region, cases) in enumerate(top5, 1):
             pct = cases / sum(TAIWAN_SCAM_CASES_BY_REGION.values())
@@ -1118,7 +1213,7 @@ elif page_key == "dna_map":
             '<div style="margin-bottom:10px;">' + kw_html + '</div>'
             '</div>'
             '<div style="color:#4B5563;font-size:0.8rem;margin-top:auto;">'
-            '2023年案件：<strong>' + f"{SCAM_CASE_COUNT[scam_type]:,}" + '</strong> 件</div>'
+            f'{_latest_year}年案件：<strong>' + f"{SCAM_CASE_COUNT[scam_type]:,}" + '</strong> 件</div>'
             '</div>'
         )
 
@@ -1303,7 +1398,6 @@ elif page_key == "training":
 
                 # 若 LLM 失敗或無 key，使用真實詐騙話術樣本
                 if not questions:
-                    from data.taiwan_scam_data import REAL_SCAM_SCRIPTS
                     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
                     import random
                     highlighter = XAIHighlighter()
@@ -1853,7 +1947,7 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 月度趨勢圖 ────────────────────────────────────────────────────────────
-    st.subheader("台灣詐騙案件月度趨勢（2023-2024）")
+    st.subheader("台灣詐騙案件月度趨勢")
     st.caption("資料來源：內政部警政署 165 反詐騙諮詢專線統計")
     df_trend = pd.DataFrame(MONTHLY_TREND)
     df_trend = df_trend.set_index("month")
@@ -1868,7 +1962,7 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 各詐騙類型統計 ────────────────────────────────────────────────────────
-    st.subheader("各詐騙類型案件統計（2023年）")
+    st.subheader(f"各詐騙類型案件統計（{_latest_year}年）")
     scam_rows = []
     for stype, stats in SCAM_TYPE_STATS.items():
         trend_icon = "↑" if stats["trend"] == "上升" else "↓" if stats["trend"] == "下降" else "→"
@@ -1889,8 +1983,6 @@ elif page_key == "evaluation":
         with st.spinner("正在分析真實詐騙話術樣本..."):
             classifier = PsychologicalClassifier()
             highlighter = XAIHighlighter()
-
-            from data.taiwan_scam_data import REAL_SCAM_SCRIPTS
 
             # 加入正常對話作為對照
             normal_texts = [

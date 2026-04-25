@@ -91,6 +91,24 @@ class DataFetcher:
                             cache=cache_data,
                         )
 
+                        # 驗證正規化後的資料是否有實質內容
+                        if not normalized.scam_cases_by_region and not normalized.scam_type_stats:
+                            error_msg = "解析後資料為空"
+                            self._registry.record_failure(source.name)
+                            result = FetchResult(
+                                source_name=source.name,
+                                fetched_at=datetime.now(timezone.utc),
+                                success=False,
+                                http_status=response.status_code,
+                                error_message=error_msg,
+                            )
+                            self._results.append(result)
+                            logger.warning(
+                                "來源 '%s' 回傳 200 但解析後資料為空，跳過",
+                                source.name,
+                            )
+                            continue
+
                         # 儲存快取
                         self._cache_manager.store(normalized)
                         self._registry.record_success(source.name)
