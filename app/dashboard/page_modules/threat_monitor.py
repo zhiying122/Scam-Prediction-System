@@ -58,6 +58,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "cases": 16500,
             "new_tactic": "使用 AI 複製銀行客服聲音，視訊中偽裝真人",
         },
+        {
+            "year": 2025,
+            "keywords": ["即時語音合成", "多語言詐騙", "情境感知"],
+            "method": "即時語音合成 + 情境感知對話",
+            "avg_loss": 225000,
+            "cases": 18200,
+            "new_tactic": "即時語音合成搭配情境感知 AI，動態調整話術內容",
+        },
+        {
+            "year": 2026,
+            "keywords": ["全自動AI客服", "生物辨識繞過", "多模態深偽"],
+            "method": "全自動 AI 詐騙客服 + 生物辨識繞過",
+            "avg_loss": 260000,
+            "cases": 20100,
+            "new_tactic": "AI 全自動執行詐騙流程，可繞過語音與人臉生物辨識驗證",
+        },
     ],
     "投資詐騙": [
         {
@@ -91,6 +107,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "avg_loss": 920000,
             "cases": 13200,
             "new_tactic": "使用深偽技術偽造名人推薦影片，結合 AI 話術",
+        },
+        {
+            "year": 2025,
+            "keywords": ["AI自動交易", "DeFi詐騙", "假合規平台"],
+            "method": "假 DeFi 平台 + AI 自動交易話術",
+            "avg_loss": 1080000,
+            "cases": 15000,
+            "new_tactic": "建立假 DeFi 協議與合規外觀平台，AI 自動生成投資報告",
+        },
+        {
+            "year": 2026,
+            "keywords": ["AI財務顧問", "深偽直播", "虛擬分析師"],
+            "method": "AI 虛擬財務顧問 + 深偽即時直播帶單",
+            "avg_loss": 1250000,
+            "cases": 17200,
+            "new_tactic": "深偽即時直播搭配 AI 虛擬分析師，全自動化投資詐騙流程",
         },
     ],
     "假冒政府機關": [
@@ -126,6 +158,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "cases": 8900,
             "new_tactic": "偽裝政府數位服務平台，騙取數位身分驗證資訊",
         },
+        {
+            "year": 2025,
+            "keywords": ["AI公文生成", "假數位簽章", "政府LINE官方"],
+            "method": "AI 生成假公文 + 偽造數位簽章",
+            "avg_loss": 365000,
+            "cases": 9200,
+            "new_tactic": "使用 AI 生成高擬真政府公文，搭配偽造數位簽章增加可信度",
+        },
+        {
+            "year": 2026,
+            "keywords": ["深偽官員視訊", "AI語音公務員", "假政府APP"],
+            "method": "深偽政府官員視訊 + 假政府 APP",
+            "avg_loss": 390000,
+            "cases": 9500,
+            "new_tactic": "深偽技術偽造政府官員視訊通話，搭配假政府 APP 竊取個資",
+        },
     ],
     "愛情詐騙": [
         {
@@ -159,6 +207,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "avg_loss": 460000,
             "cases": 7200,
             "new_tactic": "利用語音克隆與情感 AI 打造高度擬真虛擬伴侶",
+        },
+        {
+            "year": 2025,
+            "keywords": ["AI情感操控", "深偽約會", "跨平台追蹤"],
+            "method": "AI 情感操控引擎 + 深偽約會視訊",
+            "avg_loss": 510000,
+            "cases": 8100,
+            "new_tactic": "AI 情感操控引擎分析受害者心理弱點，深偽視訊約會增強信任",
+        },
+        {
+            "year": 2026,
+            "keywords": ["全自動AI伴侶", "多模態互動", "虛擬實境約會"],
+            "method": "全自動 AI 伴侶 + 多模態虛擬互動",
+            "avg_loss": 570000,
+            "cases": 9200,
+            "new_tactic": "全自動 AI 伴侶可進行文字、語音、視訊多模態互動，難以辨別真偽",
         },
     ],
     "購物詐騙": [
@@ -194,6 +258,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "cases": 17000,
             "new_tactic": "使用 AI 客服機器人自動化詐騙流程，規模化操作",
         },
+        {
+            "year": 2025,
+            "keywords": ["AI假商品圖", "深偽開箱", "假物流追蹤"],
+            "method": "AI 生成假商品 + 深偽開箱影片",
+            "avg_loss": 17500,
+            "cases": 16200,
+            "new_tactic": "AI 生成逼真商品圖片與深偽開箱影片，搭配假物流追蹤頁面",
+        },
+        {
+            "year": 2026,
+            "keywords": ["AI虛擬商店", "自動化退款詐騙", "假AR試用"],
+            "method": "AI 虛擬商店 + 自動化退款詐騙",
+            "avg_loss": 19000,
+            "cases": 15500,
+            "new_tactic": "AI 建立完整虛擬商店生態系，自動化處理退款詐騙流程",
+        },
     ],
     "中獎詐騙": [
         {
@@ -228,6 +308,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "cases": 3800,
             "new_tactic": "利用假 NFT 空投與加密獎勵，誘導連接錢包竊取資產",
         },
+        {
+            "year": 2025,
+            "keywords": ["AI中獎通知", "深偽頒獎", "假政府獎勵"],
+            "method": "AI 個人化中獎通知 + 深偽頒獎影片",
+            "avg_loss": 52000,
+            "cases": 3400,
+            "new_tactic": "AI 分析個資生成個人化中獎通知，深偽頒獎影片增加可信度",
+        },
+        {
+            "year": 2026,
+            "keywords": ["AI語音中獎", "假區塊鏈驗證", "自動化領獎"],
+            "method": "AI 語音中獎通知 + 假區塊鏈驗證",
+            "avg_loss": 55000,
+            "cases": 3100,
+            "new_tactic": "AI 語音自動撥打中獎通知，搭配假區塊鏈驗證頁面騙取資產",
+        },
     ],
     "工作詐騙": [
         {
@@ -261,6 +357,22 @@ EVOLUTION_TIMELINE: dict[str, list[dict[str, Any]]] = {
             "avg_loss": 105000,
             "cases": 8500,
             "new_tactic": "偽裝 AI 公司招募數據標註員，收取設備費與培訓費",
+        },
+        {
+            "year": 2025,
+            "keywords": ["AI面試", "假遠端職缺", "虛擬辦公室"],
+            "method": "AI 假面試 + 虛擬辦公室詐騙",
+            "avg_loss": 118000,
+            "cases": 9500,
+            "new_tactic": "AI 模擬面試官進行假面試，建立虛擬辦公室環境騙取入職費用",
+        },
+        {
+            "year": 2026,
+            "keywords": ["深偽HR", "AI合約生成", "假跨國企業"],
+            "method": "深偽 HR + AI 生成假僱傭合約",
+            "avg_loss": 132000,
+            "cases": 10800,
+            "new_tactic": "深偽技術偽造跨國企業 HR 視訊面試，AI 生成逼真僱傭合約",
         },
     ],
 }

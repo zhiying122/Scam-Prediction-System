@@ -25,45 +25,10 @@
       "連江縣": 67
     },
     "scam_type_stats": {
-      "假冒銀行客服": {
-        "cases": 23678,
-        "avg_loss_ntd": 225000,
-        "trend": "上升"
-      },
-      "投資詐騙": {
-        "cases": 22345,
-        "avg_loss_ntd": 1120000,
-        "trend": "上升"
-      },
-      "假冒政府機關": {
-        "cases": 12456,
-        "avg_loss_ntd": 395000,
+      "假投資詐騙": {
+        "cases": 89300000000,
+        "avg_loss_ntd": 0,
         "trend": "穩定"
-      },
-      "愛情詐騙": {
-        "cases": 10234,
-        "avg_loss_ntd": 560000,
-        "trend": "上升"
-      },
-      "購物詐騙": {
-        "cases": 24567,
-        "avg_loss_ntd": 19500,
-        "trend": "穩定"
-      },
-      "中獎詐騙": {
-        "cases": 4890,
-        "avg_loss_ntd": 48000,
-        "trend": "下降"
-      },
-      "工作詐騙": {
-        "cases": 12123,
-        "avg_loss_ntd": 125000,
-        "trend": "上升"
-      },
-      "AI 深偽詐騙": {
-        "cases": 7890,
-        "avg_loss_ntd": 750000,
-        "trend": "上升"
       }
     },
     "monthly_trend": [
@@ -176,8 +141,8 @@
         "total_loss_billion": 47.8
       }
     },
-    "source_name": "data.gov.tw",
-    "fetched_at": "2026-04-25T09:54:02.504323Z",
+    "source_name": "scraper:news+llm",
+    "fetched_at": "2026-04-26T09:59:22.023500Z",
     "hotwords": {
       "轉帳": 13456,
       "帳戶": 12567,
@@ -327,7 +292,7 @@
       }
     ]
   },
-  "cached_at": "2026-04-25T09:54:02.505323+00:00",
-  "source_name": "data.gov.tw",
+  "cached_at": "2026-04-26T09:59:22.028752+00:00",
+  "source_name": "scraper:news+llm",
   "version": 1
 }

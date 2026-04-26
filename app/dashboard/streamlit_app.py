@@ -197,7 +197,7 @@ PAGE_TITLES = {
     "threat_monitor": ("即時威脅監控", "模擬 SOC 安全操作中心，即時監控台灣詐騙威脅態勢"),
     "simulator": ("詐騙對話模擬器", "與 AI 扮演的詐騙犯對話，練習識破詐騙手法"),
     "dna_map": ("話術 DNA 圖譜", "各詐騙類型的心理操控特徵分布與相互關聯"),
-    "evolution": ("話術進化時間軸", "追蹤詐騙話術從 2021 到 2024 的演化歷程"),
+    "evolution": ("話術進化時間軸", "追蹤詐騙話術從 2021 到 2026 的演化歷程"),
     "training": ("詐騙免疫訓練", "互動式防詐訓練，通過測驗獲得防詐免疫證書"),
     "llm_demo": ("LLM 話術生成", "呼叫 GPT-4o 生成多種變形話術並進行 XAI 分析"),
     "xai": ("XAI 話術分析", "可解釋性 AI 高亮顯示詐騙話術的心理操控特徵"),
@@ -1224,7 +1224,7 @@ elif page_key == "evolution":
     from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
     st.title("詐騙話術進化時間軸")
-    st.markdown("追蹤詐騙話術從 2021 到 2024 的演化歷程，揭示詐騙犯如何隨技術進步升級手法。")
+    st.markdown("追蹤詐騙話術從 2021 到 2026 的演化歷程，揭示詐騙犯如何隨技術進步升級手法。")
 
     scam_type = st.selectbox("選擇詐騙類型", list(EVOLUTION_TIMELINE.keys()))
     timeline = EVOLUTION_TIMELINE[scam_type]
@@ -1286,13 +1286,14 @@ elif page_key == "evolution":
         """, unsafe_allow_html=True)
 
     st.markdown("---")
+    next_year = datetime.now().year + 1
     st.markdown(f"""
     <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;">
-        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：2025 年趨勢</div>
+        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：{next_year} 年趨勢</div>
         <div style="color:#374151;">
-        基於話術演化模式，預測 2025 年將出現更多 <strong style="color:#DC2626;">AI 深偽 + 即時語音合成</strong> 的複合型詐騙，
-        結合個人資料洩露進行精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
+        基於話術演化模式，預測 {next_year} 年將出現更多 <strong style="color:#DC2626;">AI 全自動詐騙代理 + 多模態深偽互動</strong> 的複合型詐騙，
+        結合大規模個資洩露與即時情境感知進行超精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
         提前訓練防詐模型。
         </div>
     </div>
