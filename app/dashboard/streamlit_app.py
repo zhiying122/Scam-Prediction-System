@@ -48,13 +48,17 @@ _API_GATEWAY_URL = os.environ.get("API_GATEWAY_URL", "http://localhost:8000")
 _API_KEY = os.environ.get("API_KEY", "test-key-001")
 
 
-def _call_api_gateway(endpoint: str, payload: dict) -> dict:
+def _call_api_gateway(endpoint: str, payload: dict, extra_headers: dict | None = None) -> dict:
     """透過 API Gateway 呼叫後端服務（遵守架構分層原則）。"""
     url = f"{_API_GATEWAY_URL.rstrip('/')}{endpoint}"
     headers = {
         "Content-Type": "application/json",
         "X-API-Key": _API_KEY,
+        "X-Operator-Id": "dashboard-user",
+        "X-Operator-Role": "系統管理員",
     }
+    if extra_headers:
+        headers.update(extra_headers)
     try:
         resp = _requests.post(url, json=payload, headers=headers, timeout=60)
         resp.raise_for_status()
