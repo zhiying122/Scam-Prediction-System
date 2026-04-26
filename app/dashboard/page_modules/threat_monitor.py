@@ -540,3 +540,58 @@ def get_current_threat_summary(
         "trend": trend,
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def get_dynamic_timeline() -> dict[str, list[dict[str, Any]]]:
+    """取得動態進化時間軸，自動補充當年度 LLM 生成的條目。
+
+    流程：
+    1. 以硬編碼 EVOLUTION_TIMELINE（2021-2026）為基礎
+    2. 若當前年份 > 時間軸最大年份，呼叫 LLM 生成當年度條目
+    3. 將 LLM 條目合併至時間軸
+    4. 若 LLM 不可用，回傳原始硬編碼資料
+
+    Returns:
+        完整的進化時間軸 dict[scam_type, list[entry]]
+    """
+    import copy
+
+    # 深拷貝避免修改原始資料
+    timeline = copy.deepcopy(EVOLUTION_TIMELINE)
+
+    # 找出時間軸中的最大年份
+    max_year = 0
+    for entries in timeline.values():
+        for entry in entries:
+            if entry["year"] > max_year:
+                max_year = entry["year"]
+
+    current_year = datetime.now().year
+    if current_year <= max_year:
+        return timeline
+
+    # 當前年份超過時間軸，嘗試 LLM 生成
+    try:
+        from app.live_data.timeline_generator import generate_current_year_timeline
+
+        llm_entries = generate_current_year_timeline()
+        if llm_entries is None:
+            return timeline
+
+        # 合併 LLM 生成的條目
+        for scam_type, entries in llm_entries.items():
+            if scam_type in timeline:
+                # 避免重複年份
+                existing_years = {e["year"] for e in timeline[scam_type]}
+                for entry in entries:
+                    if entry["year"] not in existing_years:
+                        timeline[scam_type].append(entry)
+
+        return timeline
+
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "動態 timeline 生成失敗，使用硬編碼資料: %s", exc
+        )
+        return timeline

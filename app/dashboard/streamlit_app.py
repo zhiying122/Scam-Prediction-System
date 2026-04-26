@@ -826,7 +826,7 @@ elif page_key == "threat_monitor":
     import time
     import pandas as pd
     from app.dashboard.page_modules.threat_monitor import (
-        get_current_threat_summary, generate_live_alerts, THREAT_LEVELS, EVOLUTION_TIMELINE
+        get_current_threat_summary, generate_live_alerts, THREAT_LEVELS,
     )
 
     st.title("即時威脅監控中心")
@@ -1221,13 +1221,15 @@ elif page_key == "dna_map":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "evolution":
     import pandas as pd
-    from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
+    from app.dashboard.page_modules.threat_monitor import get_dynamic_timeline
+
+    timeline_data = get_dynamic_timeline()
 
     st.title("詐騙話術進化時間軸")
     st.markdown("追蹤詐騙話術從 2021 到 2026 的演化歷程，揭示詐騙犯如何隨技術進步升級手法。")
 
-    scam_type = st.selectbox("選擇詐騙類型", list(EVOLUTION_TIMELINE.keys()))
-    timeline = EVOLUTION_TIMELINE[scam_type]
+    scam_type = st.selectbox("選擇詐騙類型", list(timeline_data.keys()))
+    timeline = timeline_data[scam_type]
 
     st.markdown("---")
 
