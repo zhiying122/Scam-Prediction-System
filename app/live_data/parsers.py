@@ -130,3 +130,17 @@ def csv_stats_parser(raw_data: str) -> NormalizedData:
         hotwords={},
         real_scam_scripts=[],
     )
+
+
+def scraper_result_parser(raw_data: NormalizedData) -> NormalizedData:
+    """
+    爬蟲結果解析器（pass-through）
+
+    爬蟲模組（scraper.py）已直接回傳 NormalizedData，
+    此解析器僅做 pass-through 並更新 fetched_at 時間戳。
+    """
+    return raw_data.model_copy(
+        update={
+            "fetched_at": datetime.now(timezone.utc),
+        }
+    )

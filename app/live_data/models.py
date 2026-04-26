@@ -86,7 +86,7 @@ class DataSourceConfig(BaseModel):
 
     name: str
     url: str
-    data_format: Literal["json", "csv"]
+    data_format: Literal["json", "csv", "scraper"]
     priority: int = Field(ge=0)
     enabled: bool = True
 

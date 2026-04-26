@@ -3,6 +3,7 @@
 
 管理所有外部資料來源端點，支援優先順序排序、
 連續失敗自動停用與自動恢復機制。
+包含爬蟲型資料來源（scraper）作為最高優先來源。
 """
 
 import logging
@@ -13,25 +14,28 @@ from app.live_data.models import DataSourceConfig
 logger = logging.getLogger(__name__)
 
 # 預設資料來源
+# priority=0 的 scraper 來源會最先嘗試，使用網頁爬蟲 + LLM 解析
+# 後續 HTTP API 來源作為備援（雖然目前這些 API 端點不存在，
+# 但保留以便未來政府開放 API 時可直接啟用）
 _DEFAULT_SOURCES = [
     DataSourceConfig(
-        name="data.gov.tw",
-        url="https://data.gov.tw/api/v2/rest/dataset/scam-statistics",
-        data_format="json",
+        name="scraper:台灣詐騙統計",
+        url="scraper://all",
+        data_format="scraper",
         priority=0,
         enabled=True,
     ),
     DataSourceConfig(
-        name="NPA 開放資料",
-        url="https://data.npa.gov.tw/api/dataset/fraud-stats",
+        name="data.gov.tw",
+        url="https://data.gov.tw/datasets/search?qs=詐騙統計",
         data_format="json",
         priority=1,
         enabled=True,
     ),
     DataSourceConfig(
-        name="165 統計",
-        url="https://165.npa.gov.tw/api/stats/export.csv",
-        data_format="csv",
+        name="NPA 開放資料",
+        url="https://165.npa.gov.tw",
+        data_format="json",
         priority=2,
         enabled=True,
     ),

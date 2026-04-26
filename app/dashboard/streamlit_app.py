@@ -849,7 +849,11 @@ elif page_key == "threat_monitor":
     st.title("即時威脅監控中心")
     st.markdown("模擬 SOC 安全操作中心，即時監控台灣詐騙威脅態勢。")
 
-    summary = get_current_threat_summary()
+    summary = get_current_threat_summary(
+        scam_type_stats=SCAM_TYPE_STATS,
+        monthly_trend=MONTHLY_TREND,
+        cases_by_region=TAIWAN_SCAM_CASES_BY_REGION,
+    )
     level_info = THREAT_LEVELS[summary["overall_level"]]
 
     # 威脅等級橫幅
@@ -880,7 +884,11 @@ elif page_key == "threat_monitor":
         if st.button("刷新事件", key="refresh_alerts"):
             st.rerun()
 
-        alerts = generate_live_alerts(10)
+        alerts = generate_live_alerts(
+            10,
+            scam_type_stats=SCAM_TYPE_STATS,
+            cases_by_region=TAIWAN_SCAM_CASES_BY_REGION,
+        )
         for alert in alerts:
             lvl = THREAT_LEVELS[alert["level"]]
             st.markdown(f"""

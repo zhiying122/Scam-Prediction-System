@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from data.taiwan_scam_data import (
-    SCAM_TYPE_STATS,
-    MONTHLY_TREND,
-    TAIWAN_SCAM_CASES_BY_REGION,
+    SCAM_TYPE_STATS as _STATIC_SCAM_TYPE_STATS,
+    MONTHLY_TREND as _STATIC_MONTHLY_TREND,
+    TAIWAN_SCAM_CASES_BY_REGION as _STATIC_CASES_BY_REGION,
 )
 
 
@@ -278,24 +278,37 @@ _TACTIC_DESCRIPTIONS: dict[str, str] = {
 }
 
 
-def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
+def generate_live_alerts(
+    n: int = 8,
+    scam_type_stats: dict[str, dict[str, Any]] | None = None,
+    cases_by_region: dict[str, int] | None = None,
+) -> list[dict[str, Any]]:
     """基於真實統計數據生成預警事件，使用當前真實時間。
 
-    使用 SCAM_TYPE_STATS 的案件數計算風險分數，
-    使用 TAIWAN_SCAM_CASES_BY_REGION 取得真實地區，
+    使用 scam_type_stats 的案件數計算風險分數，
+    使用 cases_by_region 取得真實地區，
     時間戳基於當前系統時間，帶有不規則間隔。
+
+    Args:
+        n: 生成的預警事件數量
+        scam_type_stats: 詐騙類型統計（預設使用靜態資料）
+        cases_by_region: 各縣市案件數（預設使用靜態資料）
     """
     import hashlib
 
+    # 使用傳入的資料或降級至靜態資料
+    _scam_stats = scam_type_stats if scam_type_stats is not None else _STATIC_SCAM_TYPE_STATS
+    _regions = cases_by_region if cases_by_region is not None else _STATIC_CASES_BY_REGION
+
     # 按案件數降序排列詐騙類型（確定性排序）
     sorted_types = sorted(
-        SCAM_TYPE_STATS.items(), key=lambda x: x[1]["cases"], reverse=True
+        _scam_stats.items(), key=lambda x: x[1]["cases"], reverse=True
     )
-    max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values())
+    max_cases = max(s["cases"] for s in _scam_stats.values())
 
     # 按案件數降序排列地區
     sorted_regions = sorted(
-        TAIWAN_SCAM_CASES_BY_REGION.items(), key=lambda x: x[1], reverse=True
+        _regions.items(), key=lambda x: x[1], reverse=True
     )
 
     now = datetime.now()
@@ -340,26 +353,42 @@ def generate_live_alerts(n: int = 8) -> list[dict[str, Any]]:
     return sorted(alerts, key=lambda a: a["time"], reverse=True)
 
 
-def get_current_threat_summary() -> dict[str, Any]:
+def get_current_threat_summary(
+    scam_type_stats: dict[str, dict[str, Any]] | None = None,
+    monthly_trend: list[dict[str, Any]] | None = None,
+    cases_by_region: dict[str, int] | None = None,
+) -> dict[str, Any]:
     """基於真實統計數據動態計算當前威脅摘要。
 
-    - active_threats: 趨勢為「上升」的詐騙類型數量
-    - new_variants_24h: 基於最新月份案件數 / 30 的日均新變種估算
-    - total_cases_today: 最新月份案件數 / 30（日均）
-    - ai_scam_ratio: 趨勢上升類型案件數佔總案件數比例
-    - highest_risk_type: 案件數最多的詐騙類型
-    - highest_risk_region: 案件數最多的地區
+    Args:
+        scam_type_stats: 詐騙類型統計（預設使用靜態資料）
+        monthly_trend: 月度趨勢資料（預設使用靜態資料）
+        cases_by_region: 各縣市案件數（預設使用靜態資料）
+
+    Returns:
+        dict 包含：
+        - active_threats: 趨勢為「上升」的詐騙類型數量
+        - new_variants_24h: 基於最新月份案件數 / 30 的日均新變種估算
+        - total_cases_today: 最新月份案件數 / 30（日均）
+        - ai_scam_ratio: 趨勢上升類型案件數佔總案件數比例
+        - highest_risk_type: 案件數最多的詐騙類型
+        - highest_risk_region: 案件數最多的地區
     """
+    # 使用傳入的資料或降級至靜態資料
+    _scam_stats = scam_type_stats if scam_type_stats is not None else _STATIC_SCAM_TYPE_STATS
+    _trend = monthly_trend if monthly_trend is not None else _STATIC_MONTHLY_TREND
+    _regions = cases_by_region if cases_by_region is not None else _STATIC_CASES_BY_REGION
+
     # 計算趨勢上升的類型數量
     rising_types = {
         name: stats
-        for name, stats in SCAM_TYPE_STATS.items()
+        for name, stats in _scam_stats.items()
         if stats["trend"] == "上升"
     }
     active_threats = len(rising_types)
 
     # 最新月份的日均案件數
-    latest_month = MONTHLY_TREND[-1]
+    latest_month = _trend[-1]
     total_cases_today = latest_month["cases"] // 30
 
     # 新變種估算：上升趨勢類型的日均案件數
@@ -367,24 +396,24 @@ def get_current_threat_summary() -> dict[str, Any]:
     new_variants_24h = rising_daily
 
     # AI 詐騙比例：上升趨勢類型案件數 / 總案件數
-    total_cases_all = sum(s["cases"] for s in SCAM_TYPE_STATS.values())
+    total_cases_all = sum(s["cases"] for s in _scam_stats.values())
     rising_cases = sum(s["cases"] for s in rising_types.values())
     ai_scam_ratio = round(rising_cases / total_cases_all, 2) if total_cases_all else 0.0
 
     # 最高風險類型：案件數最多
-    highest_risk_type = max(SCAM_TYPE_STATS, key=lambda k: SCAM_TYPE_STATS[k]["cases"])
+    highest_risk_type = max(_scam_stats, key=lambda k: _scam_stats[k]["cases"])
 
     # 最高風險地區：案件數最多
     highest_risk_region = max(
-        TAIWAN_SCAM_CASES_BY_REGION, key=TAIWAN_SCAM_CASES_BY_REGION.get  # type: ignore[arg-type]
+        _regions, key=_regions.get  # type: ignore[arg-type]
     )
 
     # 整體威脅等級
     overall_level = "HIGH" if active_threats >= 3 else "MEDIUM" if active_threats >= 1 else "LOW"
 
     # 趨勢判斷
-    if len(MONTHLY_TREND) >= 2:
-        trend = "上升" if MONTHLY_TREND[-1]["cases"] > MONTHLY_TREND[-2]["cases"] else "穩定"
+    if len(_trend) >= 2:
+        trend = "上升" if _trend[-1]["cases"] > _trend[-2]["cases"] else "穩定"
     else:
         trend = "穩定"
 

@@ -1,11 +1,12 @@
 """
 資料擷取器
 
-從外部來源擷取詐騙統計資料，使用 httpx.AsyncClient 進行非同步 HTTP 請求。
+從外部來源擷取詐騙統計資料，支援 HTTP API 與爬蟲型來源。
 依優先順序逐一嘗試來源，第一個成功即停止。
 所有來源失敗時觸發 FallbackProvider。
 """
 
+import asyncio
 import logging
 from collections import deque
 from datetime import datetime, timezone
@@ -56,6 +57,7 @@ class DataFetcher:
         嘗試從外部來源擷取資料
 
         依優先順序逐一嘗試來源，第一個成功即停止。
+        支援 scraper 型來源（data_format="scraper"）與傳統 HTTP API 來源。
         所有來源失敗時觸發 FallbackProvider。
 
         Returns:
@@ -71,9 +73,69 @@ class DataFetcher:
         cached = self._cache_manager.load()
         cache_data = cached.data if cached else None
 
-        async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-            for source in sources:
+        for source in sources:
+            # 爬蟲型來源：使用 scraper 模組
+            if source.data_format == "scraper":
                 try:
+                    from app.live_data.scraper import scrape_all_sources
+
+                    scraped = await scrape_all_sources()
+                    if scraped is not None:
+                        # 用快取填補缺失欄位
+                        if cache_data is not None:
+                            scraped = self._normalizer._fill_missing_from_cache(
+                                scraped, cache_data
+                            )
+
+                        # 驗證
+                        if scraped.scam_cases_by_region or scraped.scam_type_stats:
+                            self._cache_manager.store(scraped)
+                            self._registry.record_success(source.name)
+                            self._consecutive_failures = 0
+
+                            result = FetchResult(
+                                source_name=scraped.source_name,
+                                fetched_at=datetime.now(timezone.utc),
+                                success=True,
+                                record_count=len(scraped.scam_cases_by_region),
+                            )
+                            self._results.append(result)
+                            logger.info(
+                                "爬蟲資料擷取成功：來源='%s'",
+                                scraped.source_name,
+                            )
+                            return result
+
+                    # 爬蟲回傳 None 或資料為空
+                    self._registry.record_failure(source.name)
+                    result = FetchResult(
+                        source_name=source.name,
+                        fetched_at=datetime.now(timezone.utc),
+                        success=False,
+                        error_message="爬蟲未取得有效資料",
+                    )
+                    self._results.append(result)
+                    logger.warning("爬蟲來源 '%s' 未取得有效資料", source.name)
+                    continue
+
+                except Exception as exc:
+                    error_msg = f"{type(exc).__name__}: {exc}"
+                    self._registry.record_failure(source.name)
+                    result = FetchResult(
+                        source_name=source.name,
+                        fetched_at=datetime.now(timezone.utc),
+                        success=False,
+                        error_message=error_msg,
+                    )
+                    self._results.append(result)
+                    logger.warning(
+                        "爬蟲來源 '%s' 擷取失敗：%s", source.name, error_msg
+                    )
+                    continue
+
+            # 傳統 HTTP API 來源
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
                     response = await client.get(source.url)
 
                     if response.status_code == 200:
@@ -148,19 +210,19 @@ class DataFetcher:
                             response.status_code,
                         )
 
-                except (httpx.TimeoutException, httpx.RequestError, Exception) as exc:
-                    error_msg = f"{type(exc).__name__}: {exc}"
-                    self._registry.record_failure(source.name)
-                    result = FetchResult(
-                        source_name=source.name,
-                        fetched_at=datetime.now(timezone.utc),
-                        success=False,
-                        error_message=error_msg,
-                    )
-                    self._results.append(result)
-                    logger.warning(
-                        "來源 '%s' 擷取失敗：%s", source.name, error_msg
-                    )
+            except (httpx.TimeoutException, httpx.RequestError, Exception) as exc:
+                error_msg = f"{type(exc).__name__}: {exc}"
+                self._registry.record_failure(source.name)
+                result = FetchResult(
+                    source_name=source.name,
+                    fetched_at=datetime.now(timezone.utc),
+                    success=False,
+                    error_message=error_msg,
+                )
+                self._results.append(result)
+                logger.warning(
+                    "來源 '%s' 擷取失敗：%s", source.name, error_msg
+                )
 
         # 所有來源失敗
         return self._handle_all_failed("所有來源擷取失敗")

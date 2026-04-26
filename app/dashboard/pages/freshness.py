@@ -23,19 +23,19 @@ def render_freshness_indicator(info: FreshnessInfo) -> str:
     """
     if info.is_fresh and info.fetched_at is not None:
         time_str = info.fetched_at.strftime("%Y-%m-%d %H:%M")
-        return f"資料已更新：{time_str}（來源：{info.source_name}）"
+        return f"✅ 資料已更新：{time_str}（來源：{info.source_name}）"
 
     if info.is_cached and info.fetched_at is not None:
         time_str = info.fetched_at.strftime("%Y-%m-%d %H:%M")
         if info.cache_age_hours < 24:
             hours = int(info.cache_age_hours)
-            return f"快取資料：{time_str}（{hours} 小時前更新）"
+            return f"⚠️ 快取資料：{time_str}（{hours} 小時前更新）"
         else:
             days = int(info.cache_age_hours / 24)
-            return f"資料可能過時：{time_str}（{days} 天前更新）"
+            return f"🔴 資料可能過時：{time_str}（{days} 天前更新）"
 
     if info.is_static:
-        return "顯示靜態預設資料（2023-2024）"
+        return "📋 顯示靜態預設資料（2023-2024）"
 
     # Fallback: no data
-    return "顯示靜態預設資料（2023-2024）"
+    return "📋 顯示靜態預設資料（2023-2024）"

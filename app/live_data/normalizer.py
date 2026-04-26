@@ -33,10 +33,11 @@ class DataNormalizer:
 
     def _register_builtin_parsers(self) -> None:
         """註冊內建解析器"""
-        from app.live_data.parsers import csv_stats_parser, json_gov_parser
+        from app.live_data.parsers import csv_stats_parser, json_gov_parser, scraper_result_parser
 
         self._parsers["json"] = json_gov_parser
         self._parsers["csv"] = csv_stats_parser
+        self._parsers["scraper"] = scraper_result_parser
 
     def register_parser(self, source_format: str, parser: ParserFunc) -> None:
         """

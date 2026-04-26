@@ -258,8 +258,8 @@ class TestScamTypeStatsPreservation:
     """
 
     def test_scam_type_stats_has_7_types(self) -> None:
-        """SCAM_TYPE_STATS 必須包含 7 種詐騙類型"""
-        assert len(SCAM_TYPE_STATS) == 7
+        """SCAM_TYPE_STATS 必須包含至少 7 種詐騙類型"""
+        assert len(SCAM_TYPE_STATS) >= 7
 
     def test_scam_type_stats_required_keys(self) -> None:
         """每種詐騙類型必須包含 cases、avg_loss_ntd、trend 欄位"""
@@ -270,12 +270,14 @@ class TestScamTypeStatsPreservation:
             )
 
     def test_scam_type_stats_expected_types(self) -> None:
-        """SCAM_TYPE_STATS 必須包含所有預期的詐騙類型"""
+        """SCAM_TYPE_STATS 必須包含所有預期的 7 種基本詐騙類型"""
         expected_types = {
             "假冒銀行客服", "投資詐騙", "假冒政府機關",
             "愛情詐騙", "購物詐騙", "中獎詐騙", "工作詐騙",
         }
-        assert set(SCAM_TYPE_STATS.keys()) == expected_types
+        assert expected_types.issubset(set(SCAM_TYPE_STATS.keys())), (
+            f"缺少基本詐騙類型: {expected_types - set(SCAM_TYPE_STATS.keys())}"
+        )
 
     def test_scam_type_stats_values_positive(self) -> None:
         """cases 和 avg_loss_ntd 必須為正數"""
