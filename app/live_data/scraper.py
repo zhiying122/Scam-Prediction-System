@@ -175,13 +175,51 @@ def _extract_stats_from_html(html: str, source_name: str) -> NormalizedData | No
         logger.warning("beautifulsoup4 未安裝，無法解析 HTML")
         return None
 
+    # 嘗試從 HTML 表格中提取結構化數據
+    regions: dict[str, int] = {}
+    scam_type_stats: dict[str, ScamTypeStat] = {}
+
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        for row in rows:
+            cells = row.find_all(["td", "th"])
+            cell_texts = [c.get_text(strip=True) for c in cells]
+            if len(cell_texts) >= 2:
+                label = cell_texts[0]
+                # 嘗試匹配縣市名稱 + 數字
+                for ct in cell_texts[1:]:
+                    num_match = re.search(r"(\d{1,3}(?:,\d{3})*)", ct)
+                    if num_match and any(
+                        kw in label for kw in ["市", "縣", "區"]
+                    ):
+                        regions[label] = int(num_match.group(1).replace(",", ""))
+                        break
+                    # 嘗試匹配詐騙類型
+                    if num_match and any(
+                        kw in label for kw in ["詐騙", "詐欺", "冒充", "假冒"]
+                    ):
+                        cases_val = int(num_match.group(1).replace(",", ""))
+                        scam_type_stats[label] = ScamTypeStat(
+                            cases=cases_val, avg_loss_ntd=0, trend="穩定"
+                        )
+                        break
+
     text = soup.get_text(separator=" ", strip=True)
 
     # 嘗試從文本中提取數字（案件數、金額等）
     numbers = re.findall(r"(\d{1,3}(?:,\d{3})*)\s*(?:件|案|筆)", text)
     amounts = re.findall(r"(\d+(?:\.\d+)?)\s*(?:億|萬)", text)
 
-    if not numbers and not amounts:
+    # 嘗試提取熱詞（從連結文字、標題等）
+    hotwords: dict[str, int] = {}
+    for tag in soup.find_all(["a", "h1", "h2", "h3", "h4", "strong", "b"]):
+        tag_text = tag.get_text(strip=True)
+        if 2 <= len(tag_text) <= 8 and any(
+            kw in tag_text for kw in ["詐騙", "詐欺", "投資", "銀行", "客服", "警察", "帳戶"]
+        ):
+            hotwords[tag_text] = hotwords.get(tag_text, 0) + 1
+
+    if not numbers and not amounts and not regions and not scam_type_stats:
         logger.info("來源 '%s' 未找到可提取的統計數據", source_name)
         return None
 
@@ -203,12 +241,12 @@ def _extract_stats_from_html(html: str, source_name: str) -> NormalizedData | No
         if val > total_loss:
             total_loss = val
 
-    if total_cases == 0 and total_loss == 0.0:
+    if total_cases == 0 and total_loss == 0.0 and not regions and not scam_type_stats:
         return None
 
     return NormalizedData(
-        scam_cases_by_region={},
-        scam_type_stats={},
+        scam_cases_by_region=regions,
+        scam_type_stats=scam_type_stats,
         monthly_trend=[],
         victim_age_distribution={},
         annual_stats={
@@ -219,7 +257,7 @@ def _extract_stats_from_html(html: str, source_name: str) -> NormalizedData | No
         } if total_cases > 0 else {},
         source_name=f"scraper:{source_name}",
         fetched_at=now,
-        hotwords={},
+        hotwords=hotwords,
         real_scam_scripts=[],
     )
 

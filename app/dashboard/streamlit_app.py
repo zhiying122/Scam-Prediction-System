@@ -100,7 +100,7 @@ def get_cache() -> DashboardCache:
 
 cache = get_cache()
 
-# ── 真實資料 ──────────────────────────────────────────────────────────────────
+# ── 真實資料（靜態資料作為最終降級）──────────────────────────────────────────
 import sys
 import os as _os
 sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..', '..'))
@@ -110,11 +110,37 @@ from data.taiwan_scam_data import (
     MODEL_PERFORMANCE, ANNUAL_STATS,
 )
 
-MOCK_KEYWORD_FREQ = REAL_HOTWORDS
+# ── 從 CacheManager 取得最新資料（優先於靜態資料）─────────────────────────────
+def _get_live_data():
+    """從 CacheManager 取得最新資料，資料為空時回傳 None（降級至靜態資料）"""
+    try:
+        mgr = get_live_data_manager()
+        if mgr is not None:
+            cached = mgr.load()
+            if cached is not None and cached.data.scam_type_stats:
+                return cached.data
+    except Exception:
+        pass
+    return None
+
+_live = _get_live_data()
+if _live is not None and _live.scam_cases_by_region and _live.scam_type_stats:
+    # 用 live data 覆蓋靜態資料變數，讓下游頁面無感切換
+    SCAM_TYPE_STATS = {k: {"cases": v.cases, "avg_loss_ntd": v.avg_loss_ntd, "trend": v.trend}
+                       for k, v in _live.scam_type_stats.items()}
+    TAIWAN_SCAM_CASES_BY_REGION = _live.scam_cases_by_region
+    VICTIM_AGE_DISTRIBUTION = _live.victim_age_distribution
+    MONTHLY_TREND = [{"month": e.month, "cases": e.cases, "amount_billion": e.amount_billion}
+                     for e in _live.monthly_trend]
+    ANNUAL_STATS = {k: {"total_cases": v.total_cases, "total_loss_billion": v.total_loss_billion}
+                    for k, v in _live.annual_stats.items()}
+    KEYWORD_FREQ = _live.hotwords if _live.hotwords else REAL_HOTWORDS
+    if _live.real_scam_scripts:
+        REAL_SCAM_SCRIPTS = [s for s in _live.real_scam_scripts if "_model_performance" not in s]
+else:
+    KEYWORD_FREQ = REAL_HOTWORDS
 
 # 風險向量資料（基於 taiwan_scam_data.py 真實案件統計計算）
-# 資料來源：內政部警政署 165 反詐騙諮詢專線統計（2023-2024）、刑事警察局詐欺案件統計
-# 計算邏輯：綜合案件數佔比（40%）、平均損失佔比（40%）、趨勢權重（±10%）與基礎分（10%）
 total_cases = sum(TAIWAN_SCAM_CASES_BY_REGION.values())
 max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values())
 max_loss = max(s["avg_loss_ntd"] for s in SCAM_TYPE_STATS.values())
@@ -226,17 +252,20 @@ _freshness_text = ""
 try:
     from app.dashboard.pages.freshness import render_freshness_indicator
 
-    # 每次頁面載入自動觸發資料擷取
-    try:
-        from app.live_data import get_fetch_scheduler
-        _sched = get_fetch_scheduler()
-        _sched.trigger_now()
-    except Exception:
-        pass
-
+    # 檢查快取新鮮度，僅在快取過期（>6小時）或不存在時觸發一次擷取
     _live_mgr = get_live_data_manager()
     if _live_mgr is not None:
         _freshness_info = _live_mgr.get_freshness_info()
+        if _freshness_info.is_static or _freshness_info.cache_age_hours > 6.0:
+            # 快取過期或不存在，觸發一次擷取
+            try:
+                from app.live_data import get_fetch_scheduler
+                _sched = get_fetch_scheduler()
+                _sched.trigger_now()
+                # 重新取得新鮮度資訊
+                _freshness_info = _live_mgr.get_freshness_info()
+            except Exception:
+                pass
         _freshness_text = render_freshness_indicator(_freshness_info)
     else:
         _freshness_text = "顯示靜態預設資料（2023-2024）"
@@ -387,56 +416,6 @@ if page_key != "home":
         <span style="color:#374151;font-weight:500;">{_title}</span>
     </div>
     """, unsafe_allow_html=True)
-
-# ── 從 live_data 層取得最新資料（取代直接 import 靜態資料）─────────────────────
-def _get_live_data():
-    """從 CacheManager 取得最新資料，資料為空時回傳 None（降級至靜態資料）"""
-    try:
-        mgr = get_live_data_manager()
-        if mgr is not None:
-            cached = mgr.load()
-            if cached is not None and cached.data.scam_type_stats:
-                return cached.data
-    except Exception:
-        pass
-    return None
-
-_live = _get_live_data()
-if _live is not None and _live.scam_cases_by_region and _live.scam_type_stats:
-    # 用 live data 覆蓋靜態資料變數，讓下游頁面無感切換
-    SCAM_TYPE_STATS = {k: {"cases": v.cases, "avg_loss_ntd": v.avg_loss_ntd, "trend": v.trend}
-                       for k, v in _live.scam_type_stats.items()}
-    TAIWAN_SCAM_CASES_BY_REGION = _live.scam_cases_by_region
-    VICTIM_AGE_DISTRIBUTION = _live.victim_age_distribution
-    MONTHLY_TREND = [{"month": e.month, "cases": e.cases, "amount_billion": e.amount_billion}
-                     for e in _live.monthly_trend]
-    ANNUAL_STATS = {k: {"total_cases": v.total_cases, "total_loss_billion": v.total_loss_billion}
-                    for k, v in _live.annual_stats.items()}
-    MOCK_KEYWORD_FREQ = _live.hotwords if _live.hotwords else REAL_HOTWORDS
-    if _live.real_scam_scripts:
-        REAL_SCAM_SCRIPTS = [s for s in _live.real_scam_scripts if "_model_performance" not in s]
-    # 重新計算風險向量
-    total_cases = sum(TAIWAN_SCAM_CASES_BY_REGION.values())
-    max_cases = max(s["cases"] for s in SCAM_TYPE_STATS.values()) if SCAM_TYPE_STATS else 1
-    max_loss = max(s["avg_loss_ntd"] for s in SCAM_TYPE_STATS.values()) if SCAM_TYPE_STATS else 1
-    COMPUTED_RISK_VECTORS = []
-    for scam_type, stats in SCAM_TYPE_STATS.items():
-        case_weight = stats["cases"] / max_cases
-        loss_weight = stats["avg_loss_ntd"] / max_loss
-        trend_bonus = 0.1 if stats["trend"] == "上升" else -0.05 if stats["trend"] == "下降" else 0
-        risk_score = min(0.95, case_weight * 0.4 + loss_weight * 0.4 + trend_bonus + 0.1)
-        audience = "中老年族群" if scam_type in ["假冒銀行客服", "假冒政府機關"] else \
-                   "年輕族群" if scam_type in ["投資詐騙", "購物詐騙"] else "一般民眾"
-        top_region = max(TAIWAN_SCAM_CASES_BY_REGION, key=lambda k: TAIWAN_SCAM_CASES_BY_REGION[k])
-        COMPUTED_RISK_VECTORS.append({
-            "scam_cluster_label": scam_type,
-            "risk_score": round(risk_score, 2),
-            "target_audience": audience,
-            "region": top_region,
-            "high_risk_features": [f"{scam_type}話術", f"平均損失 {stats['avg_loss_ntd']//10000} 萬元"],
-            "cases_2023": stats["cases"],
-            "trend": stats["trend"],
-        })
 
 # ── 動態計算最新年度統計（取代寫死的數據）────────────────────────────────────
 def _compute_latest_stats():
@@ -1598,8 +1577,8 @@ elif page_key == "hotwords":
     from app.dashboard.page_modules.hotwords import compute_hotword_ranking, get_hotword_page_data
 
     def fetch_hotword_data():
-        """從後端取得熱詞資料（示範：直接使用 mock 資料）"""
-        return MOCK_KEYWORD_FREQ
+        """從後端取得熱詞資料"""
+        return KEYWORD_FREQ
 
     # 帶快取降級的資料載入
     data, is_from_cache, cached_at = cache.fetch_with_fallback(
