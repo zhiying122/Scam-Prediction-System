@@ -23,11 +23,16 @@ def _safe_async_run(coro):
     ``RuntimeError: This event loop is already running``.  We use
     ``nest_asyncio`` (applied at module level) together with
     ``get_event_loop().run_until_complete()`` to avoid the conflict.
+
+    Python 3.12+ 要求 ``asyncio.wait_for`` 必須在 Task 內執行，
+    因此將 coroutine 包裝為 Task 再執行，避免 RuntimeError。
     Falls back to ``asyncio.run()`` when no running loop is available.
     """
     try:
         loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro)
+        # 將 coroutine 包裝為 Task，確保 asyncio.wait_for 等 API 正常運作
+        task = loop.create_task(coro)
+        return loop.run_until_complete(task)
     except RuntimeError:
         return asyncio.run(coro)
 
