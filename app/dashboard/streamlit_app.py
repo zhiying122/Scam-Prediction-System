@@ -256,23 +256,21 @@ _freshness_text = ""
 try:
     from app.dashboard.pages.freshness import render_freshness_indicator
 
-    # 檢查快取新鮮度，僅在快取過期（>6小時）或不存在時觸發一次擷取
     _live_mgr = get_live_data_manager()
     if _live_mgr is not None:
         _freshness_info = _live_mgr.get_freshness_info()
+        # 快取過期時在背景觸發擷取，不阻塞頁面渲染
         if _freshness_info.is_static or _freshness_info.cache_age_hours > 6.0:
-            # 快取過期或不存在，觸發一次擷取
             try:
+                import threading
                 from app.live_data import get_fetch_scheduler
                 _sched = get_fetch_scheduler()
-                _sched.trigger_now()
-                # 重新取得新鮮度資訊
-                _freshness_info = _live_mgr.get_freshness_info()
+                threading.Thread(target=_sched.trigger_now, daemon=True).start()
             except Exception:
                 pass
         _freshness_text = render_freshness_indicator(_freshness_info)
     else:
-        _freshness_text = "顯示靜態預設資料（2023-2024）"
+        _freshness_text = "顯示靜態預設資料"
 except Exception:
     _freshness_text = ""
 
