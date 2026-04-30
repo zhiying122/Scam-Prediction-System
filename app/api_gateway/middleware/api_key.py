@@ -78,7 +78,14 @@ def _load_api_keys_from_env() -> dict[str, dict]:
         )
         return _HARDCODED_DEV_KEYS.copy()
 
-    # production 環境使用硬編碼金鑰時記錄警告
+    # production 環境未設定 API_KEYS：拒絕啟動，不使用硬編碼金鑰
+    if app_env == "production":
+        raise RuntimeError(
+            "⛔ 生產環境必須設定環境變數 API_KEYS，不允許使用硬編碼測試金鑰。"
+            "請設定 API_KEYS 環境變數或連接資料庫載入金鑰。"
+        )
+
+    # development/testing 環境：使用硬編碼金鑰作為 fallback
     logger.warning(
         "⚠️ 生產環境未設定環境變數 API_KEYS，使用硬編碼 fallback 金鑰。"
         "請儘速設定 API_KEYS 環境變數或連接資料庫。"

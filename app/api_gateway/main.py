@@ -37,6 +37,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """應用程式生命週期管理（啟動與關閉）"""
     logger.info("API Gateway 啟動中 | 環境: %s | 版本: 1.0.0", settings.app_env)
 
+    # 驗證稽核日誌鏈完整性（啟動時檢查，確保日誌未被竄改）
+    try:
+        from app.access_controller.audit_log import verify_chain
+        if not verify_chain():
+            logger.error("⚠️ 稽核日誌鏈完整性驗證失敗！日誌可能已被竄改。")
+        else:
+            logger.info("稽核日誌鏈完整性驗證通過")
+    except Exception as exc:
+        logger.warning("稽核日誌鏈驗證時發生錯誤（不影響 API 服務）：%s", exc)
+
     # 啟動預測分析排程器（每 24 小時執行一次異常偵測與趨勢分析）
     try:
         from app.prediction_layer.scheduler import get_scheduler

@@ -8,6 +8,7 @@
 """
 
 import logging
+import threading
 import time
 from collections import deque
 from typing import Callable
@@ -52,6 +53,8 @@ class SlidingWindowCounter:
         self.window_seconds = window_seconds
         # 以客戶端識別碼為 key，儲存請求時間戳的 deque
         self._counters: dict[str, deque[float]] = {}
+        # 執行緒鎖：確保 add_request / get_count 在併發環境下的原子性
+        self._lock = threading.Lock()
 
     def _cleanup_expired(self, client_key: str, now: float) -> None:
         """
@@ -73,30 +76,36 @@ class SlidingWindowCounter:
         """
         記錄一次請求並回傳當前視窗內的請求數量
 
+        使用 threading.Lock 確保併發環境下 check-then-act 的原子性，
+        避免多執行緒同時通過速率限制檢查。
+
         Args:
             client_key: 客戶端識別碼（通常為 API 金鑰或 IP 位址）
 
         Returns:
             (當前視窗請求數, 最舊請求的時間戳)
         """
-        now = time.time()
+        with self._lock:
+            now = time.time()
 
-        if client_key not in self._counters:
-            self._counters[client_key] = deque()
+            if client_key not in self._counters:
+                self._counters[client_key] = deque()
 
-        # 清除過期時間戳
-        self._cleanup_expired(client_key, now)
+            # 清除過期時間戳
+            self._cleanup_expired(client_key, now)
 
-        # 記錄本次請求
-        self._counters[client_key].append(now)
+            # 記錄本次請求
+            self._counters[client_key].append(now)
 
-        timestamps = self._counters[client_key]
-        oldest_timestamp = timestamps[0] if timestamps else now
-        return len(timestamps), oldest_timestamp
+            timestamps = self._counters[client_key]
+            oldest_timestamp = timestamps[0] if timestamps else now
+            return len(timestamps), oldest_timestamp
 
     def get_count(self, client_key: str) -> int:
         """
         取得當前視窗內的請求數量（不記錄新請求）
+
+        使用 threading.Lock 確保併發環境下讀取的一致性。
 
         Args:
             client_key: 客戶端識別碼
@@ -104,9 +113,10 @@ class SlidingWindowCounter:
         Returns:
             當前視窗內的請求數量
         """
-        now = time.time()
-        self._cleanup_expired(client_key, now)
-        return len(self._counters.get(client_key, deque()))
+        with self._lock:
+            now = time.time()
+            self._cleanup_expired(client_key, now)
+            return len(self._counters.get(client_key, deque()))
 
     def reset(self, client_key: str) -> None:
         """

@@ -300,15 +300,17 @@ def _parse_llm_response(raw_content: str) -> list[dict[str, Any]]:
         pass
 
     # 嘗試從文字中提取 JSON 區塊（處理 LLM 可能加入說明文字的情況）
+    # 使用 JSONDecoder.raw_decode 逐位置嘗試，只解析第一個完整 JSON 物件，
+    # 忽略 JSON 前後的額外文字，避免貪婪 regex 匹配到不完整的 JSON
     import re
-    json_pattern = re.search(r'\{[\s\S]*"samples"[\s\S]*\}', raw_content)
-    if json_pattern:
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r'\{', raw_content):
         try:
-            data = json.loads(json_pattern.group())
-            if "samples" in data and isinstance(data["samples"], list):
+            data, _ = decoder.raw_decode(raw_content, match.start())
+            if isinstance(data, dict) and "samples" in data and isinstance(data["samples"], list):
                 return data["samples"]
         except json.JSONDecodeError:
-            pass
+            continue
 
     raise ValueError(f"無法從 LLM 回應中解析 JSON 格式，原始內容：{raw_content[:200]}...")
 
