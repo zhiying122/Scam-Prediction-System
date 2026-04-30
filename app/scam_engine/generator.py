@@ -205,6 +205,9 @@ async def _call_llm_with_retry(
     """
     帶指數退避重試的 LLM 呼叫
 
+    使用同步 llm.invoke() + concurrent.futures.ThreadPoolExecutor 實作逾時控制，
+    避免 asyncio.wait_for 在 Streamlit 事件迴圈中的 RuntimeError。
+
     Args:
         llm: LangChain LLM 客戶端
         messages: 訊息列表
@@ -221,6 +224,9 @@ async def _call_llm_with_retry(
         asyncio.TimeoutError: LLM 回應逾時
         Exception: LLM API 錯誤（重試耗盡後）
     """
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+    import time
+
     delay = initial_delay
     last_exception: Exception | None = None
 
@@ -230,15 +236,16 @@ async def _call_llm_with_retry(
                 "LLM 呼叫嘗試 %d/%d | request_id=%s",
                 attempt, max_attempts, request_id
             )
-            # 使用 asyncio.wait_for 強制逾時限制
-            response = await asyncio.wait_for(
-                llm.ainvoke(messages),
-                timeout=settings.llm_timeout_seconds,
-            )
+            # 使用 ThreadPoolExecutor + 同步 invoke 實作逾時控制
+            # 避免 asyncio.wait_for 在 Streamlit 事件迴圈中的相容性問題
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(llm.invoke, messages)
+                response = future.result(timeout=settings.llm_timeout_seconds)
+
             logger.info("LLM 呼叫成功 | request_id=%s | attempt=%d", request_id, attempt)
             return response.content
 
-        except asyncio.TimeoutError as exc:
+        except FuturesTimeoutError as exc:
             # 逾時錯誤：直接拋出，不重試（逾時本身已耗費大量時間）
             logger.error(
                 "LLM 呼叫逾時（> %ds）| request_id=%s | attempt=%d",
@@ -262,7 +269,7 @@ async def _call_llm_with_retry(
                     "等待 %.1f 秒後重試 | request_id=%s",
                     actual_delay, request_id
                 )
-                await asyncio.sleep(actual_delay)
+                time.sleep(actual_delay)
                 delay *= backoff_multiplier
             else:
                 logger.error(

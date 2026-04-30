@@ -12,6 +12,7 @@ Scam_Generation_Engine 單元測試
 
 import asyncio
 import json
+import time
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -51,7 +52,7 @@ def _make_llm_response_json(count: int = 10) -> str:
 def _make_mock_llm(response_content: str) -> MagicMock:
     """建立回傳指定內容的 mock LLM 客戶端"""
     mock = MagicMock()
-    mock.ainvoke = AsyncMock(
+    mock.invoke = MagicMock(
         return_value=MagicMock(content=response_content)
     )
     return mock
@@ -296,15 +297,22 @@ class TestGenerateScamSamples:
     async def test_LLM逾時回傳結構化錯誤(self):
         """LLM 逾時應回傳包含 error_code=LLM_TIMEOUT 的結構化錯誤（需求 1.3）"""
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
-            side_effect=asyncio.TimeoutError("LLM 回應逾時")
+        mock_llm.invoke = MagicMock(
+            side_effect=lambda msgs: time.sleep(10)
         )
 
-        result = await generate_scam_samples(
-            scenario="假冒客服",
-            target_audience="中老年族群",
-            llm_client=mock_llm,
-        )
+        with patch("app.scam_engine.generator.settings") as mock_settings:
+            mock_settings.llm_timeout_seconds = 0.01
+            mock_settings.llm_max_retries = 1
+            mock_settings.llm_retry_initial_delay = 0.0
+            mock_settings.llm_retry_backoff_multiplier = 1.0
+            mock_settings.llm_retry_max_delay = 0.0
+
+            result = await generate_scam_samples(
+                scenario="假冒客服",
+                target_audience="中老年族群",
+                llm_client=mock_llm,
+            )
 
         assert "error_code" in result
         assert result["error_code"] == LLMErrorCode.TIMEOUT
@@ -316,7 +324,7 @@ class TestGenerateScamSamples:
     async def test_LLM_API錯誤回傳結構化錯誤(self):
         """LLM API 錯誤應回傳包含 error_code=LLM_API_ERROR 的結構化錯誤（需求 1.3）"""
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
+        mock_llm.invoke = MagicMock(
             side_effect=Exception("API 服務不可用")
         )
 
@@ -350,7 +358,7 @@ class TestGenerateScamSamples:
     async def test_錯誤回應包含四個必要欄位(self):
         """任何錯誤情境的回應都應包含 error_code、description、timestamp、request_id（需求 1.3）"""
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=Exception("任意錯誤"))
+        mock_llm.invoke = MagicMock(side_effect=Exception("任意錯誤"))
 
         result = await generate_scam_samples(
             scenario="假冒客服",
@@ -382,14 +390,14 @@ class TestCallLLMWithRetry:
         )
 
         assert result == "成功回應"
-        assert mock_llm.ainvoke.call_count == 1
+        assert mock_llm.invoke.call_count == 1
 
     @pytest.mark.asyncio
     async def test_失敗後重試(self):
         """第一次失敗後應重試"""
         mock_llm = MagicMock()
         # 第一次失敗，第二次成功
-        mock_llm.ainvoke = AsyncMock(
+        mock_llm.invoke = MagicMock(
             side_effect=[
                 Exception("第一次失敗"),
                 MagicMock(content="第二次成功"),
@@ -404,13 +412,13 @@ class TestCallLLMWithRetry:
         )
 
         assert result == "第二次成功"
-        assert mock_llm.ainvoke.call_count == 2
+        assert mock_llm.invoke.call_count == 2
 
     @pytest.mark.asyncio
     async def test_達到最大重試次數後拋出例外(self):
         """達到最大重試次數後應拋出最後一次例外"""
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=Exception("持續失敗"))
+        mock_llm.invoke = MagicMock(side_effect=Exception("持續失敗"))
 
         with pytest.raises(Exception, match="持續失敗"):
             await _call_llm_with_retry(
@@ -421,27 +429,30 @@ class TestCallLLMWithRetry:
                 initial_delay=0.01,
             )
 
-        assert mock_llm.ainvoke.call_count == 3
+        assert mock_llm.invoke.call_count == 3
 
     @pytest.mark.asyncio
     async def test_逾時不重試直接拋出(self):
         """逾時錯誤應直接拋出，不重試"""
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
-            side_effect=asyncio.TimeoutError("逾時")
+        mock_llm.invoke = MagicMock(
+            side_effect=lambda msgs: time.sleep(10)
         )
 
-        with pytest.raises(asyncio.TimeoutError):
-            await _call_llm_with_retry(
-                llm=mock_llm,
-                messages=[],
-                request_id="test-004",
-                max_attempts=3,
-                initial_delay=0.01,
-            )
+        with patch("app.scam_engine.generator.settings") as mock_settings:
+            mock_settings.llm_timeout_seconds = 0.01
+
+            with pytest.raises(asyncio.TimeoutError):
+                await _call_llm_with_retry(
+                    llm=mock_llm,
+                    messages=[],
+                    request_id="test-004",
+                    max_attempts=3,
+                    initial_delay=0.01,
+                )
 
         # 逾時不重試，只呼叫一次
-        assert mock_llm.ainvoke.call_count == 1
+        assert mock_llm.invoke.call_count == 1
 
 
 # ── POST /v1/scam/generate 端點測試 ──────────────────────────────────────────
@@ -901,10 +912,10 @@ class TestProperty2LLMErrorResponseStructure:
         使用 max_attempts=1 避免重試延遲超過 deadline。
         """
         import asyncio
-        from unittest.mock import AsyncMock, MagicMock, patch
+        from unittest.mock import MagicMock, patch
 
         mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=Exception(description))
+        mock_llm.invoke = MagicMock(side_effect=Exception(description))
 
         # patch max_retries 為 1，避免重試延遲
         with patch("app.scam_engine.generator.settings") as mock_settings:
