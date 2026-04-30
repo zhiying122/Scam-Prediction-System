@@ -296,7 +296,55 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
     flex: 1 !important;
 }
 .stSlider > div > div > div > div { background: #166534 !important; }
+/* Slider thumb（拖曳圓點）與 track 確保在白色背景上可見 */
+.stSlider [data-testid="stThumbValue"] { color: #166534 !important; }
+.stSlider input[type="range"]::-webkit-slider-thumb {
+    background: #166534 !important;
+    border: 2px solid #166534 !important;
+}
+.stSlider input[type="range"]::-moz-range-thumb {
+    background: #166534 !important;
+    border: 2px solid #166534 !important;
+}
+/* Slider track 底色（未填充部分）確保可見 */
+.stSlider [data-baseweb="slider"] > div:first-child {
+    background: #D1D5DB !important;
+}
+/* Slider 已填充部分 */
+.stSlider [data-baseweb="slider"] > div:first-child > div {
+    background: #166534 !important;
+}
+/* Slider thumb 圓點 */
+.stSlider [data-baseweb="slider"] [role="slider"] {
+    background: #166534 !important;
+    border-color: #166534 !important;
+    box-shadow: 0 0 0 2px rgba(22,101,52,0.3) !important;
+}
 .stSpinner > div { border-top-color: #166534 !important; }
+
+/* ── Checkbox 確保勾選框在白色背景上可見 ─────────────────────────────────── */
+.stCheckbox [data-testid="stCheckbox"] > label > div:first-child {
+    border-color: #6B7280 !important;
+}
+.stCheckbox [data-testid="stCheckbox"] > label > div:first-child[aria-checked="true"] {
+    background-color: #166534 !important;
+    border-color: #166534 !important;
+}
+/* Streamlit checkbox 內部 SVG 勾勾顏色 */
+.stCheckbox svg { fill: white !important; }
+/* baseweb checkbox 樣式覆蓋 */
+[data-baseweb="checkbox"] > div:first-child {
+    border-color: #6B7280 !important;
+    border-width: 2px !important;
+}
+[data-baseweb="checkbox"][aria-checked="true"] > div:first-child {
+    background-color: #166534 !important;
+    border-color: #166534 !important;
+}
+/* 確保 checkbox label 文字可見 */
+[data-baseweb="checkbox"] label {
+    color: #374151 !important;
+}
 
 /* ── 功能卡片 ────────────────────────────────────────────────────────────── */
 .feature-card {
