@@ -79,7 +79,7 @@ class DataFetcher:
                 try:
                     from app.live_data.scraper import scrape_all_sources
 
-                    scraped = await scrape_all_sources()
+                    scraped = scrape_all_sources()
                     if scraped is not None:
                         # 用快取填補缺失欄位
                         if cache_data is not None:

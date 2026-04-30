@@ -78,17 +78,20 @@ class FetchScheduler:
         self._run_fetch()
 
     def _run_fetch(self) -> None:
-        """執行非同步擷取（在同步排程中呼叫）"""
+        """執行非同步擷取（在同步排程中呼叫）
+
+        APScheduler 的 BackgroundScheduler 在獨立線程中執行，
+        該線程沒有事件迴圈，因此需要建立新的事件迴圈。
+        """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 在已有事件迴圈的環境中（如 FastAPI）
-                asyncio.ensure_future(self._fetcher.fetch())
-            else:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
                 loop.run_until_complete(self._fetcher.fetch())
-        except RuntimeError:
-            # 沒有事件迴圈時建立新的
-            asyncio.run(self._fetcher.fetch())
+            finally:
+                loop.close()
+        except Exception as exc:
+            logger.warning("資料擷取執行失敗：%s", exc)
 
     @property
     def is_running(self) -> bool:
