@@ -1,5 +1,5 @@
 """
-AEGIS CORE — AI 詐騙進化預測系統
+AEGIS CORE — AI 詐騙話術進化預警系統
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
@@ -37,7 +37,7 @@ def _safe_async_run(coro):
         return asyncio.run(coro)
 
 st.set_page_config(
-    page_title="AEGIS CORE — 詐騙預測系統",
+    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
     page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -393,7 +393,7 @@ section[data-testid="stMain"] > div {{
         </div>
         <div>
             <div class="top-bar-logo-text">AEGIS CORE</div>
-            <div class="top-bar-logo-sub">AI 詐騙進化預測系統</div>
+            <div class="top-bar-logo-sub">AI 詐騙話術進化預警系統</div>
         </div>
     </a>
     <div class="top-bar-right">

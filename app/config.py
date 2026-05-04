@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     )
 
     # ── 應用程式基本設定 ──────────────────────────────────────────────────────
-    app_name: str = Field(default="AI 詐騙進化預測系統", description="應用程式名稱")
+    app_name: str = Field(default="AEGIS CORE — AI 詐騙話術進化預警系統", description="應用程式名稱")
     app_env: Literal["development", "testing", "production"] = Field(
         default="development", description="執行環境"
     )
