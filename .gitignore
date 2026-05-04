@@ -49,3 +49,7 @@ coverage.xml
 
 # 模型快取（sentence-transformers 下載的模型）
 models/
+
+# 系統自動產生的快取（不應納入版本控制）
+data/live_cache.json
+data/timeline_cache.json
