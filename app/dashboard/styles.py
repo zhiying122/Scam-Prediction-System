@@ -279,6 +279,44 @@ hr { border-color: #E5E7EB !important; margin: 1rem 0 !important; }
 .stCaption, small { color: #9CA3AF !important; font-size: 0.78rem !important; }
 .stCheckbox label { color: #374151 !important; font-size: 0.875rem !important; }
 
+/* ── Form / Label 文字確保可見 ───────────────────────────────────────────── */
+.stForm {
+    background: white !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 10px !important;
+    padding: 16px !important;
+}
+/* 所有 label 文字 */
+label, .stTextInput label, .stTextArea label,
+.stSelectbox label, .stSlider label,
+.stCheckbox label, .stRadio label,
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span {
+    color: #1a2332 !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+}
+/* Selectbox 選項文字 */
+.stSelectbox [data-baseweb="select"] span,
+.stSelectbox [data-baseweb="select"] div {
+    color: #1a2332 !important;
+}
+/* Slider 數值標籤 */
+.stSlider [data-testid="stThumbValue"],
+.stSlider [data-testid="stTickBarMin"],
+.stSlider [data-testid="stTickBarMax"] {
+    color: #374151 !important;
+}
+/* Radio button label */
+.stRadio [data-testid="stMarkdownContainer"] p {
+    color: #1a2332 !important;
+}
+/* 一般段落文字 */
+[data-testid="stMarkdownContainer"] p {
+    color: #374151 !important;
+}
+
 /* ── Column 等高對齊 ─────────────────────────────────────────────────────── */
 div[data-testid="stHorizontalBlock"] {
     align-items: stretch !important;

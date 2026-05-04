@@ -60,7 +60,6 @@ def _call_api_gateway(endpoint: str, payload: dict, extra_headers: dict | None =
         "Content-Type": "application/json",
         "X-API-Key": _API_KEY,
         "X-Operator-Id": "dashboard-user",
-        "X-Operator-Role": "系統管理員",
     }
     if extra_headers:
         headers.update(extra_headers)
@@ -1063,24 +1062,12 @@ elif page_key == "simulator":
                 if has_llm and sim.turn_count < 8:
                     try:
                         messages = build_simulator_prompt(sim.scenario, sim.messages)
-                        # 透過 API Gateway 呼叫 LLM 服務（遵守架構分層原則）
-                        last_user_msg = next(
-                            (m["content"] for m in reversed(sim.messages) if m["role"] == "user"),
-                            "",
-                        )
-                        api_payload = {
-                            "scenario": sim.scenario,
-                            "target_audience": "一般民眾",
-                            "sample_count": 10,
-                        }
-                        api_result = _call_api_gateway(
-                            "/v1/scam/generate",
-                            api_payload,
-                        )
-                        if "error" in api_result:
-                            sim.add_message("assistant", f"（API 呼叫失敗：{api_result['error']}，請確認 API Gateway 是否啟動）")
-                        else:
-                            sim.add_message("assistant", f"（系統已透過 API Gateway 生成回應，任務 ID：{api_result.get('task_id', 'N/A')}）")
+                        # 直接呼叫 LLM 生成對話回應
+                        from app.scam_engine.generator import _build_llm_client
+                        llm = _build_llm_client()
+                        response = _safe_async_run(llm.ainvoke(messages))
+                        scammer_reply = response.content if hasattr(response, "content") else str(response)
+                        sim.add_message("assistant", scammer_reply)
                     except Exception as e:
                         sim.add_message("assistant", "（系統錯誤，請重試）")
                 elif sim.turn_count >= 8:
