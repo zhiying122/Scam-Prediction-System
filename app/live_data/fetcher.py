@@ -77,76 +77,91 @@ class DataFetcher:
             # 爬蟲型來源：使用 scraper 模組
             if source.data_format == "scraper":
                 try:
-                    from app.live_data.scraper import scrape_all_sources
+                    from app.live_data.scraper import (
+                        scrape_all_sources,
+                        _VALID_SCAM_TYPES,
+                        _VALID_REGIONS,
+                    )
 
                     scraped = scrape_all_sources()
-                    if scraped is not None:
-                        # 用快取填補缺失欄位
-                        if cache_data is not None:
-                            scraped = self._normalizer._fill_missing_from_cache(
-                                scraped, cache_data
-                            )
 
-                        # 驗證
-                        # 驗證：scam_type_stats 必須包含已知詐騙類型
+                    if scraped is None:
+                        # 爬蟲回傳 None
+                        self._registry.record_failure(source.name)
+                        result = FetchResult(
+                            source_name=source.name,
+                            fetched_at=datetime.now(timezone.utc),
+                            success=False,
+                            error_message="爬蟲未取得有效資料",
+                        )
+                        self._results.append(result)
+                        logger.warning("爬蟲來源 '%s' 未取得有效資料", source.name)
+                        continue
+
+                    # 用快取填補缺失欄位（cache_data 可能為 None，安全處理）
+                    if cache_data is not None:
+                        scraped = self._normalizer._fill_missing_from_cache(
+                            scraped, cache_data
+                        )
+
+                    # 驗證：scam_type_stats 只保留白名單內的類型
                     if scraped.scam_type_stats:
-                        from app.live_data.scraper import _VALID_SCAM_TYPES
-                        valid_types = {k: v for k, v in scraped.scam_type_stats.items()
-                                       if k in _VALID_SCAM_TYPES}
-                        if not valid_types and len(scraped.scam_type_stats) > 0:
-                            logger.warning(
-                                "爬蟲結果 scam_type_stats 全部不在白名單內，視為無效資料"
-                            )
-                            self._registry.record_failure(source.name)
-                            continue
-                        # 以過濾後的結果取代
-                        from app.live_data.models import ScamTypeStat as _ST
-                        scraped = scraped.model_copy(update={"scam_type_stats": {
+                        valid_types = {
                             k: v for k, v in scraped.scam_type_stats.items()
                             if k in _VALID_SCAM_TYPES
-                        }})
-
-                    # 驗證：scam_cases_by_region 必須包含已知縣市
-                    if scraped.scam_cases_by_region:
-                        from app.live_data.scraper import _VALID_REGIONS
-                        valid_regions = {k: v for k, v in scraped.scam_cases_by_region.items()
-                                         if k in _VALID_REGIONS}
-                        if not valid_regions and len(scraped.scam_cases_by_region) > 0:
+                        }
+                        if not valid_types and len(scraped.scam_type_stats) > 0:
                             logger.warning(
-                                "爬蟲結果 scam_cases_by_region 全部不在白名單內，視為無效資料"
+                                "爬蟲結果 scam_type_stats 全部不在白名單內，清除"
                             )
-                            scraped = scraped.model_copy(update={"scam_cases_by_region": {}})
-                        else:
-                            scraped = scraped.model_copy(update={"scam_cases_by_region": valid_regions})
+                            scraped = scraped.model_copy(update={"scam_type_stats": {}})
+                        elif valid_types:
+                            scraped = scraped.model_copy(update={"scam_type_stats": valid_types})
 
-                    if scraped.scam_cases_by_region or scraped.scam_type_stats:
-                            self._cache_manager.store(scraped)
-                            self._registry.record_success(source.name)
-                            self._consecutive_failures = 0
+                    # 驗證：scam_cases_by_region 只保留白名單內的縣市
+                    if scraped.scam_cases_by_region:
+                        valid_regions = {
+                            k: v for k, v in scraped.scam_cases_by_region.items()
+                            if k in _VALID_REGIONS
+                        }
+                        scraped = scraped.model_copy(update={"scam_cases_by_region": valid_regions})
 
-                            result = FetchResult(
-                                source_name=scraped.source_name,
-                                fetched_at=datetime.now(timezone.utc),
-                                success=True,
-                                record_count=len(scraped.scam_cases_by_region),
-                            )
-                            self._results.append(result)
-                            logger.info(
-                                "爬蟲資料擷取成功：來源='%s'",
-                                scraped.source_name,
-                            )
-                            return result
+                    # 判斷是否有實質資料（region、type、或 annual_stats 任一有值即算成功）
+                    has_data = (
+                        bool(scraped.scam_cases_by_region)
+                        or bool(scraped.scam_type_stats)
+                        or bool(scraped.annual_stats)
+                    )
 
-                    # 爬蟲回傳 None 或資料為空
+                    if has_data:
+                        self._cache_manager.store(scraped)
+                        self._registry.record_success(source.name)
+                        self._consecutive_failures = 0
+
+                        result = FetchResult(
+                            source_name=scraped.source_name,
+                            fetched_at=datetime.now(timezone.utc),
+                            success=True,
+                            record_count=len(scraped.scam_cases_by_region),
+                        )
+                        self._results.append(result)
+                        logger.info(
+                            "爬蟲資料擷取成功：來源='%s'，annual_stats=%s",
+                            scraped.source_name,
+                            list(scraped.annual_stats.keys()),
+                        )
+                        return result
+
+                    # 爬蟲回傳但無實質資料
                     self._registry.record_failure(source.name)
                     result = FetchResult(
                         source_name=source.name,
                         fetched_at=datetime.now(timezone.utc),
                         success=False,
-                        error_message="爬蟲未取得有效資料",
+                        error_message="爬蟲結果無實質資料",
                     )
                     self._results.append(result)
-                    logger.warning("爬蟲來源 '%s' 未取得有效資料", source.name)
+                    logger.warning("爬蟲來源 '%s' 結果無實質資料", source.name)
                     continue
 
                 except Exception as exc:
