@@ -88,7 +88,38 @@ class DataFetcher:
                             )
 
                         # 驗證
-                        if scraped.scam_cases_by_region or scraped.scam_type_stats:
+                        # 驗證：scam_type_stats 必須包含已知詐騙類型
+                    if scraped.scam_type_stats:
+                        from app.live_data.scraper import _VALID_SCAM_TYPES
+                        valid_types = {k: v for k, v in scraped.scam_type_stats.items()
+                                       if k in _VALID_SCAM_TYPES}
+                        if not valid_types and len(scraped.scam_type_stats) > 0:
+                            logger.warning(
+                                "爬蟲結果 scam_type_stats 全部不在白名單內，視為無效資料"
+                            )
+                            self._registry.record_failure(source.name)
+                            continue
+                        # 以過濾後的結果取代
+                        from app.live_data.models import ScamTypeStat as _ST
+                        scraped = scraped.model_copy(update={"scam_type_stats": {
+                            k: v for k, v in scraped.scam_type_stats.items()
+                            if k in _VALID_SCAM_TYPES
+                        }})
+
+                    # 驗證：scam_cases_by_region 必須包含已知縣市
+                    if scraped.scam_cases_by_region:
+                        from app.live_data.scraper import _VALID_REGIONS
+                        valid_regions = {k: v for k, v in scraped.scam_cases_by_region.items()
+                                         if k in _VALID_REGIONS}
+                        if not valid_regions and len(scraped.scam_cases_by_region) > 0:
+                            logger.warning(
+                                "爬蟲結果 scam_cases_by_region 全部不在白名單內，視為無效資料"
+                            )
+                            scraped = scraped.model_copy(update={"scam_cases_by_region": {}})
+                        else:
+                            scraped = scraped.model_copy(update={"scam_cases_by_region": valid_regions})
+
+                    if scraped.scam_cases_by_region or scraped.scam_type_stats:
                             self._cache_manager.store(scraped)
                             self._registry.record_success(source.name)
                             self._consecutive_failures = 0
