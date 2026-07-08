@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.models.access_log import AccessLog, VALID_ACTIONS
+from app.models.access_log import AUDIT_VALID_ACTIONS, AccessLog
 
 
 # ── 創世雜湊常數 ──────────────────────────────────────────────────────────────
@@ -122,8 +122,10 @@ def append_log(
     if not operator_id or not operator_id.strip():
         raise ValueError("operator_id 不可為空字串")
 
-    if action not in VALID_ACTIONS:
-        raise ValueError(f"不合法的操作類型：{action}，合法操作為 {VALID_ACTIONS}")
+    if action not in AUDIT_VALID_ACTIONS:
+        raise ValueError(
+            f"不合法的操作類型：{action}，合法操作為 {AUDIT_VALID_ACTIONS}"
+        )
 
     if not resource_id or not resource_id.strip():
         raise ValueError("resource_id 不可為空字串")

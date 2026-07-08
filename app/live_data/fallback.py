@@ -17,6 +17,7 @@ from app.live_data.models import (
     NormalizedData,
     ScamTypeStat,
 )
+from app.live_data.normalizer import is_data_complete
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +43,16 @@ class FallbackProvider:
         Returns:
             CachedData，來自磁碟快取或靜態預設資料
         """
-        # 嘗試磁碟快取
+        # 嘗試磁碟快取（需具備核心欄位才使用）
         cached = self._cache_manager._load_from_disk()
-        if cached is not None:
+        if cached is not None and is_data_complete(cached.data):
             logger.info("降級使用磁碟快取：來源='%s'", cached.source_name)
             cached.is_fallback = True
             return cached
+        if cached is not None:
+            logger.warning(
+                "磁碟快取資料不完整（缺少縣市或類型統計），改用靜態預設資料"
+            )
 
         # 最終降級：靜態預設資料
         logger.info("降級使用靜態預設資料")

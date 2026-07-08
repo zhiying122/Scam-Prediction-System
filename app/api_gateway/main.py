@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # ── 建立 FastAPI 應用程式 ──────────────────────────────────────────────────────
 app = FastAPI(
     lifespan=lifespan,
-    title="AEGIS CORE — AI 詐騙話術進化預警系統 API Gateway",
+    title="ScamDNA Lab — 詐騙話術語意分析與進化預測平台 API Gateway",
     description=(
         "主動式防詐情報平台 API，提供風險向量查詢、詐騙話術生成觸發、"
         "報案資料匯入與預警事件查詢等功能。"

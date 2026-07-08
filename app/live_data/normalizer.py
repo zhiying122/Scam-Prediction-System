@@ -13,8 +13,22 @@ from app.live_data.models import NormalizedData
 
 logger = logging.getLogger(__name__)
 
+# 年度損失金額合理範圍（億元）
+MIN_LOSS_BILLION = 50.0
+MAX_LOSS_BILLION = 300.0
+
 # 解析器型別
 ParserFunc = Callable[[Any], NormalizedData]
+
+
+def is_data_complete(data: NormalizedData) -> bool:
+    """判斷資料是否具備儀表板所需的核心欄位。"""
+    return bool(data.scam_cases_by_region) and bool(data.scam_type_stats)
+
+
+def is_loss_billion_valid(loss: float) -> bool:
+    """年度損失金額是否在合理範圍內。"""
+    return MIN_LOSS_BILLION <= loss <= MAX_LOSS_BILLION
 
 
 class DataNormalizer:
@@ -155,6 +169,13 @@ class DataNormalizer:
         if not partial_data.annual_stats:
             updates["annual_stats"] = cache.annual_stats
             logger.info("以快取填補欄位：annual_stats")
+        else:
+            merged_annual = self._merge_annual_stats(
+                partial_data.annual_stats, cache.annual_stats
+            )
+            if merged_annual != partial_data.annual_stats:
+                updates["annual_stats"] = merged_annual
+                logger.info("以基準資料修正 annual_stats 損失金額")
 
         if not partial_data.hotwords:
             updates["hotwords"] = cache.hotwords
@@ -167,3 +188,34 @@ class DataNormalizer:
         if updates:
             return partial_data.model_copy(update=updates)
         return partial_data
+
+    @staticmethod
+    def _merge_annual_stats(partial, baseline):
+        """以基準資料修正不合理的年度損失金額。"""
+        from app.live_data.models import AnnualStat
+
+        merged: dict[str, AnnualStat] = {}
+        for year, stat in partial.items():
+            loss = stat.total_loss_billion
+            baseline_stat = baseline.get(year)
+            if loss > 0 and not is_loss_billion_valid(loss):
+                if baseline_stat:
+                    merged[year] = AnnualStat(
+                        total_cases=stat.total_cases or baseline_stat.total_cases,
+                        total_loss_billion=baseline_stat.total_loss_billion,
+                    )
+                else:
+                    merged[year] = stat.model_copy(update={"total_loss_billion": 0.0})
+            elif loss == 0.0 and baseline_stat and baseline_stat.total_loss_billion > 0:
+                merged[year] = AnnualStat(
+                    total_cases=stat.total_cases or baseline_stat.total_cases,
+                    total_loss_billion=baseline_stat.total_loss_billion,
+                )
+            else:
+                merged[year] = stat
+
+        for year, stat in baseline.items():
+            if year not in merged:
+                merged[year] = stat
+
+        return merged

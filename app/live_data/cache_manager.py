@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.live_data.models import CachedData, FreshnessInfo, NormalizedData
+from app.live_data.normalizer import is_data_complete
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +34,17 @@ class CacheManager:
         self._auto_load_from_disk()
 
     def _auto_load_from_disk(self) -> None:
-        """啟動時自動從磁碟載入快取至記憶體"""
+        """啟動時自動從磁碟載入快取至記憶體（跳過不完整快取）"""
         if self._memory_cache is None:
             disk_data = self._load_from_disk()
-            if disk_data is not None:
+            if disk_data is not None and is_data_complete(disk_data.data):
                 self._memory_cache = disk_data
                 logger.info("已從磁碟恢復快取：來源='%s'", disk_data.source_name)
+            elif disk_data is not None:
+                logger.warning(
+                    "磁碟快取不完整，略過自動載入：來源='%s'",
+                    disk_data.source_name,
+                )
 
     def store(self, data: NormalizedData) -> None:
         """
@@ -68,10 +74,15 @@ class CacheManager:
             快取資料，若無快取則回傳 None
         """
         if self._memory_cache is not None:
-            return self._memory_cache
+            if is_data_complete(self._memory_cache.data):
+                return self._memory_cache
+            logger.warning("記憶體快取不完整，改從磁碟重新載入")
+            self._memory_cache = None
         disk_data = self._load_from_disk()
-        if disk_data is not None:
+        if disk_data is not None and is_data_complete(disk_data.data):
             self._memory_cache = disk_data
+        elif disk_data is not None:
+            logger.warning("磁碟快取不完整，視為無快取")
         return self._memory_cache
 
     def get_freshness_info(self) -> FreshnessInfo:

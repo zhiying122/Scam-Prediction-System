@@ -21,6 +21,7 @@ from app.live_data.models import (
     NormalizedData,
     ScamTypeStat,
 )
+from app.live_data.normalizer import is_loss_billion_valid
 
 logger = logging.getLogger(__name__)
 
@@ -159,23 +160,29 @@ def _extract_stats_from_ltn(html: str, current_year: int) -> NormalizedData | No
         text,
     ):
         year, loss = m.group(1), float(m.group(2))
-        if year in annual_stats and loss > 0:
+        if year in annual_stats and is_loss_billion_valid(loss):
             annual_stats[year] = AnnualStat(
                 total_cases=annual_stats[year].total_cases,
                 total_loss_billion=loss,
             )
             logger.info("LTN 萃取：%s年損失 %.1f 億", year, loss)
+        elif year in annual_stats and loss > 0:
+            logger.warning("LTN 忽略異常損失金額：%s年 %.1f 億", year, loss)
 
     # 備用：「財損金額NNN億」不帶年份，附加到最大案件數的年份
     if annual_stats:
         latest_year = max(annual_stats.keys())
         if annual_stats[latest_year].total_loss_billion == 0.0:
             loss_matches = re.findall(r"財損[^。\n]{0,20}?(\d+(?:\.\d+)?)\s*億", text)
-            if loss_matches:
-                annual_stats[latest_year] = AnnualStat(
-                    total_cases=annual_stats[latest_year].total_cases,
-                    total_loss_billion=float(loss_matches[0]),
-                )
+            for loss_str in loss_matches:
+                loss = float(loss_str)
+                if is_loss_billion_valid(loss):
+                    annual_stats[latest_year] = AnnualStat(
+                        total_cases=annual_stats[latest_year].total_cases,
+                        total_loss_billion=loss,
+                    )
+                    break
+                logger.warning("LTN 忽略異常損失金額（備用）：%.1f 億", loss)
 
     if not annual_stats:
         logger.warning("LTN 未萃取到有效年度統計")

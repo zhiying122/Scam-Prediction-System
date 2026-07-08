@@ -16,7 +16,7 @@ import httpx
 from app.live_data.cache_manager import CacheManager
 from app.live_data.fallback import FallbackProvider
 from app.live_data.models import FetchResult
-from app.live_data.normalizer import DataNormalizer
+from app.live_data.normalizer import DataNormalizer, is_data_complete
 from app.live_data.registry import DataSourceRegistry
 
 logger = logging.getLogger(__name__)
@@ -69,9 +69,17 @@ class DataFetcher:
             logger.warning("無可用資料來源，啟動降級機制")
             return self._handle_all_failed("無可用資料來源")
 
-        # 取得快取資料用於缺失欄位填補
+        # 取得快取資料用於缺失欄位填補；不完整快取改以靜態基準資料合併
         cached = self._cache_manager.load()
         cache_data = cached.data if cached else None
+        if cache_data is not None and not is_data_complete(cache_data):
+            logger.warning("現有快取不完整，合併時改用靜態基準資料")
+            cache_data = None
+        merge_base = (
+            cache_data
+            if cache_data is not None
+            else FallbackProvider._load_static_defaults()
+        )
 
         for source in sources:
             # 爬蟲型來源：使用 scraper 模組
@@ -98,11 +106,10 @@ class DataFetcher:
                         logger.warning("爬蟲來源 '%s' 未取得有效資料", source.name)
                         continue
 
-                    # 用快取填補缺失欄位（cache_data 可能為 None，安全處理）
-                    if cache_data is not None:
-                        scraped = self._normalizer._fill_missing_from_cache(
-                            scraped, cache_data
-                        )
+                    # 以完整基準資料填補缺失欄位（快取或靜態預設）
+                    scraped = self._normalizer._fill_missing_from_cache(
+                        scraped, merge_base
+                    )
 
                     # 驗證：scam_type_stats 只保留白名單內的類型
                     if scraped.scam_type_stats:
@@ -126,12 +133,8 @@ class DataFetcher:
                         }
                         scraped = scraped.model_copy(update={"scam_cases_by_region": valid_regions})
 
-                    # 判斷是否有實質資料（region、type、或 annual_stats 任一有值即算成功）
-                    has_data = (
-                        bool(scraped.scam_cases_by_region)
-                        or bool(scraped.scam_type_stats)
-                        or bool(scraped.annual_stats)
-                    )
+                    # 合併後須具備核心欄位才寫入快取
+                    has_data = is_data_complete(scraped)
 
                     if has_data:
                         self._cache_manager.store(scraped)
@@ -196,7 +199,7 @@ class DataFetcher:
                             raw_data=raw_data,
                             source_format=source.data_format,
                             source_name=source.name,
-                            cache=cache_data,
+                            cache=merge_base,
                         )
 
                         # 驗證正規化後的資料是否有實質內容

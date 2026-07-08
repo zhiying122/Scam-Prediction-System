@@ -434,6 +434,24 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
 }
 .fade-in { animation: fadeInUp 0.35s ease-out; }
 
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+.feature-grid .feature-card {
+    margin: 0;
+    height: auto;
+    min-height: unset;
+}
+
 @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 4px rgba(239,68,68,0.3); }
     50% { box-shadow: 0 0 14px rgba(239,68,68,0.5); }
@@ -459,9 +477,14 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
 """
 
 
-def inject_css() -> None:
+def inject_html(html: str) -> None:
+    """注入 HTML/CSS（Streamlit 1.58+ 需用 st.html，勿用 st.markdown 包 <style>）。"""
     import streamlit as st
-    st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+    st.html(html)
+
+
+def inject_css() -> None:
+    inject_html(GLOBAL_CSS)
 
 
 def card(content: str, glow: bool = False) -> str:

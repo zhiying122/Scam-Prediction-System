@@ -1,49 +1,48 @@
 """
-AEGIS CORE — AI 詐騙話術進化預警系統
+ScamDNA Lab — 詐騙話術語意分析與進化預測平台
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-import nest_asyncio
 import streamlit as st
 from datetime import datetime
 from dotenv import load_dotenv
 import os
 
-nest_asyncio.apply()
-
 load_dotenv()
+
+
+def _run_coro_in_new_loop(coro):
+    """在獨立執行緒的新 event loop 中執行 coroutine。"""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 def _safe_async_run(coro):
     """Safely run async coroutine in Streamlit environment.
 
-    Streamlit maintains its own event loop, so ``asyncio.run()`` may raise
-    ``RuntimeError: This event loop is already running``.  We use
-    ``nest_asyncio`` (applied at module level) together with
-    ``get_event_loop().run_until_complete()`` to avoid the conflict.
+    Streamlit 1.58+ 使用 Starlette/Uvicorn 伺服器，不可在模組層級呼叫
+    ``nest_asyncio.apply()``，否則會破壞 anyio 的 event loop 偵測，
+    導致所有 static/js 回傳 HTTP 500、前端完全無法渲染。
 
-    Python 3.12+ 要求 ``asyncio.wait_for`` 必須在 Task 內執行，
-    因此將 coroutine 包裝為 Task 再執行，避免 RuntimeError。
-    Falls back to ``asyncio.run()`` when no running loop is available.
+    改在獨立執行緒建立新的 event loop 執行 async 程式碼。
     """
-    try:
-        loop = asyncio.get_event_loop()
-        # 將 coroutine 包裝為 Task，確保 asyncio.wait_for 等 API 正常運作
-        task = loop.create_task(coro)
-        return loop.run_until_complete(task)
-    except RuntimeError:
-        return asyncio.run(coro)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_run_coro_in_new_loop, coro).result()
 
 st.set_page_config(
-    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
+    page_title="ScamDNA Lab — 詐騙話術語意分析與進化預測平台",
     page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-from app.dashboard.styles import inject_css
+from app.dashboard.styles import inject_css, inject_html
 inject_css()
 
 # ── API Gateway 呼叫輔助函數 ──────────────────────────────────────────────────
@@ -280,53 +279,62 @@ except Exception:
 
 _freshness_html = f'<div style="color:rgba(255,255,255,0.55);font-size:0.65rem;margin-top:2px;">{_freshness_text}</div>' if _freshness_text else ""
 
-st.markdown(f"""
+inject_html(f"""
 <style>
+.site-header {{
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}}
 .top-bar {{
     background: linear-gradient(135deg, #14532d 0%, #166534 100%);
-    padding: 0 32px 0 0;
+    padding: 0 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 90px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    gap: 16px;
+    height: 64px;
+    min-height: 64px;
 }}
 .top-bar-logo {{
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 8px;
     text-decoration: none !important;
-    margin-left: 0;
+    flex-shrink: 0;
+    min-width: 0;
 }}
 .top-bar-logo img {{
-    margin-right: -30px;
+    margin-right: 0;
+    flex-shrink: 0;
 }}
 .top-bar-logo-text {{
     color: white;
     font-family: 'Orbitron', 'Rajdhani', monospace;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
-    letter-spacing: 2.5px;
-    line-height: 1.2;
+    letter-spacing: 1.8px;
+    line-height: 1.15;
     text-transform: uppercase;
-    margin-left: -2px;
+    white-space: nowrap;
 }}
 .top-bar-logo-sub {{
-    color: rgba(255,255,255,0.6);
-    font-size: 0.7rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-top: 2px;
+    color: rgba(255,255,255,0.62);
+    font-size: 0.62rem;
+    letter-spacing: 0.2px;
+    line-height: 1.35;
+    margin-top: 3px;
+    white-space: nowrap;
 }}
 .top-bar-right {{
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 0.72rem;
-    color: rgba(255,255,255,0.7);
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.72);
+    flex-shrink: 0;
+    margin-left: auto;
 }}
 .status-dot {{
-    width: 7px; height: 7px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     background: #86efac;
     display: inline-block;
@@ -334,25 +342,29 @@ st.markdown(f"""
 }}
 .nav-bar {{
     background: #166534;
-    padding: 0 32px;
+    padding: 0;
     display: flex;
     align-items: stretch;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     overflow-x: auto;
     margin-bottom: 0;
+    min-height: 42px;
 }}
 .nav-item {{
-    color: rgba(255,255,255,0.85) !important;
-    font-size: 0.95rem;
+    color: rgba(255,255,255,0.82) !important;
+    font-size: 0.8rem;
     font-weight: 500;
-    padding: 11px 16px;
+    padding: 10px 4px;
     text-decoration: none !important;
     white-space: nowrap;
     border-bottom: 2px solid transparent;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
 }}
 .nav-item:hover {{
     background: rgba(255,255,255,0.1);
@@ -382,22 +394,23 @@ section[data-testid="stMain"] > div {{
     padding-right: 0 !important;
 }}
 </style>
+<div class="site-header">
 <div class="top-bar">
     <a href="?page=home" target="_top" class="top-bar-logo">
-        <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;width:50px;height:50px;border-radius:50%;
+        <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;flex-shrink:0;">
+            <div style="position:absolute;width:36px;height:36px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
-            filter:blur(6px);animation:soft-glow 3s ease-in-out infinite;"></div>
-            <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:100px;width:auto;position:relative;z-index:1;">
+            filter:blur(5px);animation:soft-glow 3s ease-in-out infinite;"></div>
+            <img src="data:image/png;base64,{logo_b64}" alt="ScamDNA Lab" style="height:52px;width:auto;position:relative;z-index:1;">
         </div>
-        <div>
-            <div class="top-bar-logo-text">AEGIS CORE</div>
-            <div class="top-bar-logo-sub">AI 詐騙話術進化預警系統</div>
+        <div style="min-width:0;">
+            <div class="top-bar-logo-text">ScamDNA Lab</div>
+            <div class="top-bar-logo-sub">詐騙話術語意分析與進化預測平台</div>
         </div>
     </a>
     <div class="top-bar-right">
-        <div style="text-align:right;">
-            <div style="display:flex;align-items:center;gap:12px;">
+        <div style="text-align:right;line-height:1.35;">
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;white-space:nowrap;">
                 <span><span class="status-dot"></span>系統運行中</span>
                 <span style="color:rgba(255,255,255,0.3);">|</span>
                 {llm_status_html}
@@ -409,7 +422,8 @@ section[data-testid="stMain"] > div {{
 <div class="nav-bar">
     {nav_items_html}
 </div>
-""", unsafe_allow_html=True)
+</div>
+""")
 
 # ── 麵包屑（非首頁才顯示）────────────────────────────────────────────────────
 if page_key != "home":
@@ -481,12 +495,6 @@ if page_key == "home":
             </div>
         </div>
     </div>
-    <style>
-    @keyframes marquee {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
-    }
-    </style>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -503,20 +511,6 @@ if page_key == "home":
 
     # 功能卡片 — 用單一 CSS Grid 確保同排等高
     st.markdown("""
-    <style>
-    .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        grid-auto-rows: 1fr;
-        gap: 16px;
-        margin-bottom: 8px;
-    }
-    .feature-grid .feature-card {
-        margin: 0;
-        height: auto;
-        min-height: unset;
-    }
-    </style>
     <div class="feature-grid fade-in">
         <div class="feature-card">
             <div class="feature-card-title">LLM 話術裂變生成</div>
@@ -558,7 +552,7 @@ if page_key == "home":
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
     padding:20px;text-align:center;margin-top:24px;">
         <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
-        AEGIS CORE 的使命</div>
+        ScamDNA Lab 的使命</div>
         <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
         透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
@@ -577,7 +571,7 @@ elif page_key == "overview":
     <div class="fade-in" style="text-align:center;padding:20px 0 10px;">
         <div style="font-size:1rem;color:#4B5563;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">
         AI-POWERED ANTI-SCAM INTELLIGENCE</div>
-        <h1 style="font-size:3rem;margin:0;">AEGIS CORE</h1>
+        <h1 style="font-size:3rem;margin:0;">ScamDNA Lab</h1>
         <p style="color:#374151;font-size:1.1rem;margin-top:8px;">
         從被動防禦到主動預測 — 運用生成式 AI 構築下一代防詐護城河</p>
     </div>
@@ -680,7 +674,7 @@ elif page_key == "overview":
     <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;text-align:center;">
         <div style="color:#991B1B;font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;">
-        AEGIS CORE 的使命</div>
+        ScamDNA Lab 的使命</div>
         <div style="color:#1a2332;font-size:1rem;margin-top:8px;">
         透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
@@ -1282,10 +1276,10 @@ elif page_key == "evolution":
     st.markdown(f"""
     <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;">
-        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：{next_year} 年趨勢</div>
+        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">ScamDNA Lab 預測：{next_year} 年趨勢</div>
         <div style="color:#374151;">
         基於話術演化模式，預測 {next_year} 年將出現更多 <strong style="color:#DC2626;">AI 全自動詐騙代理 + 多模態深偽互動</strong> 的複合型詐騙，
-        結合大規模個資洩露與即時情境感知進行超精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
+        結合大規模個資洩露與即時情境感知進行超精準詐騙。ScamDNA Lab 的 LLM 生成引擎已開始模擬這類新型話術，
         提前訓練防詐模型。
         </div>
     </div>
