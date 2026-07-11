@@ -7,6 +7,7 @@
 
 import asyncio
 import logging
+import threading
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -63,8 +64,12 @@ class FetchScheduler:
             "資料擷取排程器已啟動，間隔：%d 小時", self._interval_hours
         )
 
-        # 立即觸發一次擷取
-        self.trigger_now()
+        # 立即觸發一次擷取（非阻塞，避免在 uvicorn lifespan 線程中建立 event loop）
+        threading.Thread(
+            target=self._run_fetch,
+            daemon=True,
+            name="live-data-initial-fetch",
+        ).start()
 
     def stop(self) -> None:
         """停止排程器"""
@@ -73,22 +78,27 @@ class FetchScheduler:
             logger.info("資料擷取排程器已停止")
 
     def trigger_now(self) -> None:
-        """立即手動觸發一次擷取"""
+        """立即手動觸發一次擷取（非阻塞）"""
         logger.info("手動觸發資料擷取")
-        self._run_fetch()
+        threading.Thread(
+            target=self._run_fetch,
+            daemon=True,
+            name="live-data-manual-fetch",
+        ).start()
 
     def _run_fetch(self) -> None:
-        """執行非同步擷取（在同步排程中呼叫）
+        """執行非同步擷取（在獨立線程中建立專用 event loop）
 
-        APScheduler 的 BackgroundScheduler 在獨立線程中執行，
-        該線程沒有事件迴圈，因此需要建立新的事件迴圈。
+        APScheduler 與手動觸發均在獨立線程中執行，
+        該線程沒有事件迴圈，因此建立新的事件迴圈並在完成後清理。
         """
         try:
             loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             try:
+                asyncio.set_event_loop(loop)
                 loop.run_until_complete(self._fetcher.fetch())
             finally:
+                asyncio.set_event_loop(None)
                 loop.close()
         except Exception as exc:
             logger.warning("資料擷取執行失敗：%s", exc)

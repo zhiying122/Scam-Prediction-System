@@ -91,7 +91,7 @@ ALB Security Group:
   - Inbound: 80 (HTTP) from 0.0.0.0/0 → 重導向至 443
 
 EC2 Application Security Group:
-  - Inbound: 8000 (FastAPI) from ALB Security Group
+  - Inbound: 8001 (FastAPI) from ALB Security Group
   - Inbound: 8501 (Streamlit) from ALB Security Group
   - Inbound: 22 (SSH) from 管理員 IP（或透過 SSM Session Manager）
 
@@ -160,7 +160,7 @@ SECRET=$(aws secretsmanager get-secret-value \
 
 # 啟動 API Gateway
 export DATABASE_URL=$(echo $SECRET | python3 -c "import sys,json; print(json.load(sys.stdin)['DATABASE_URL'])")
-uvicorn app.api_gateway.main:app --host 0.0.0.0 --port 8000 &
+uvicorn app.api_gateway.main:app --host 0.0.0.0 --port 8001 &
 
 # 啟動 Streamlit Dashboard
 streamlit run app/dashboard/streamlit_app.py \
@@ -174,9 +174,9 @@ streamlit run app/dashboard/streamlit_app.py \
 ### 步驟 7：建立 Application Load Balancer
 
 1. 建立 ALB，部署至 Public Subnet
-2. 建立 Target Group（EC2 實例，Port 8000）
+2. 建立 Target Group（EC2 實例，Port 8001）
 3. 設定 Listener Rules：
-   - `/api/*` → API Gateway Target Group (Port 8000)
+   - `/api/*` → API Gateway Target Group (Port 8001)
    - `/dashboard/*` → Dashboard Target Group (Port 8501)
    - `/` → 預設導向 Dashboard
 4. 申請 ACM 憑證並設定 HTTPS Listener

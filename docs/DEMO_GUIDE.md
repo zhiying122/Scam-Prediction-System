@@ -17,10 +17,12 @@
 
 ## 啟動步驟
 
-### 1. 啟動後端服務（Docker）
+### 1. 啟動後端服務（Docker，可選）
+
+> PostgreSQL / Redis / Qdrant 容器為預先配置的基礎設施 scaffold，**應用程式目前尚未接入**。本地 Demo 可直接啟動 API 與 Dashboard，無需先啟動 Docker。
 
 ```bash
-# 啟動 PostgreSQL、Redis、Qdrant
+# 僅在需要預先啟動基礎設施容器時執行
 docker-compose up -d
 
 # 確認服務狀態
@@ -31,10 +33,10 @@ docker-compose ps
 
 ```bash
 # 若需要展示 API 端點
-uvicorn app.api_gateway.main:app --reload --port 8000
+uvicorn app.api_gateway.main:app --reload --port 8001
 ```
 
-API 文件：http://localhost:8000/docs
+API 文件：http://localhost:8001/docs
 
 ### 3. 啟動 Streamlit 儀表板
 

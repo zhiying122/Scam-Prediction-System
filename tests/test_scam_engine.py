@@ -154,6 +154,13 @@ class TestParseLLMResponse:
         samples = _parse_llm_response(raw)
         assert len(samples) == 5
 
+    def test_解析markdown程式碼區塊(self):
+        """Ollama 常以 markdown 程式碼區塊包裝 JSON"""
+        json_part = _make_llm_response_json(3)
+        raw = f"```json\n{json_part}\n```"
+        samples = _parse_llm_response(raw)
+        assert len(samples) == 3
+
     def test_無效JSON拋出ValueError(self):
         """無效 JSON 應拋出 ValueError"""
         with pytest.raises(ValueError):
@@ -195,6 +202,21 @@ class TestValidateSamples:
         result = _validate_samples(raw)
         assert len(result) == 0
 
+    def test_欄位錯置時自動修正(self):
+        """Ollama 將話術放到 target_audience 時應自動修正"""
+        script = "您好，我是電信公司客服，您的銀行帳戶出現異常交易，請立即提供驗證碼以保障資金安全。"
+        raw = [
+            {
+                "content": "",
+                "psychological_tags": ["權威偽裝", "緊迫感製造"],
+                "target_audience": script,
+            }
+        ]
+        result = _validate_samples(raw, default_audience="中老年族群")
+        assert len(result) == 1
+        assert result[0].content == script
+        assert result[0].target_audience == "中老年族群"
+
     def test_空tags被跳過(self):
         """psychological_tags 為空的樣本應被跳過"""
         raw = [
@@ -207,8 +229,8 @@ class TestValidateSamples:
         result = _validate_samples(raw)
         assert len(result) == 0
 
-    def test_空audience被跳過(self):
-        """target_audience 為空的樣本應被跳過"""
+    def test_空audience使用預設值(self):
+        """target_audience 為空時應使用預設受眾而非跳過樣本"""
         raw = [
             {
                 "content": "詐騙話術",
@@ -216,8 +238,9 @@ class TestValidateSamples:
                 "target_audience": "",
             }
         ]
-        result = _validate_samples(raw)
-        assert len(result) == 0
+        result = _validate_samples(raw, default_audience="中老年族群")
+        assert len(result) == 1
+        assert result[0].target_audience == "中老年族群"
 
     def test_混合合法與不合法樣本(self):
         """混合合法與不合法樣本時，只有合法樣本通過"""

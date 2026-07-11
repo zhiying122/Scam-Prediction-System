@@ -47,8 +47,8 @@ coverage.xml
 # 日誌
 *.log
 
-# 模型快取（sentence-transformers 下載的模型）
-models/
+# 模型快取（sentence-transformers 下載的模型，僅排除 repo 根目錄）
+/models/
 
 # 系統自動產生的快取（不應納入版本控制）
 data/live_cache.json

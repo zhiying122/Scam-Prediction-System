@@ -249,7 +249,7 @@ scam_prediction_qdrant     running (healthy)
 
 **下半部 — FastAPI Swagger UI：**
 
-瀏覽器視窗展示 `http://localhost:8000/docs` 的 Swagger UI 介面，顯示 7 個 API 端點列表。滑鼠點擊展開 `/v1/analyze/highlight` 端點，展示請求參數與回應格式。
+瀏覽器視窗展示 `http://localhost:8001/docs` 的 Swagger UI 介面，顯示 7 個 API 端點列表。滑鼠點擊展開 `/v1/analyze/highlight` 端點，展示請求參數與回應格式。
 
 **🎙️ 旁白文字：**
 

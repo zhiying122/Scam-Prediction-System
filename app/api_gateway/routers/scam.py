@@ -67,6 +67,12 @@ class ScamGenerateResponse(BaseModel):
     status: str = Field(..., description="任務狀態")
     message: str = Field(..., description="狀態說明")
     created_at: str = Field(..., description="任務建立時間（ISO 8601）")
+    samples: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="生成的話術樣本（供 Dashboard 即時顯示）",
+    )
+    llm_provider: str | None = Field(default=None, description="實際使用的 LLM 提供商")
+    fallback_used: bool = Field(default=False, description="是否已切換至備援 LLM")
 
 
 # ── 端點實作 ──────────────────────────────────────────────────────────────────
@@ -188,4 +194,7 @@ async def generate_scam_scripts_endpoint(
         status="accepted",
         message=f"詐騙話術生成任務已接受，共生成 {len(samples)} 個樣本",
         created_at=now.isoformat(),
+        samples=samples,
+        llm_provider=result.get("llm_provider"),
+        fallback_used=bool(result.get("fallback_used")),
     )

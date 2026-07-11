@@ -36,6 +36,13 @@ def get_imported_records_store() -> list[dict]:
     return _imported_records_store
 
 
+class DataRefreshResponse(BaseModel):
+    """即時資料擷取觸發回應模型"""
+
+    status: str = Field(..., description="觸發狀態")
+    message: str = Field(..., description="狀態說明")
+
+
 class DataImportResponse(BaseModel):
     """資料匯入回應模型"""
 
@@ -44,6 +51,36 @@ class DataImportResponse(BaseModel):
     message: str = Field(..., description="狀態說明")
     record_count: int = Field(..., description="成功匯入的資料筆數")
     created_at: str = Field(..., description="批次建立時間（ISO 8601）")
+
+
+@router.post(
+    "/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=DataRefreshResponse,
+    summary="觸發即時資料擷取",
+    response_description="資料擷取任務已排入背景執行",
+)
+async def refresh_live_data() -> DataRefreshResponse:
+    """在背景觸發一次即時資料擷取，供 Dashboard 快取過期時呼叫。"""
+    try:
+        from app.live_data import get_fetch_scheduler
+
+        scheduler = get_fetch_scheduler()
+        scheduler.trigger_now()
+    except Exception as exc:
+        logger.error("觸發即時資料擷取失敗：%s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "REFRESH_FAILED",
+                "description": "無法觸發即時資料擷取",
+            },
+        ) from exc
+
+    return DataRefreshResponse(
+        status="accepted",
+        message="即時資料擷取任務已觸發，將在背景執行",
+    )
 
 
 @router.post(

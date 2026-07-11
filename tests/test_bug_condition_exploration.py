@@ -146,10 +146,11 @@ class TestEvolutionTimelineCompleteness:
         "購物詐騙",
         "中獎詐騙",
         "工作詐騙",
+        "AI 深偽詐騙",
     }
 
-    def test_evolution_timeline_has_all_7_types(self):
-        """EVOLUTION_TIMELINE 應包含所有 7 種詐騙類型"""
+    def test_evolution_timeline_has_all_8_types(self):
+        """EVOLUTION_TIMELINE 應包含所有 8 種詐騙類型"""
         from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
         actual_types = set(EVOLUTION_TIMELINE.keys())
@@ -160,11 +161,11 @@ class TestEvolutionTimelineCompleteness:
         )
 
     def test_evolution_timeline_count(self):
-        """EVOLUTION_TIMELINE 應恰好有 7 個 key"""
+        """EVOLUTION_TIMELINE 應恰好有 8 個 key"""
         from app.dashboard.page_modules.threat_monitor import EVOLUTION_TIMELINE
 
-        assert len(EVOLUTION_TIMELINE) >= 7, (
-            f"EVOLUTION_TIMELINE has only {len(EVOLUTION_TIMELINE)} types, expected >= 7"
+        assert len(EVOLUTION_TIMELINE) >= 8, (
+            f"EVOLUTION_TIMELINE has only {len(EVOLUTION_TIMELINE)} types, expected >= 8"
         )
 
 

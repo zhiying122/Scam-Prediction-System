@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -268,16 +269,16 @@ async def _call_llm_for_timeline(
 # ── 安全的同步執行 ────────────────────────────────────────────────────────────
 
 def _safe_sync_run(coro):
-    """在同步環境中安全執行 async coroutine。"""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Streamlit / nest_asyncio 環境
+    """在同步環境中安全執行 async coroutine（含 Streamlit 已運行 event loop 的情況）。"""
+    def _run_in_new_loop():
+        loop = asyncio.new_event_loop()
+        try:
             return loop.run_until_complete(coro)
-        else:
-            return loop.run_until_complete(coro)
-    except RuntimeError:
-        return asyncio.run(coro)
+        finally:
+            loop.close()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_run_in_new_loop).result()
 
 
 # ── 主要入口 ──────────────────────────────────────────────────────────────────

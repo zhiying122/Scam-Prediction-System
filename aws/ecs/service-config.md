@@ -69,5 +69,5 @@ aws ec2 describe-network-interfaces \
 
 ## 存取端點
 
-- API：`http://<PUBLIC_IP>:8000/docs`
+- API：`http://<PUBLIC_IP>:8001/docs`
 - Streamlit：`http://<PUBLIC_IP>:8501`

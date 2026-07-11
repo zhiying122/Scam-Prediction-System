@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     llm_provider: Literal["openai", "google", "azure", "ollama"] = Field(
         default="openai", description="LLM 服務提供商"
     )
+    llm_fallback: Literal["", "openai", "google", "ollama"] = Field(
+        default="ollama", description="主要 LLM 失敗時的備援提供商（空字串表示不啟用）"
+    )
     openai_api_key: str = Field(default="", description="OpenAI API 金鑰")
     openai_model: str = Field(default="gpt-4o", description="OpenAI 模型名稱")
     google_api_key: str = Field(default="", description="Google Gemini API 金鑰")
@@ -111,7 +114,7 @@ class Settings(BaseSettings):
 
     # ── API 閘道設定 ──────────────────────────────────────────────────────────
     api_gateway_host: str = Field(default="0.0.0.0", description="API 閘道監聽位址")
-    api_gateway_port: int = Field(default=8000, description="API 閘道監聽連接埠")
+    api_gateway_port: int = Field(default=8001, description="API 閘道監聽連接埠")
     api_rate_limit_window_seconds: int = Field(
         default=60, description="速率限制滑動視窗大小（秒）"
     )

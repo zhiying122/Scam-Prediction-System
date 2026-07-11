@@ -13,6 +13,7 @@
 import asyncio
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -27,13 +28,14 @@ from app.config import get_settings
 from dotenv import load_dotenv
 load_dotenv()
 
-def _build_llm_client():
+def _build_llm_client(provider: str | None = None):
     """根據 LLM_PROVIDER 設定建立對應的 LLM 客戶端"""
     # 清除快取確保讀到最新 .env
     get_settings.cache_clear()
     load_dotenv(override=True)
     s = get_settings()
-    if s.llm_provider == "ollama":
+    provider = provider or s.llm_provider
+    if provider == "ollama":
         # 使用本地 Ollama（OpenAI 相容 API）
         return ChatOpenAI(
             model=s.ollama_model,
@@ -41,7 +43,7 @@ def _build_llm_client():
             api_key="ollama",  # Ollama 不需要真實 key，但欄位不能空
             temperature=0.9,
         )
-    elif s.llm_provider == "google":
+    elif provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
             model=s.google_model,
@@ -54,6 +56,24 @@ def _build_llm_client():
             api_key=s.openai_api_key,
             temperature=0.9,
         )
+
+
+def _get_llm_provider_chain() -> list[str]:
+    """取得 LLM 呼叫順序：主要 provider 失敗後立即嘗試備援。"""
+    s = get_settings()
+    chain = [s.llm_provider]
+    fallback = (s.llm_fallback or "").strip()
+    if fallback and fallback != s.llm_provider:
+        chain.append(fallback)
+    return chain
+
+
+def _provider_label(provider: str) -> str:
+    return {
+        "openai": "OpenAI GPT",
+        "google": "Google Gemini",
+        "ollama": "Ollama",
+    }.get(provider, provider)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -283,6 +303,47 @@ async def _call_llm_with_retry(
 
 # ── JSON 解析輔助函數 ─────────────────────────────────────────────────────────
 
+_CONTENT_ALIASES = ("content", "text", "script", "dialogue", "message", "話術", "內容")
+
+
+def _strip_markdown_fences(raw_content: str) -> str:
+    """移除 LLM 常見的 markdown 程式碼區塊包裝。"""
+    text = raw_content.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json|JSON)?\s*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text.strip())
+    return text.strip()
+
+
+def _normalize_sample_fields(
+    sample: dict[str, Any],
+    default_audience: str,
+) -> dict[str, Any]:
+    """修正 Ollama 等模型常見的欄位錯置或別名。"""
+    content = ""
+    for key in _CONTENT_ALIASES:
+        value = sample.get(key)
+        if isinstance(value, str) and value.strip():
+            content = value.strip()
+            break
+
+    audience = str(sample.get("target_audience", "")).strip()
+    tags = sample.get("psychological_tags", [])
+    if not isinstance(tags, list):
+        tags = []
+
+    # 常見錯誤：話術文本被放到 target_audience
+    if not content and audience and len(audience) >= 15:
+        content = audience
+        audience = default_audience
+
+    return {
+        "content": content,
+        "psychological_tags": tags,
+        "target_audience": audience or default_audience,
+    }
+
+
 def _parse_llm_response(raw_content: str) -> list[dict[str, Any]]:
     """
     解析 LLM 回傳的 JSON 內容
@@ -298,22 +359,21 @@ def _parse_llm_response(raw_content: str) -> list[dict[str, Any]]:
     Raises:
         ValueError: 無法解析 JSON 或格式不符預期
     """
+    cleaned = _strip_markdown_fences(raw_content)
+
     # 嘗試直接解析
     try:
-        data = json.loads(raw_content)
+        data = json.loads(cleaned)
         if "samples" in data and isinstance(data["samples"], list):
             return data["samples"]
     except json.JSONDecodeError:
         pass
 
     # 嘗試從文字中提取 JSON 區塊（處理 LLM 可能加入說明文字的情況）
-    # 使用 JSONDecoder.raw_decode 逐位置嘗試，只解析第一個完整 JSON 物件，
-    # 忽略 JSON 前後的額外文字，避免貪婪 regex 匹配到不完整的 JSON
-    import re
     decoder = json.JSONDecoder()
-    for match in re.finditer(r'\{', raw_content):
+    for match in re.finditer(r"\{", cleaned):
         try:
-            data, _ = decoder.raw_decode(raw_content, match.start())
+            data, _ = decoder.raw_decode(cleaned, match.start())
             if isinstance(data, dict) and "samples" in data and isinstance(data["samples"], list):
                 return data["samples"]
         except json.JSONDecodeError:
@@ -322,7 +382,10 @@ def _parse_llm_response(raw_content: str) -> list[dict[str, Any]]:
     raise ValueError(f"無法從 LLM 回應中解析 JSON 格式，原始內容：{raw_content[:200]}...")
 
 
-def _validate_samples(raw_samples: list[dict[str, Any]]) -> list[ScamSample]:
+def _validate_samples(
+    raw_samples: list[dict[str, Any]],
+    default_audience: str = "一般民眾",
+) -> list[ScamSample]:
     """
     驗證並轉換詐騙樣本列表
 
@@ -337,9 +400,10 @@ def _validate_samples(raw_samples: list[dict[str, Any]]) -> list[ScamSample]:
     """
     validated: list[ScamSample] = []
     for i, sample in enumerate(raw_samples):
-        content = sample.get("content", "").strip()
-        tags = sample.get("psychological_tags", [])
-        audience = sample.get("target_audience", "").strip()
+        normalized = _normalize_sample_fields(sample, default_audience=default_audience)
+        content = normalized["content"].strip()
+        tags = normalized["psychological_tags"]
+        audience = normalized["target_audience"].strip()
 
         # 驗證必要欄位非空
         if not content:
@@ -391,10 +455,6 @@ async def generate_scam_samples(
     """
     req_id = request_id or str(uuid.uuid4())
 
-    # 建立 LLM 客戶端（若未提供）
-    if llm_client is None:
-        llm_client = _build_llm_client()
-
     # 建構 Prompt 訊息
     prompt_messages = [
         SystemMessage(content=_SYSTEM_PROMPT.format(min_samples=min_samples)),
@@ -405,66 +465,110 @@ async def generate_scam_samples(
         )),
     ]
 
-    try:
-        # 呼叫 LLM（含指數退避重試）
-        raw_content = await _call_llm_with_retry(
-            llm=llm_client,
-            messages=prompt_messages,
-            request_id=req_id,
-            max_attempts=settings.llm_max_retries,
-            initial_delay=settings.llm_retry_initial_delay,
-            backoff_multiplier=settings.llm_retry_backoff_multiplier,
-            max_delay=settings.llm_retry_max_delay,
-        )
+    if llm_client is not None:
+        provider_chain = [get_settings().llm_provider]
+    else:
+        provider_chain = _get_llm_provider_chain()
 
-        # 解析 LLM 回應
-        raw_samples = _parse_llm_response(raw_content)
-        validated_samples = _validate_samples(raw_samples)
+    last_error: dict[str, Any] | None = None
 
-        logger.info(
-            "詐騙樣本生成完成 | request_id=%s | count=%d",
-            req_id, len(validated_samples)
-        )
+    for index, provider in enumerate(provider_chain):
+        client = llm_client if llm_client is not None else _build_llm_client(provider)
+        # 主要 provider 有備援時只嘗試一次，失敗後立即切換
+        has_fallback = len(provider_chain) > 1
+        max_attempts = 1 if has_fallback and index == 0 else settings.llm_max_retries
 
-        return {
-            "samples": [s.to_dict() for s in validated_samples],
-            "count": len(validated_samples),
-            "request_id": req_id,
-        }
+        try:
+            for parse_attempt in range(1, max_attempts + 1):
+                try:
+                    raw_content = await _call_llm_with_retry(
+                        llm=client,
+                        messages=prompt_messages,
+                        request_id=req_id,
+                        max_attempts=1,
+                        initial_delay=settings.llm_retry_initial_delay,
+                        backoff_multiplier=settings.llm_retry_backoff_multiplier,
+                        max_delay=settings.llm_retry_max_delay,
+                    )
 
-    except asyncio.TimeoutError:
-        # LLM 逾時錯誤（需求 1.3）
-        logger.error("LLM 逾時錯誤 | request_id=%s", req_id)
-        return build_error_response(
-            error_code=LLMErrorCode.TIMEOUT,
-            description=f"LLM 服務在 {settings.llm_timeout_seconds} 秒內未回應，請稍後重試",
-            request_id=req_id,
-            retry_after=settings.llm_retry_max_delay,
-        )
+                    raw_samples = _parse_llm_response(raw_content)
+                    validated_samples = _validate_samples(
+                        raw_samples,
+                        default_audience=target_audience,
+                    )
 
-    except ValueError as exc:
-        # JSON 解析錯誤（需求 1.3）
-        logger.error("LLM 回應解析失敗 | request_id=%s | error=%s", req_id, str(exc))
-        return build_error_response(
-            error_code=LLMErrorCode.PARSE_ERROR,
-            description=f"LLM 回應格式無效，無法解析為預期的 JSON 結構：{str(exc)}",
-            request_id=req_id,
-        )
+                    if len(validated_samples) < min_samples:
+                        raise ValueError(
+                            f"有效樣本數量不足：{len(validated_samples)}/{min_samples}"
+                        )
 
-    except Exception as exc:
-        # 其他 API 錯誤（需求 1.3）
-        error_type = type(exc).__name__
-        logger.error(
-            "LLM API 錯誤 | request_id=%s | error_type=%s | error=%s",
-            req_id, error_type, str(exc)
-        )
+                    logger.info(
+                        "詐騙樣本生成完成 | request_id=%s | provider=%s | fallback=%s | count=%d | parse_attempt=%d",
+                        req_id, provider, index > 0, len(validated_samples), parse_attempt,
+                    )
 
-        # 判斷是否為 OpenAI API 錯誤
-        error_code = LLMErrorCode.API_ERROR
-        description = f"LLM API 呼叫失敗（{error_type}）：{str(exc)}"
+                    return {
+                        "samples": [s.to_dict() for s in validated_samples],
+                        "count": len(validated_samples),
+                        "request_id": req_id,
+                        "llm_provider": provider,
+                        "fallback_used": index > 0,
+                    }
 
-        return build_error_response(
-            error_code=error_code,
-            description=description,
-            request_id=req_id,
-        )
+                except ValueError as exc:
+                    if parse_attempt < max_attempts:
+                        logger.warning(
+                            "LLM 解析/驗證失敗，重試 %d/%d | provider=%s | request_id=%s | error=%s",
+                            parse_attempt, max_attempts, provider, req_id, str(exc),
+                        )
+                        continue
+                    raise
+
+        except asyncio.TimeoutError:
+            last_error = build_error_response(
+                error_code=LLMErrorCode.TIMEOUT,
+                description=f"{_provider_label(provider)} 在 {settings.llm_timeout_seconds} 秒內未回應",
+                request_id=req_id,
+                retry_after=settings.llm_retry_max_delay,
+            )
+            logger.warning(
+                "LLM 逾時，provider=%s | request_id=%s | has_fallback=%s",
+                provider, req_id, index < len(provider_chain) - 1,
+            )
+
+        except ValueError as exc:
+            last_error = build_error_response(
+                error_code=LLMErrorCode.PARSE_ERROR,
+                description=f"{_provider_label(provider)} 回應格式無效：{str(exc)}",
+                request_id=req_id,
+            )
+            logger.warning(
+                "LLM 解析失敗，provider=%s | request_id=%s | error=%s",
+                provider, req_id, str(exc),
+            )
+
+        except Exception as exc:
+            error_type = type(exc).__name__
+            last_error = build_error_response(
+                error_code=LLMErrorCode.API_ERROR,
+                description=f"{_provider_label(provider)} 呼叫失敗（{error_type}）：{str(exc)}",
+                request_id=req_id,
+            )
+            logger.warning(
+                "LLM API 失敗，provider=%s | request_id=%s | error_type=%s | error=%s",
+                provider, req_id, error_type, str(exc),
+            )
+
+        if index < len(provider_chain) - 1:
+            next_provider = provider_chain[index + 1]
+            logger.info(
+                "主要 LLM 失敗，立即切換備援 | request_id=%s | fallback=%s",
+                req_id, next_provider,
+            )
+            continue
+
+    return last_error or build_error_response(
+        error_code=LLMErrorCode.UNKNOWN_ERROR,
+        description="LLM 呼叫失敗，原因未知",
+        request_id=req_id,
+    )

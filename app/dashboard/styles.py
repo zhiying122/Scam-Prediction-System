@@ -41,8 +41,29 @@ header { visibility: hidden !important; }
 section[data-testid="stMain"] > div:first-child {
     padding-top: 0 !important;
 }
-.stMarkdown { margin-bottom: 0 !important; }
-div[data-testid="stVerticalBlock"] > div { gap: 0 !important; }
+.stMarkdown { margin-bottom: 0.25rem !important; }
+div[data-testid="stVerticalBlock"] > div { gap: 0.75rem !important; }
+
+/* 子頁面內容留白（header 維持全寬） */
+section[data-testid="stMain"] h1,
+section[data-testid="stMain"] h2,
+section[data-testid="stMain"] h3,
+section[data-testid="stMain"] .stTextArea,
+section[data-testid="stMain"] .stTextInput,
+section[data-testid="stMain"] [data-testid="stButton"],
+section[data-testid="stMain"] [data-testid="stForm"],
+section[data-testid="stMain"] [data-testid="stSelectbox"],
+section[data-testid="stMain"] [data-testid="stSlider"],
+section[data-testid="stMain"] [data-testid="stCheckbox"],
+section[data-testid="stMain"] [data-testid="stMetric"],
+section[data-testid="stMain"] [data-testid="stDataFrame"],
+section[data-testid="stMain"] [data-testid="stNotification"],
+section[data-testid="stMain"] [data-testid="stExpander"],
+section[data-testid="stMain"] [data-testid="stProgress"],
+section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div > [data-testid="stMarkdownContainer"] {
+    margin-left: 32px !important;
+    margin-right: 32px !important;
+}
 
 /* ── 頁面內容區域 ────────────────────────────────────────────────────────── */
 .page-body {
@@ -78,9 +99,12 @@ div[data-testid="stVerticalBlock"] > div { gap: 0 !important; }
 [data-testid="stMetricDelta"] { font-size: 0.8rem !important; }
 
 /* ── 按鈕 ────────────────────────────────────────────────────────────────── */
+/* Streamlit 1.58+ 使用 data-testid="stBaseButton-primary"，舊版使用 kind="primary" */
+.stButton > button[data-testid="stBaseButton-primary"],
+button[data-testid="stBaseButton-primary"],
 .stButton > button[kind="primary"] {
     background: #166534 !important;
-    color: white !important;
+    color: #ffffff !important;
     border: none !important;
     border-radius: 6px !important;
     font-weight: 600 !important;
@@ -88,19 +112,92 @@ div[data-testid="stVerticalBlock"] > div { gap: 0 !important; }
     box-shadow: 0 1px 4px rgba(22,101,52,0.2) !important;
     transition: background 0.15s !important;
 }
+.stButton > button[data-testid="stBaseButton-primary"] p,
+.stButton > button[data-testid="stBaseButton-primary"] span,
+.stButton > button[data-testid="stBaseButton-primary"] div,
+button[data-testid="stBaseButton-primary"] p,
+button[data-testid="stBaseButton-primary"] span,
+button[data-testid="stBaseButton-primary"] div,
+.stButton > button[kind="primary"] p,
+.stButton > button[kind="primary"] span,
+.stButton > button[kind="primary"] div {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+.stButton > button[data-testid="stBaseButton-primary"]:hover,
+button[data-testid="stBaseButton-primary"]:hover,
 .stButton > button[kind="primary"]:hover {
     background: #14532d !important;
+    color: #ffffff !important;
 }
-.stButton > button:not([kind="primary"]) {
+.stButton > button[data-testid="stBaseButton-secondary"],
+.stButton > button[data-testid="stBaseButton-tertiary"],
+button[data-testid="stBaseButton-secondary"],
+button[data-testid="stBaseButton-tertiary"],
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]) {
     background: white !important;
     color: #374151 !important;
     border: 1px solid #D1D5DB !important;
     border-radius: 6px !important;
     font-size: 0.875rem !important;
 }
-.stButton > button:not([kind="primary"]):hover {
+.stButton > button[data-testid="stBaseButton-secondary"] p,
+.stButton > button[data-testid="stBaseButton-secondary"] span,
+.stButton > button[data-testid="stBaseButton-secondary"] div,
+.stButton > button[data-testid="stBaseButton-tertiary"] p,
+.stButton > button[data-testid="stBaseButton-tertiary"] span,
+.stButton > button[data-testid="stBaseButton-tertiary"] div,
+button[data-testid="stBaseButton-secondary"] p,
+button[data-testid="stBaseButton-secondary"] span,
+button[data-testid="stBaseButton-secondary"] div,
+button[data-testid="stBaseButton-tertiary"] p,
+button[data-testid="stBaseButton-tertiary"] span,
+button[data-testid="stBaseButton-tertiary"] div,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]) p,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]) span,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]) div {
+    color: #374151 !important;
+    -webkit-text-fill-color: #374151 !important;
+}
+.stButton > button[data-testid="stBaseButton-secondary"]:hover,
+.stButton > button[data-testid="stBaseButton-tertiary"]:hover,
+button[data-testid="stBaseButton-secondary"]:hover,
+button[data-testid="stBaseButton-tertiary"]:hover,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]):hover {
     border-color: #166534 !important;
     color: #166534 !important;
+}
+.stButton > button[data-testid="stBaseButton-secondary"]:hover p,
+.stButton > button[data-testid="stBaseButton-secondary"]:hover span,
+.stButton > button[data-testid="stBaseButton-secondary"]:hover div,
+.stButton > button[data-testid="stBaseButton-tertiary"]:hover p,
+.stButton > button[data-testid="stBaseButton-tertiary"]:hover span,
+.stButton > button[data-testid="stBaseButton-tertiary"]:hover div,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]):hover p,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]):hover span,
+.stButton > button:not([data-testid="stBaseButton-primary"]):not([kind="primary"]):hover div {
+    color: #166534 !important;
+    -webkit-text-fill-color: #166534 !important;
+}
+/* 主按鈕 disabled 狀態仍保持可讀文字 */
+.stButton > button[data-testid="stBaseButton-primary"]:disabled,
+button[data-testid="stBaseButton-primary"]:disabled,
+.stButton > button[kind="primary"]:disabled {
+    background: #86efac !important;
+    color: #14532d !important;
+    opacity: 1 !important;
+}
+.stButton > button[data-testid="stBaseButton-primary"]:disabled p,
+.stButton > button[data-testid="stBaseButton-primary"]:disabled span,
+.stButton > button[data-testid="stBaseButton-primary"]:disabled div,
+button[data-testid="stBaseButton-primary"]:disabled p,
+button[data-testid="stBaseButton-primary"]:disabled span,
+button[data-testid="stBaseButton-primary"]:disabled div,
+.stButton > button[kind="primary"]:disabled p,
+.stButton > button[kind="primary"]:disabled span,
+.stButton > button[kind="primary"]:disabled div {
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
 }
 
 /* ── 輸入框 ──────────────────────────────────────────────────────────────── */
@@ -113,8 +210,51 @@ div[data-testid="stVerticalBlock"] > div { gap: 0 !important; }
     color: #1a2332 !important;
     font-size: 0.875rem !important;
 }
+/* Streamlit 1.58+ baseweb 外層容器（避免灰底看起來像 disabled）
+   注意：勿用 [data-testid="stTextArea"]，st.html 的 DOMPurify 會整段剝除 */
+.stTextArea {
+    pointer-events: auto !important;
+}
+.stTextArea [data-baseweb="textarea"],
+.stTextArea [data-baseweb="base-input"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1px solid #D1D5DB !important;
+    border-color: #D1D5DB !important;
+    border-radius: 6px !important;
+    opacity: 1 !important;
+    cursor: text !important;
+}
+.stTextArea > div > div > textarea,
+.stTextArea textarea {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #1a2332 !important;
+    -webkit-text-fill-color: #1a2332 !important;
+    font-size: 0.875rem !important;
+    cursor: text !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    caret-color: #1a2332 !important;
+}
+.stTextArea textarea:disabled,
+.stTextArea textarea[readonly] {
+    background: #ffffff !important;
+    color: #1a2332 !important;
+    -webkit-text-fill-color: #1a2332 !important;
+    opacity: 1 !important;
+    cursor: text !important;
+}
+.stTextInput [data-baseweb="input"] {
+    background: #ffffff !important;
+    border-color: #D1D5DB !important;
+    border-radius: 6px !important;
+}
 .stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
+.stTextArea > div > div > textarea:focus,
+.stTextArea textarea:focus,
+.stTextArea [data-baseweb="textarea"]:focus-within,
+.stTextInput [data-baseweb="input"]:focus-within {
     border-color: #166534 !important;
     box-shadow: 0 0 0 2px rgba(22,101,52,0.12) !important;
 }

@@ -42,30 +42,84 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+import importlib
+import app.dashboard.styles as _styles_module
+
+importlib.reload(_styles_module)
 from app.dashboard.styles import inject_css, inject_html
+
 inject_css()
 
 # ── API Gateway 呼叫輔助函數 ──────────────────────────────────────────────────
 import requests as _requests
 
-_API_GATEWAY_URL = os.environ.get("API_GATEWAY_URL", "http://localhost:8000")
+_API_GATEWAY_URL = os.environ.get("API_GATEWAY_URL", "http://localhost:8001")
 _API_KEY = os.environ.get("API_KEY", "test-key-001")
+_DEFAULT_API_TIMEOUT = int(os.environ.get("DASHBOARD_API_TIMEOUT_SECONDS", "60"))
 
 
-def _call_api_gateway(endpoint: str, payload: dict, extra_headers: dict | None = None) -> dict:
+def _llm_generate_timeout_seconds() -> int:
+    """依 LLM 逾時設定推算話術生成端點所需等待時間（含備援切換緩衝）。"""
+    override = os.environ.get("DASHBOARD_LLM_GENERATE_TIMEOUT_SECONDS")
+    if override:
+        return int(override)
+    llm_timeout = int(os.environ.get("LLM_TIMEOUT_SECONDS", "300"))
+    return llm_timeout * 2 + 60
+
+
+def _call_api_gateway(
+    endpoint: str,
+    payload: dict,
+    extra_headers: dict | None = None,
+    timeout: int | None = None,
+) -> dict:
     """透過 API Gateway 呼叫後端服務（遵守架構分層原則）。"""
     url = f"{_API_GATEWAY_URL.rstrip('/')}{endpoint}"
     headers = {
         "Content-Type": "application/json",
         "X-API-Key": _API_KEY,
         "X-Operator-Id": "dashboard-user",
+        "X-Operator-Role": "SCAM_ANALYST",
     }
     if extra_headers:
         headers.update(extra_headers)
     try:
-        resp = _requests.post(url, json=payload, headers=headers, timeout=60)
+        resp = _requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout if timeout is not None else _DEFAULT_API_TIMEOUT,
+        )
         resp.raise_for_status()
         return resp.json()
+    except _requests.Timeout as exc:
+        waited = timeout if timeout is not None else _DEFAULT_API_TIMEOUT
+        return {
+            "error": (
+                f"請求逾時（已等待 {waited} 秒）。"
+                "LLM 生成大量樣本可能需要數分鐘，請稍後重試或減少樣本數量。"
+            ),
+            "error_type": "timeout",
+            "timeout_seconds": waited,
+            "detail": str(exc),
+        }
+    except _requests.HTTPError as exc:
+        detail_msg = ""
+        response = exc.response
+        if response is not None:
+            try:
+                body = response.json()
+                detail = body.get("detail", body)
+                if isinstance(detail, dict):
+                    detail_msg = detail.get("description") or detail.get("message") or str(detail)
+                else:
+                    detail_msg = str(detail)
+            except ValueError:
+                detail_msg = response.text[:300]
+        error_text = str(exc)
+        if detail_msg:
+            error_text = f"{error_text} — {detail_msg}"
+        return {"error": error_text}
     except _requests.RequestException as exc:
         return {"error": str(exc)}
 
@@ -219,9 +273,16 @@ if page_key not in valid_keys:
 
 # ── LLM 狀態文字 ─────────────────────────────────────────────────────────────
 if _llm_ready:
-    provider_label = {"ollama": "Ollama", "google": "Gemini", "openai": "OpenAI"}.get(
-        st.session_state.get("llm_provider", "openai"), "OpenAI"
-    )
+    provider_label = {
+        "ollama": "Ollama",
+        "google": "Gemini",
+        "openai": "OpenAI",
+    }.get(st.session_state.get("llm_provider", "openai"), "OpenAI")
+    if (
+        st.session_state.get("llm_provider") == "openai"
+        and os.environ.get("LLM_FALLBACK", "ollama").lower() == "ollama"
+    ):
+        provider_label = "OpenAI（備援 Ollama）"
     llm_status_html = f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">● LLM: {provider_label}</span>'
 else:
     llm_status_html = '<span style="color:#92400E;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
@@ -266,9 +327,21 @@ try:
         if _freshness_info.is_static or _freshness_info.cache_age_hours > 6.0:
             try:
                 import threading
-                from app.live_data import get_fetch_scheduler
-                _sched = get_fetch_scheduler()
-                threading.Thread(target=_sched.trigger_now, daemon=True).start()
+
+                def _trigger_refresh_via_api() -> None:
+                    try:
+                        _requests.post(
+                            f"{_API_GATEWAY_URL.rstrip('/')}/v1/data/refresh",
+                            headers={"X-API-Key": _API_KEY},
+                            timeout=5,
+                        )
+                    except Exception:
+                        pass
+
+                threading.Thread(
+                    target=_trigger_refresh_via_api,
+                    daemon=True,
+                ).start()
             except Exception:
                 pass
         _freshness_text = render_freshness_indicator(_freshness_info)
@@ -392,6 +465,22 @@ section[data-testid="stMain"] > div {{
     padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+}}
+/* 文字輸入框：確保可編輯（Streamlit 1.58 DOMPurify 會剝除 data-testid="stTextArea" 選擇器） */
+.stTextArea [data-baseweb="textarea"],
+.stTextArea [data-baseweb="base-input"] {{
+    background: #ffffff !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 6px !important;
+    cursor: text !important;
+}}
+.stTextArea textarea {{
+    background: #ffffff !important;
+    color: #1a2332 !important;
+    -webkit-text-fill-color: #1a2332 !important;
+    caret-color: #1a2332 !important;
+    cursor: text !important;
+    pointer-events: auto !important;
 }}
 </style>
 <div class="site-header">
@@ -564,125 +653,6 @@ if page_key == "home":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 頁面 0：系統總覽
-# ══════════════════════════════════════════════════════════════════════════════
-elif page_key == "overview":
-    st.markdown("""
-    <div class="fade-in" style="text-align:center;padding:20px 0 10px;">
-        <div style="font-size:1rem;color:#4B5563;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">
-        AI-POWERED ANTI-SCAM INTELLIGENCE</div>
-        <h1 style="font-size:3rem;margin:0;">ScamDNA Lab</h1>
-        <p style="color:#374151;font-size:1.1rem;margin-top:8px;">
-        從被動防禦到主動預測 — 運用生成式 AI 構築下一代防詐護城河</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"{_latest_year} 年詐騙案件", f"{_total_cases:,} 件", _case_delta)
-    col2.metric("年度損失金額", f"{_total_loss} 億元", _loss_delta)
-    col3.metric("XAI 分類準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "↑ 規則式基準")
-    col4.metric("預警提前時間", "24 小時", "↓ 傳統需 14 天")
-
-    st.markdown("---")
-
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#166534;margin-bottom:6px;">LLM 話術裂變生成</div>
-            <div style="color:#374151;font-size:0.9rem;">GPT-4o / Gemini / Llama 驅動，從種子情境自動生成數百種詐騙變種話術</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_b:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#166534;margin-bottom:6px;">XAI 可解釋性分析</div>
-            <div style="color:#374151;font-size:0.9rem;">高亮顯示觸發心理操控特徵的具體片段，非黑盒子，每個判斷都有依據</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_c:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#166534;margin-bottom:6px;">免疫訓練平台</div>
-            <div style="color:#374151;font-size:0.9rem;">互動式防詐訓練，體驗真實詐騙話術，通過測驗獲得防詐免疫證書</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    col_d, col_e, col_f = st.columns(3)
-    with col_d:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">異常偵測預警</div>
-            <div style="color:#374151;font-size:0.9rem;">Isolation Forest 時間序列分析，24 小時內偵測新興詐騙手法趨勢</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_e:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">受害風險地圖</div>
-            <div style="color:#374151;font-size:0.9rem;">依年齡層與地區呈現風險指數，精準定位高風險族群與地區</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_f:
-        st.markdown("""
-        <div class="cyber-card fade-in">
-            <div style="font-size:1.5rem;margin-bottom:8px;"></div>
-            <div style="font-weight:600;color:#1D4ED8;margin-bottom:6px;">Risk Vector API</div>
-            <div style="color:#374151;font-size:0.9rem;">標準化風險向量 API，可串接銀行、電信商、保險公司即時防詐系統</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align:center;padding:10px 0;">
-        <div style="color:#4B5563;font-size:0.85rem;letter-spacing:1px;">
-        SYSTEM PIPELINE
-        </div>
-        <div style="color:#374151;margin-top:12px;font-size:0.95rem;">
-        情境種子輸入 → LLM 話術裂變 → NLP 特徵萃取 → XAI 可解釋高亮 → 異常偵測預警 → Risk Vector 輸出 → API 串接金融機構
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 真實數據展示 ──────────────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("台灣詐騙現況（資料來源：警政署 165 專線）")
-    import pandas as pd
-    col_s1, col_s2, col_s3 = st.columns(3)
-    col_s1.metric(f"{_latest_year} 年總案件數", f"{_total_cases:,} 件", _case_delta)
-    col_s2.metric(f"{_latest_year} 年總損失", f"{_total_loss} 億元", _loss_delta)
-    col_s3.metric("2024 上半年損失", "62.1 億元", "↑ 持續攀升")
-
-    # 詐騙類型排行
-    scam_df = pd.DataFrame([
-        {"詐騙類型": k, f"{_latest_year}年案件數": f"{v['cases']:,}", "平均損失": f"NT${v['avg_loss_ntd']//10000}萬", "趨勢": v['trend']}
-        for k, v in sorted(SCAM_TYPE_STATS.items(), key=lambda x: x[1]['cases'], reverse=True)
-    ])
-    st.dataframe(scam_df, use_container_width=True, hide_index=True)
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="background:#FEF2F2;border:1px solid #FECACA;
-    border-radius:10px;padding:16px;text-align:center;">
-        <div style="color:#991B1B;font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;">
-        ScamDNA Lab 的使命</div>
-        <div style="color:#1a2332;font-size:1rem;margin-top:8px;">
-        透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 # 頁面 LLM：真實 LLM 話術生成 Demo
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "llm_demo":
@@ -704,51 +674,70 @@ elif page_key == "llm_demo":
     has_api_key = bool(st.session_state.get("openai_api_key"))
     _current_provider = st.session_state.get("llm_provider", "openai")
     if not has_api_key:
-        st.warning("未偵測到 LLM 設定，將使用示範資料。請在 .env 設定 LLM_PROVIDER。")
+        st.warning("未偵測到 LLM 設定，將使用示範資料。請在 .env 設定 LLM_PROVIDER，並確認 API Gateway 已啟動。")
 
-    with st.form("llm_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            scenario = st.text_area(
-                "詐騙情境描述",
-                value="假冒銀行客服，聲稱帳戶出現異常交易",
-                height=100,
-            )
-            audience = st.selectbox(
-                "目標受眾",
-                ["中老年族群", "年輕族群", "學生族群", "商業人士", "一般民眾"],
-            )
-        with col2:
-            sample_count = st.slider("生成樣本數量", min_value=3, max_value=10, value=5)
-            show_xai = st.checkbox("同時執行 XAI 分析", value=True)
+    if "llm_scenario" not in st.session_state:
+        st.session_state.llm_scenario = "假冒銀行客服，聲稱帳戶出現異常交易"
 
-        submitted = st.form_submit_button("生成話術", type="primary")
+    scenario = st.text_area(
+        "詐騙情境描述",
+        height=100,
+        key="llm_scenario",
+        placeholder="請輸入基礎詐騙情境，例如：假冒銀行客服，聲稱帳戶出現異常交易",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        audience = st.selectbox(
+            "目標受眾",
+            ["中老年族群", "年輕族群", "學生族群", "商業人士", "一般民眾"],
+            key="llm_audience",
+        )
+    with col2:
+        sample_count = st.slider("生成樣本數量", min_value=10, max_value=50, value=10, key="llm_sample_count")
+        show_xai = st.checkbox("同時執行 XAI 分析", value=True, key="llm_show_xai")
+
+    submitted = st.button("生成話術", type="primary", key="llm_generate_btn")
 
     if submitted:
+        samples = []
         if has_api_key:
-            # 真實 LLM 呼叫
-            with st.spinner(f"正在呼叫 {_current_provider.capitalize()} 生成話術..."):
+            _generate_timeout = _llm_generate_timeout_seconds()
+            with st.spinner(
+                f"正在透過 API Gateway 呼叫 {_current_provider.capitalize()} 生成話術"
+                f"（預計最多 {_generate_timeout // 60} 分鐘，請耐心等候）..."
+            ):
                 try:
-                    import os
-                    if _current_provider != "ollama":
-                        os.environ["OPENAI_API_KEY"] = st.session_state["openai_api_key"]
-
-                    from app.scam_engine.generator import generate_scam_samples
-                    result = _safe_async_run(generate_scam_samples(
-                        scenario=scenario,
-                        target_audience=audience,
-                        min_samples=sample_count,
-                    ))
-
-                    if "error_code" in result:
-                        st.error(f"LLM 呼叫失敗：{result.get('description', '未知錯誤')}")
-                        samples = []
+                    api_result = _call_api_gateway(
+                        "/v1/scam/generate",
+                        {
+                            "scenario": scenario,
+                            "target_audience": audience,
+                            "sample_count": sample_count,
+                        },
+                        timeout=_generate_timeout,
+                    )
+                    if api_result.get("error"):
+                        st.error(f"API Gateway 呼叫失敗：{api_result['error']}")
+                    elif "samples" in api_result and api_result["samples"]:
+                        samples = api_result["samples"]
+                        used_provider = api_result.get("llm_provider", _current_provider)
+                        provider_names = {
+                            "openai": "OpenAI GPT",
+                            "google": "Google Gemini",
+                            "ollama": "Ollama",
+                        }
+                        used_label = provider_names.get(used_provider, used_provider)
+                        if api_result.get("fallback_used"):
+                            st.warning("OpenAI 呼叫失敗，已自動切換至本地 Ollama 完成生成。")
+                        st.success(
+                            f"成功生成 {len(samples)} 個話術樣本"
+                            f"（{used_label} 輸出，task_id: {api_result.get('task_id', 'N/A')}）"
+                        )
                     else:
-                        samples = result.get("samples", [])
-                        st.success(f"成功生成 {len(samples)} 個話術樣本（{_current_provider.capitalize()} 輸出）")
+                        st.error(f"API 回應異常：{api_result.get('message', '未取得樣本')}")
                 except Exception as e:
                     st.error(f"呼叫失敗：{e}")
-                    samples = []
         else:
             # Mock 示範資料
             samples = [
@@ -1643,14 +1632,17 @@ elif page_key == "xai":
         "為了保護您的資金安全，請馬上提供驗證碼，我們的專業團隊會幫助您解決問題。"
     )
 
+    if "xai_input" not in st.session_state:
+        st.session_state.xai_input = EXAMPLE_TEXT
+
     input_text = st.text_area(
         "輸入話術文字",
-        value=EXAMPLE_TEXT,
         height=150,
+        key="xai_input",
         placeholder="請輸入要分析的詐騙話術文字...",
     )
 
-    if st.button("開始分析", type="primary"):
+    if st.button("開始分析", type="primary", key="xai_analyze_btn"):
         if not input_text.strip():
             st.warning("請輸入文字後再進行分析。")
         else:

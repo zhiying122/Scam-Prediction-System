@@ -12,7 +12,7 @@
       "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/scam-prediction-api:latest",
       "portMappings": [
         {
-          "containerPort": 8000,
+          "containerPort": 8001,
           "protocol": "tcp"
         }
       ],
@@ -35,7 +35,7 @@
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:8000/v1/health || exit 1"],
+        "command": ["CMD-SHELL", "curl -f http://localhost:8001/v1/health || exit 1"],
         "interval": 30,
         "timeout": 10,
         "retries": 3,

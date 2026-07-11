@@ -81,6 +81,18 @@ PERMISSION_MATRIX: dict[Role, dict[Action, bool]] = {
 
 # ── 核心權限驗證函數 ──────────────────────────────────────────────────────────
 
+def _resolve_role(role: str) -> Role:
+    """將角色字串解析為 Role 枚舉（支援中文值與枚舉名稱如 SCAM_ANALYST）。"""
+    try:
+        return Role(role)
+    except ValueError:
+        try:
+            return Role[role]
+        except KeyError:
+            valid = [f"{r.name} / {r.value}" for r in Role]
+            raise ValueError(f"不合法的角色：{role}，合法角色為 {valid}") from None
+
+
 def check_permission(operator_id: str, role: Role | str, action: Action | str) -> bool:
     """
     驗證操作人員是否具備指定操作的權限。
@@ -98,10 +110,7 @@ def check_permission(operator_id: str, role: Role | str, action: Action | str) -
     """
     # 將字串轉換為枚舉（支援字串輸入）
     if isinstance(role, str):
-        try:
-            role = Role(role)
-        except ValueError:
-            raise ValueError(f"不合法的角色：{role}，合法角色為 {[r.value for r in Role]}")
+        role = _resolve_role(role)
 
     if isinstance(action, str):
         try:
@@ -148,7 +157,7 @@ def require_role(roles: list[Role]) -> Callable:
         """
         # 嘗試將字串轉換為 Role 枚舉
         try:
-            operator_role = Role(x_operator_role)
+            operator_role = _resolve_role(x_operator_role)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
