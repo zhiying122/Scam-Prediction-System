@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 _CACHE_FILE = Path("data/timeline_cache.json")
 _CACHE_TTL_DAYS = 30
 
-# 7 種詐騙類型
+# 8 種詐騙類型（與 taiwan_scam_data.py 的 SCAM_TYPE_STATS 一致）
 _SCAM_TYPES = [
     "假冒銀行客服",
     "投資詐騙",
@@ -31,6 +31,7 @@ _SCAM_TYPES = [
     "購物詐騙",
     "中獎詐騙",
     "工作詐騙",
+    "AI 深偽詐騙",
 ]
 
 # ── LLM Prompt ────────────────────────────────────────────────────────────────
