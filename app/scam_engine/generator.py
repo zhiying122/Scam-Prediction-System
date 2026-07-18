@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
@@ -77,6 +77,86 @@ def _provider_label(provider: str) -> str:
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def _dicts_to_langchain_messages(messages: list[dict[str, str]]) -> list[Any]:
+    """Convert plain role/content dicts to LangChain message objects."""
+    converted: list[Any] = []
+    for item in messages:
+        role = item.get("role", "user")
+        content = item.get("content", "")
+        if role == "system":
+            converted.append(SystemMessage(content=content))
+        elif role == "assistant":
+            converted.append(AIMessage(content=content))
+        else:
+            converted.append(HumanMessage(content=content))
+    return converted
+
+
+async def generate_simulator_reply(
+    messages: list[dict[str, str]],
+    request_id: str | None = None,
+    llm_client: ChatOpenAI | None = None,
+) -> dict[str, Any]:
+    """Generate a simulator reply using the configured LLM provider chain."""
+    req_id = request_id or str(uuid.uuid4())
+    provider_chain = [get_settings().llm_provider] if llm_client is not None else _get_llm_provider_chain()
+    langchain_messages = _dicts_to_langchain_messages(messages)
+    last_error: dict[str, Any] | None = None
+
+    for index, provider in enumerate(provider_chain):
+        client = llm_client if llm_client is not None else _build_llm_client(provider)
+        has_fallback = len(provider_chain) > 1
+        max_attempts = 1 if has_fallback and index == 0 else settings.llm_max_retries
+
+        try:
+            raw_content = await _call_llm_with_retry(
+                llm=client,
+                messages=langchain_messages,
+                request_id=req_id,
+                max_attempts=max_attempts,
+                initial_delay=settings.llm_retry_initial_delay,
+                backoff_multiplier=settings.llm_retry_backoff_multiplier,
+                max_delay=settings.llm_retry_max_delay,
+            )
+
+            cleaned = _strip_markdown_fences(raw_content).strip()
+            return {
+                "reply": cleaned,
+                "request_id": req_id,
+                "llm_provider": provider,
+                "fallback_used": index > 0,
+            }
+
+        except asyncio.TimeoutError:
+            last_error = build_error_response(
+                error_code=LLMErrorCode.TIMEOUT,
+                description=f"{_provider_label(provider)} 在 {settings.llm_timeout_seconds} 秒內未回應",
+                request_id=req_id,
+                retry_after=settings.llm_retry_max_delay,
+            )
+            logger.warning(
+                "LLM 逾時，provider=%s | request_id=%s | has_fallback=%s",
+                provider, req_id, index < len(provider_chain) - 1,
+            )
+
+        except Exception as exc:
+            last_error = build_error_response(
+                error_code=LLMErrorCode.API_ERROR,
+                description=f"{_provider_label(provider)} 生成失敗：{str(exc)}",
+                request_id=req_id,
+            )
+            logger.warning(
+                "LLM 生成失敗，provider=%s | request_id=%s | error=%s",
+                provider, req_id, str(exc),
+            )
+
+    return last_error or build_error_response(
+        error_code=LLMErrorCode.UNKNOWN_ERROR,
+        description="無法生成模擬器回應，請稍後再試。",
+        request_id=req_id,
+    )
 
 
 # ── 錯誤代碼常數 ──────────────────────────────────────────────────────────────

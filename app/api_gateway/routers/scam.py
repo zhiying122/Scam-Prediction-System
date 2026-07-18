@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.access_controller.rbac import Action, Role, check_permission
 from app.models.scam_script import ScamScript
-from app.scam_engine.generator import generate_scam_samples
+from app.scam_engine.generator import generate_scam_samples, generate_simulator_reply
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,21 @@ class ScamGenerateResponse(BaseModel):
     llm_provider: str | None = Field(default=None, description="實際使用的 LLM 提供商")
     fallback_used: bool = Field(default=False, description="是否已切換至備援 LLM")
 
+class SimulatorReplyRequest(BaseModel):
+    """模擬器回應請求模型"""
+
+    messages: list[dict[str, str]] = Field(..., description="對話歷史訊息清單")
+    operator_id: Optional[str] = Field(default=None, description="操作人員識別碼（向後相容）")
+    operator_role: Optional[str] = Field(default=None, description="操作人員角色（向後相容）")
+
+
+class SimulatorReplyResponse(BaseModel):
+    """模擬器回應回傳模型"""
+
+    reply: str = Field(..., description="詐騙犯回應文本")
+    request_id: str = Field(..., description="請求識別碼")
+    llm_provider: str = Field(..., description="實際使用的 LLM 提供商")
+    fallback_used: bool = Field(..., description="是否已使用備援 LLM")
 
 # ── 端點實作 ──────────────────────────────────────────────────────────────────
 
@@ -197,4 +212,75 @@ async def generate_scam_scripts_endpoint(
         samples=samples,
         llm_provider=result.get("llm_provider"),
         fallback_used=bool(result.get("fallback_used")),
+    )
+
+
+@router.post(
+    "/simulator",
+    response_model=SimulatorReplyResponse,
+    summary="取得詐騙對話模擬器回應",
+    response_description="詐騙犯回應內容與實際使用的 LLM 提供商",
+)
+async def generate_simulator_reply_endpoint(
+    request: Request,
+    body: SimulatorReplyRequest,
+    x_operator_id: Optional[str] = Header(default=None, description="操作人員識別碼（優先於 body）"),
+    x_operator_role: Optional[str] = Header(default=None, description="操作人員角色（優先於 body）"),
+) -> SimulatorReplyResponse:
+    """提供詐騙對話模擬器的 LLM 回應。"""
+    operator_id = x_operator_id or body.operator_id
+    operator_role = x_operator_role or body.operator_role
+
+    if not operator_id or not operator_role:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="必須提供操作人員識別碼與角色（透過 X-Operator-Id / X-Operator-Role 標頭或請求 body）",
+        )
+
+    try:
+        is_authorized = check_permission(
+            operator_id=operator_id,
+            role=operator_role,
+            action=Action.READ,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "模擬器授權驗證失敗（不合法角色）| operator_id=%s | role=%s | error=%s",
+            operator_id, operator_role, str(exc)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"授權驗證失敗：{str(exc)}",
+        )
+
+    if not is_authorized:
+        logger.warning(
+            "模擬器未授權請求被拒絕 | operator_id=%s | role=%s",
+            operator_id, operator_role
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"操作人員 {operator_id} 的角色 {operator_role} 無權存取模擬器",
+        )
+
+    result = await generate_simulator_reply(
+        messages=body.messages,
+        request_id=str(uuid.uuid4()),
+    )
+
+    if "error_code" in result:
+        logger.error(
+            "模擬器回應生成失敗 | operator_id=%s | role=%s | error_code=%s | description=%s",
+            operator_id, operator_role, result["error_code"], result.get("description", ""),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=result,
+        )
+
+    return SimulatorReplyResponse(
+        reply=result["reply"],
+        request_id=result["request_id"],
+        llm_provider=result["llm_provider"],
+        fallback_used=bool(result["fallback_used"]),
     )

@@ -58,7 +58,7 @@ class DataExtractor:
             avg_loss_investment=scam_stats.get("avg_loss_investment", "85 萬元"),
             avg_loss_romance=scam_stats.get("avg_loss_romance", "42 萬元"),
             early_warning_hours=24,
-            detection_accuracy="84.7%",
+            detection_accuracy="88.9%（規則式 XAI 分類器，1,200 筆測試集）",
             # AI 模型資訊
             llm_models=[
                 "Meta Llama 3（透過 Ollama 本地部署）",

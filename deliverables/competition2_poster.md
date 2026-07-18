@@ -1,4 +1,4 @@
-
+﻿
 
 # ScamOracle — AI 詐騙進化預測系統
 
@@ -310,7 +310,7 @@ class LanguageEmbedder:
 |------|------|---------|
 | 🧪 自動化測試總數 | **410** 個 | 大字數據 + 綠色勾勾 |
 | 📊 測試類型 | **3 種** | 單元測試 + PBT + 整合測試 |
-| 🎯 XAI 偵測準確率 | **84.7%** | 圓形進度環 |
+| 🎯 XAI 偵測準確率 | **88.9%** | 圓形進度環 |
 | ⏱ 預警提前時間 | **24 小時** | 時鐘圖示 |
 
 ### 測試類型分布
@@ -394,3 +394,4 @@ class LanguageEmbedder:
 | 6.6 | 技術棧圖示列 | ✅ FastAPI、Streamlit、Docker、PostgreSQL、Redis、Qdrant、Ollama、scikit-learn |
 | 6.7 | Meta Llama 3 & Google Gemini 徽章 | ✅ 三個醒目徽章 |
 | 6.8 | AI 輔助開發工具說明 | ✅ GitHub Copilot + Prompt Engineering |
+

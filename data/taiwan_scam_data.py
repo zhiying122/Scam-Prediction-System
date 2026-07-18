@@ -2,16 +2,30 @@
 台灣詐騙統計資料
 
 資料來源與說明：
-- 2021-2023 年數據：基於內政部警政署 165 反詐騙諮詢專線公開統計
-- 2024-2026 年數據：基於 2021-2023 年真實趨勢進行線性外推估算
+- 2021-2023 年數據：基於內政部警政署 165 反詐騙諮詢專線公開統計（真實政府數據）
+- 2024 年數據：基於 2021-2023 年真實趨勢進行線性外推估算（推估值）
+- 2025-2026 年數據：基於歷史趨勢進行線性外推估算（推估值，非政府正式公布數據）
 - 刑事警察局詐欺案件統計（公開報告）
 - 金融監督管理委員會投資詐騙通報（公開報告）
 
-注意：2024 年以後的數據為基於歷史趨勢的推估值，非政府正式公布數據。
-系統會透過 live_data 模組自動嘗試從政府開放資料平台擷取最新數據。
+⚠️  重要說明：
+    - REAL_DATA_YEARS：2021、2022、2023 — 來自政府公開統計，為真實資料
+    - ESTIMATED_YEARS：2024、2025、2026 — 基於歷史趨勢外推，為推估值
+    - ANNUAL_STATS[2026] 為 Q1（1-3月）累計數據，非全年總計
+    - 系統會透過 live_data 模組自動嘗試從政府開放資料平台擷取最新數據覆蓋推估值
+
+模型效能說明（MODEL_PERFORMANCE）：
+    - 88.9% 為規則式 XAI 分類器（基於 Regex 心理操控特徵規則）的測試準確率
+    - 測試集：840 筆詐騙案例（公開案例去識別化）+ 360 筆正常對話（人工標注）
+    - 非深度學習模型準確率，為規則式基準（baseline）
 """
 
 from datetime import datetime
+
+# 資料年份分類標記（供 Dashboard 標示使用）
+REAL_DATA_YEARS = frozenset({2021, 2022, 2023})      # 真實政府統計
+ESTIMATED_YEARS = frozenset({2024, 2025, 2026})       # 趨勢外推推估值
+PARTIAL_YEAR_2026_LABEL = "2026 Q1"                   # 2026 資料為 Q1（1-3月）
 
 # ── 台灣詐騙案件統計 ─────────────────────────────────────────────────────────
 
@@ -163,7 +177,10 @@ REAL_SCAM_SCRIPTS = [
     },
 ]
 
-# 模型效能基準（基於 XAI 規則式分類器在真實資料上的測試結果）
+# 模型效能基準（規則式 XAI 分類器基準準確率）
+# ⚠️ 說明：此為規則式 Regex 心理特徵分類器的測試結果，非深度學習模型
+# 測試集組成：840 筆詐騙話術（165 通報公開案例去識別化）
+#             360 筆正常對話（客服、業務、一般閒聊，人工標注）
 MODEL_PERFORMANCE = {
     "accuracy": 0.889,
     "precision": 0.921,
@@ -174,17 +191,25 @@ MODEL_PERFORMANCE = {
     "scam_samples": 840,
     "normal_samples": 360,
     "evaluation_date": "2026-03-31",
-    "notes": "基於 165 通報案例與正常對話的混合測試集，XAI 規則式分類器",
+    "classifier_type": "rule_based_xai",  # 規則式分類器，非 ML 模型
+    "notes": (
+        "規則式 XAI 分類器基準準確率（Regex 心理操控特徵規則）。"
+        "測試集：840 筆 165 通報案例去識別化（詐騙）+ 360 筆人工標注正常對話。"
+        "此為系統基準線（baseline），非深度學習或神經網路模型指標。"
+    ),
 }
 
 # 年度總損失統計
+# 標記：真實資料 (R) vs 趨勢外推推估值 (E)
+# 2026 為 Q1（1-3月）累計，非全年
 ANNUAL_STATS = {
-    2021: {"total_cases": 52000, "total_loss_billion": 58.4},
-    2022: {"total_cases": 65000, "total_loss_billion": 68.7},
-    2023: {"total_cases": 83000, "total_loss_billion": 88.2},
-    2024: {"total_cases": 126110, "total_loss_billion": 138.5},
-    2025: {"total_cases": 161442, "total_loss_billion": 172.3},
-    2026: {"total_cases": 43691, "total_loss_billion": 47.8},
+    2021: {"total_cases": 52000,  "total_loss_billion": 58.4,  "data_type": "real"},       # (R) 真實統計
+    2022: {"total_cases": 65000,  "total_loss_billion": 68.7,  "data_type": "real"},       # (R) 真實統計
+    2023: {"total_cases": 83000,  "total_loss_billion": 88.2,  "data_type": "real"},       # (R) 真實統計
+    2024: {"total_cases": 126110, "total_loss_billion": 138.5, "data_type": "estimated"},  # (E) 趨勢外推
+    2025: {"total_cases": 161442, "total_loss_billion": 172.3, "data_type": "estimated"},  # (E) 趨勢外推
+    2026: {"total_cases": 43691,  "total_loss_billion": 47.8,  "data_type": "estimated",  # (E) Q1 累計
+           "period": "Q1"},  # 2026 為 Q1（1-3月）累計數據
 }
 
 # 資料一致性驗證：2026 Q1 年度總數 = 類型加總 = 地區加總

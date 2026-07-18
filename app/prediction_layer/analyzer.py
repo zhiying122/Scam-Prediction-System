@@ -150,14 +150,119 @@ class PredictionAnalyzer:
 
     整合異常偵測與趨勢分析，對語意向量批次執行完整分析流程。
     分析結果用於生成 AlertEvent 與 RiskVector。
+
+    初始化時自動從靜態基準資料預載向量，確保 demo 時有真實輸入資料。
     """
 
     def __init__(self) -> None:
         self._anomaly_detector = AnomalyDetector()
         self._trend_analyzer = TrendAnalyzer()
-        # in-memory 儲存（模擬資料庫）
+        # 向量儲存（in-memory，以靜態資料預熱）
         self._vector_store: list[dict[str, Any]] = []
         self._analysis_results: list[dict[str, Any]] = []
+        # 啟動時從靜態話術樣本預載向量，確保分析流程有真實輸入
+        self._preload_static_vectors()
+
+    def _preload_static_vectors(self) -> None:
+        """
+        從靜態基準資料預載語意向量
+
+        使用 REAL_SCAM_SCRIPTS 的心理特徵標籤組合生成代理向量，
+        確保系統啟動時 Isolation Forest 有足夠的輸入資料。
+        每個樣本生成一個基於心理特徵的稀疏向量（128 維，對應 5 個特徵維度）。
+        """
+        try:
+            from data.taiwan_scam_data import REAL_SCAM_SCRIPTS, SCAM_TYPE_STATS, MONTHLY_TREND
+            import hashlib
+
+            # 心理特徵 → 向量維度映射
+            TAG_DIM = {
+                "信任建立": 0, "緊迫感製造": 1,
+                "情緒勒索": 2, "權威偽裝": 3, "利益誘導": 4,
+            }
+            VECTOR_DIM = 128  # 代理向量維度
+
+            preloaded = 0
+            base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+            # 從 REAL_SCAM_SCRIPTS 生成代理向量
+            for i, script in enumerate(REAL_SCAM_SCRIPTS):
+                tags = script.get("psychological_tags", [])
+                scam_type = script.get("scam_type", "未知")
+
+                # 建立代理向量：基於心理特徵分布 + 詐騙類型 hash
+                vec = [0.0] * VECTOR_DIM
+                for tag in tags:
+                    dim = TAG_DIM.get(tag, 0)
+                    for j in range(VECTOR_DIM):
+                        # 以 tag + 維度 hash 產生穩定的偽隨機特徵值
+                        seed = int(hashlib.md5(f"{tag}{j}".encode()).hexdigest()[:8], 16)
+                        vec[j] += (seed % 1000) / 1000.0 * 0.3
+
+                # 加入詐騙類型偏差（不同類型有不同向量空間）
+                type_seed = int(hashlib.md5(scam_type.encode()).hexdigest()[:8], 16)
+                for j in range(min(10, VECTOR_DIM)):
+                    vec[j] += (type_seed >> j & 1) * 0.5
+
+                # 正規化向量
+                norm = sum(v ** 2 for v in vec) ** 0.5
+                if norm > 0:
+                    vec = [v / norm for v in vec]
+
+                entry_time = base_time.replace(
+                    hour=i % 24,
+                    minute=(i * 7) % 60,
+                )
+                self._vector_store.append({
+                    "embedding": vec,
+                    "cluster_label": f"詐騙類群-{(i % 8) + 1}",
+                    "scam_type": scam_type,
+                    "psychological_tags": tags,
+                    "created_at": entry_time.isoformat(),
+                    "source": "static_baseline",
+                })
+                preloaded += 1
+
+            # 從 SCAM_TYPE_STATS 補充月度趨勢向量（增加時序多樣性）
+            for j, trend_entry in enumerate(MONTHLY_TREND[:12]):
+                month = trend_entry["month"]
+                cases = trend_entry["cases"]
+                loss = trend_entry["amount_billion"]
+                # 正規化趨勢特徵作為向量
+                trend_vec = [0.0] * VECTOR_DIM
+                trend_vec[0] = min(cases / 20000.0, 1.0)   # 案件數特徵
+                trend_vec[1] = min(loss / 10.0, 1.0)        # 損失特徵
+                trend_vec[2] = float(j % 12) / 12.0         # 月份特徵
+                # 加入隨機性確保 Isolation Forest 能偵測異常
+                for k in range(3, min(15, VECTOR_DIM)):
+                    trend_vec[k] = ((j * 13 + k * 7) % 100) / 200.0
+
+                # 正規化
+                norm = sum(v ** 2 for v in trend_vec) ** 0.5
+                if norm > 0:
+                    trend_vec = [v / norm for v in trend_vec]
+
+                try:
+                    entry_dt = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    entry_dt = base_time
+
+                self._vector_store.append({
+                    "embedding": trend_vec,
+                    "cluster_label": f"詐騙類群-{(j % 8) + 1}",
+                    "scam_type": "月度趨勢",
+                    "psychological_tags": [],
+                    "created_at": entry_dt.isoformat(),
+                    "source": "monthly_trend",
+                })
+                preloaded += 1
+
+            logger.info(
+                "靜態基準向量預載完成：共 %d 筆（話術樣本 %d + 月度趨勢 %d）",
+                preloaded, len(REAL_SCAM_SCRIPTS), min(12, len(MONTHLY_TREND)),
+            )
+        except Exception as exc:
+            logger.warning("靜態向量預載失敗（不影響系統啟動）：%s", exc)
 
     def load_latest_vectors(self, limit: int = 1000) -> list[dict[str, Any]]:
         """

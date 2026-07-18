@@ -592,8 +592,8 @@ if page_key == "home":
     col1, col2, col3, col4 = st.columns(4)
     col1.metric(f"{_latest_year} 年詐騙案件", f"{_total_cases:,} 件", _case_delta)
     col2.metric("年度損失金額", f"{_total_loss} 億元", _loss_delta)
-    col3.metric("XAI 分類準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "↑ 規則式基準")
-    col4.metric("預警提前時間", "24 小時", "↓ 傳統需 14 天")
+    col3.metric("XAI 規則式基準準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "規則式分類器")
+    col4.metric("預警排程頻率", "每 24 小時", "↓ 傳統需 14 天")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 系統功能")
@@ -615,7 +615,7 @@ if page_key == "home":
         </div>
         <div class="feature-card">
             <div class="feature-card-title">異常偵測預警</div>
-            <div class="feature-card-desc">Isolation Forest 時間序列分析，24 小時內偵測新興詐騙手法趨勢</div>
+            <div class="feature-card-desc">Isolation Forest 時間序列分析，每日偵測新興詐騙趨勢</div>
         </div>
         <div class="feature-card">
             <div class="feature-card-title">受害風險地圖</div>
@@ -939,11 +939,7 @@ elif page_key == "simulator":
 
         st.markdown("**提示：** 嘗試識破詐騙！說出你的懷疑、要求掛斷電話、或說要報警。")
 
-        has_llm = bool(st.session_state.get("openai_api_key"))
-        if not has_llm:
-            st.warning("未設定 LLM API Key，對話模擬器需要 LLM 才能運作。請先設定 API Key。")
-
-        if st.button("開始模擬", type="primary", disabled=not has_llm):
+        if st.button("開始模擬", type="primary"):
             new_sim = SimulatorSession(scenario=scenario)
             opening = info["opening"].replace("{name}", "您")
             new_sim.add_message("assistant", opening)
@@ -1040,18 +1036,25 @@ elif page_key == "simulator":
                 if analysis["is_resisting"]:
                     sim.user_resistance_score += analysis["resistance_score"]
 
-                # 呼叫 LLM 生成詐騙犯回應
-                has_llm = bool(st.session_state.get("openai_api_key"))
-                if has_llm and sim.turn_count < 8:
+                # 呼叫後端 API 生成詐騙犯回應
+                if sim.turn_count < 8:
                     try:
                         messages = build_simulator_prompt(sim.scenario, sim.messages)
-                        # 直接呼叫 LLM 生成對話回應
-                        from app.scam_engine.generator import _build_llm_client
-                        llm = _build_llm_client()
-                        response = _safe_async_run(llm.ainvoke(messages))
-                        scammer_reply = response.content if hasattr(response, "content") else str(response)
-                        sim.add_message("assistant", scammer_reply)
-                    except Exception as e:
+                        api_result = _call_api_gateway(
+                            "/v1/scam/simulator",
+                            {"messages": messages},
+                            timeout=_llm_generate_timeout_seconds(),
+                        )
+                        if api_result.get("error"):
+                            sim.add_message("assistant", "（系統錯誤：未取得有效回應，請稍後再試）")
+                            st.error(f"模擬器回應失敗：{api_result['error']}")
+                        else:
+                            scammer_reply = api_result.get("reply", "")
+                            if not scammer_reply:
+                                sim.add_message("assistant", "（系統錯誤：回應內容為空）")
+                            else:
+                                sim.add_message("assistant", scammer_reply)
+                    except Exception:
                         sim.add_message("assistant", "（系統錯誤，請重試）")
                 elif sim.turn_count >= 8:
                     sim.is_ended = True
@@ -1332,36 +1335,36 @@ elif page_key == "training":
         4. 累積達到通過門檻即可獲得**防詐免疫證書** 
         """)
 
-        has_llm = bool(st.session_state.get("openai_api_key"))
-        if not has_llm:
-            st.warning("未設定 LLM API Key，將使用內建示範題目進行訓練")
-
         if st.button("開始訓練", type="primary", use_container_width=True):
             with st.spinner("正在生成訓練題目..."):
                 questions = []
 
-                if has_llm:
-                    try:
-                        from app.scam_engine.generator import generate_scam_samples
-                        scenario, audience = build_training_prompt(scam_type, difficulty)
-                        result = _safe_async_run(generate_scam_samples(
-                            scenario=scenario,
-                            target_audience=audience,
-                            min_samples=diff_info["min_samples"],
-                        ))
-                        if "error_code" not in result:
-                            highlighter = XAIHighlighter()
-                            for s in result.get("samples", []):
-                                xai = highlighter.highlight(s["content"])
-                                questions.append(TrainingQuestion(
-                                    content=s["content"],
-                                    is_scam=True,
-                                    psychological_tags=xai.triggered_tags,
-                                    difficulty=difficulty,
-                                    scam_type=scam_type,
-                                ))
-                    except Exception:
-                        pass
+                try:
+                    scenario, audience = build_training_prompt(scam_type, difficulty)
+                    api_result = _call_api_gateway(
+                        "/v1/scam/generate",
+                        {
+                            "scenario": scenario,
+                            "target_audience": audience,
+                            "sample_count": diff_info["min_samples"],
+                        },
+                        timeout=_llm_generate_timeout_seconds(),
+                    )
+                    if api_result.get("error"):
+                        st.warning("模擬訓練題目生成失敗，將改用內建示範題目。")
+                    else:
+                        highlighter = XAIHighlighter()
+                        for s in api_result.get("samples", []):
+                            xai = highlighter.highlight(s.get("content", ""))
+                            questions.append(TrainingQuestion(
+                                content=s.get("content", ""),
+                                is_scam=True,
+                                psychological_tags=xai.triggered_tags,
+                                difficulty=difficulty,
+                                scam_type=scam_type,
+                            ))
+                except Exception:
+                    st.warning("後端訓練題目生成服務暫時無法使用，將改用內建示範題目。")
 
                 # 若 LLM 失敗或無 key，使用真實詐騙話術樣本
                 if not questions:
