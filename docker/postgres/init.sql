@@ -163,7 +163,7 @@ INSERT INTO model_versions (
 )
 VALUES (
     uuid_generate_v4(),
-    'v1.0.0',
+    '1.0.0',
     0.000,   -- 初始版本無前版準確率
     0.889,   -- 對應 taiwan_scam_data.py::MODEL_PERFORMANCE accuracy
     1200,    -- 對應 MODEL_PERFORMANCE test_samples

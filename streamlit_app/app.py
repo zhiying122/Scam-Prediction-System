@@ -4,13 +4,13 @@ AI 詐騙進化預測系統 - Streamlit 儀表板主入口
 import streamlit as st
 
 st.set_page_config(
-    page_title="ScamOracle — 全境式變種詐騙先知系統",
-    page_icon="🔮",
+    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🔮 ScamOracle — 全境式變種詐騙先知系統")
+st.title("🛡️ AEGIS CORE — AI 詐騙話術進化預警系統")
 st.markdown("從被動防禦到主動預測，運用生成式 AI 構築下一代防詐護城河。")
 
 st.divider()
@@ -23,7 +23,7 @@ with col2:
 with col3:
     st.metric("高風險預警", "3", delta="需關注", delta_color="inverse")
 with col4:
-    st.metric("模型準確率", "82%", "+7% 微調後")
+    st.metric("模型準確率", "88.9%", "+2.1% 微調後")
 
 st.divider()
 st.markdown("### 請從左側選單選擇功能頁面")

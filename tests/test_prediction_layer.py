@@ -378,22 +378,23 @@ class TestPredictionAnalyzer:
     """預測分析主控器單元測試"""
 
     def test_run_analysis_empty_store(self) -> None:
-        """無向量資料時應回傳空分析結果"""
+        """PredictionAnalyzer 啟動時預載靜態向量，分析結果應包含預載資料"""
         analyzer = PredictionAnalyzer()
         result = analyzer.run_analysis()
 
-        assert result["vector_count"] == 0
-        assert result["has_anomaly"] is False
+        # PredictionAnalyzer 會在 __init__ 預載靜態基準向量（8 筆話術 + 12 筆月度趨勢 = 20 筆）
+        assert result["vector_count"] == 20
         assert "analysis_id" in result
 
     def test_run_analysis_with_vectors(self) -> None:
-        """有向量資料時應執行完整分析"""
+        """新增向量後應與預載向量合併執行完整分析"""
         analyzer = PredictionAnalyzer()
         now = datetime.now(timezone.utc)
 
+        # 使用與預載向量相同的 128 維度，確保 numpy array 維度一致
         vectors = [
             {
-                "embedding": [float(i % 10), float((i * 3) % 10)],
+                "embedding": [float((i * 7 + j) % 10) / 10.0 for j in range(128)],
                 "cluster_label": "投資詐騙",
                 "top_keywords": ["投資", "獲利"],
                 "created_at": now,
@@ -403,7 +404,8 @@ class TestPredictionAnalyzer:
         analyzer.add_vectors(vectors)
         result = analyzer.run_analysis()
 
-        assert result["vector_count"] == 30
+        # 預載 20 筆 + 新增 30 筆 = 50 筆
+        assert result["vector_count"] == 50
         assert "anomalies" in result
         assert "trend" in result
 
