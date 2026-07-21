@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pandas as pd
 import streamlit as st
 
-from app.dashboard.pages.risk_map import build_risk_map, get_risk_map_summary
+from app.dashboard.page_views.risk_map import build_risk_map, get_risk_map_summary
 from streamlit_app.utils.mock_data import RISK_VECTORS
 
 st.set_page_config(page_title="風險地圖", page_icon="🗺️", layout="wide")
@@ -17,7 +17,7 @@ RISK_COLORS = {"高": "#FF6B6B", "中": "#FFE66D", "低": "#A8E6CF"}
 
 # ── 篩選器 ────────────────────────────────────────────────────────────────────
 with st.expander("篩選設定", expanded=False):
-    from app.dashboard.pages.risk_map import VALID_AGE_GROUPS, VALID_REGIONS
+    from app.dashboard.page_views.risk_map import VALID_AGE_GROUPS, VALID_REGIONS
     selected_ages = st.multiselect(
         "年齡層",
         sorted(VALID_AGE_GROUPS),

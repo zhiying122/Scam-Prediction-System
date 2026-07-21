@@ -44,8 +44,10 @@ st.set_page_config(
 
 import importlib
 import app.dashboard.styles as _styles_module
+import app.dashboard.auth as _auth_module
 
 importlib.reload(_styles_module)
+importlib.reload(_auth_module)
 from app.dashboard.styles import inject_css, inject_html
 
 # ── 登入認證 ──────────────────────────────────────────────────────────────────
@@ -322,41 +324,57 @@ if _llm_ready:
 else:
     llm_status_html = '<span style="color:#92400E;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
-# 導覽按鈕樣式
+# 登出按鈕：僅鎖定 key=btn_logout，避免 :first-of-type 誤傷其他按鈕造成重疊鬼影
 inject_html("""
 <style>
-/* 登出按鈕：固定在右上角 header 區域最右邊 */
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type {
+html, body, .stApp { translate: no; }
+div.st-key-btn_logout {
     position: fixed !important;
-    top: 20px !important;
-    right: 24px !important;
+    top: 18px !important;
+    right: 20px !important;
     z-index: 99999 !important;
     width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button {
-    background: rgba(255,255,255,0.1) !important;
-    border: 1px solid rgba(255,255,255,0.25) !important;
+div.st-key-btn_logout [data-testid="stButton"] {
+    margin: 0 !important;
+}
+div.st-key-btn_logout button,
+div.st-key-btn_logout [data-testid="stBaseButton-secondary"],
+div.st-key-btn_logout [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,0.12) !important;
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    box-shadow: none !important;
+    outline: none !important;
     padding: 4px 12px !important;
     border-radius: 6px !important;
     min-height: 0 !important;
-    height: 24px !important;
-    transition: all 0.15s !important;
+    height: 28px !important;
+    transition: background 0.15s, border-color 0.15s !important;
 }
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover {
-    background: rgba(239,68,68,0.2) !important;
-    border-color: rgba(239,68,68,0.4) !important;
+div.st-key-btn_logout button::before,
+div.st-key-btn_logout button::after {
+    display: none !important;
+    content: none !important;
 }
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button p,
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button span {
-    color: rgba(255,255,255,0.8) !important;
-    -webkit-text-fill-color: rgba(255,255,255,0.8) !important;
-    font-size: 0.65rem !important;
-    font-weight: 500 !important;
+div.st-key-btn_logout button:hover {
+    background: rgba(239,68,68,0.25) !important;
+    border-color: rgba(252,165,165,0.55) !important;
 }
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover p,
-section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover span {
-    color: #fca5a5 !important;
-    -webkit-text-fill-color: #fca5a5 !important;
+div.st-key-btn_logout button p,
+div.st-key-btn_logout button span,
+div.st-key-btn_logout button div {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}
+div.st-key-btn_logout button:hover p,
+div.st-key-btn_logout button:hover span,
+div.st-key-btn_logout button:hover div {
+    color: #fecaca !important;
+    -webkit-text-fill-color: #fecaca !important;
 }
 </style>
 """)
@@ -367,7 +385,7 @@ for _icon, _label, _key in NAV_ITEMS:
     _is_active = (page_key == _key)
     _active_cls = "nav-active" if _is_active else ""
     nav_items_html += (
-        f'<a href="?page={_key}" '
+        f'<a href="?page={_key}" target="_self" rel="noopener" '
         f'class="nav-item {_active_cls}">{_label}</a>'
     )
 
@@ -392,7 +410,7 @@ def get_live_data_manager():
 
 _freshness_text = ""
 try:
-    from app.dashboard.pages.freshness import render_freshness_indicator
+    from app.dashboard.page_views.freshness import render_freshness_indicator
 
     _live_mgr = get_live_data_manager()
     if _live_mgr is not None:
@@ -424,7 +442,7 @@ try:
 except Exception:
     _freshness_text = ""
 
-_freshness_html = f'<div style="color:rgba(255,255,255,0.55);font-size:0.65rem;margin-top:2px;">{_freshness_text}</div>' if _freshness_text else ""
+_freshness_html = f'<div class="freshness-line">{_freshness_text}</div>' if _freshness_text else ""
 
 # ── 使用者資訊列 HTML ────────────────────────────────────────────────────────
 _user_bar_html = render_user_bar()
@@ -481,10 +499,13 @@ inject_html(f"""
     align-items: center;
     gap: 12px;
     font-size: 0.68rem;
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.92);
     flex-shrink: 0;
     margin-left: auto;
-    margin-right: 60px;
+    margin-right: 88px;
+}}
+.top-bar-right span {{
+    color: inherit;
 }}
 .status-dot {{
     width: 6px; height: 6px;
@@ -504,7 +525,8 @@ inject_html(f"""
     min-height: 42px;
 }}
 .nav-item {{
-    color: rgba(255,255,255,0.82) !important;
+    color: rgba(255,255,255,0.9) !important;
+    -webkit-text-fill-color: rgba(255,255,255,0.9) !important;
     font-size: 0.8rem;
     font-weight: 500;
     padding: 10px 4px;
@@ -518,17 +540,35 @@ inject_html(f"""
     flex: 1 1 0;
     min-width: 0;
     text-align: center;
+    background: transparent !important;
 }}
 .nav-item:hover {{
-    background: rgba(255,255,255,0.1);
-    color: white !important;
+    background: rgba(255,255,255,0.1) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     text-decoration: none !important;
 }}
 .nav-active {{
-    color: white !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     font-weight: 700;
     border-bottom: 2px solid white;
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.12) !important;
+}}
+/* 隱藏 Streamlit 自動多分頁導覽（若仍殘留） */
+[data-testid="stSidebarNav"],
+[data-testid="stSidebarNavItems"],
+section[data-testid="stSidebar"] {{
+    display: none !important;
+}}
+/* 避免瀏覽器翻譯造成重疊鬼影文字 */
+.site-header, .site-header * {{
+    translate: no;
+}}
+.freshness-line {{
+    color: rgba(255,255,255,0.85) !important;
+    font-size: 0.65rem;
+    margin-top: 2px;
 }}
 @keyframes soft-glow {{
     0%, 100% {{ opacity: 0.3; transform: scale(0.9); }}
@@ -565,10 +605,11 @@ section[data-testid="stMain"] > div {{
 """)
 
 # Header + Nav 用 st.markdown（帶連結，必須在主 DOM 中才能正確導航）
+# translate="no" 避免 Google 翻譯產生重疊鬼影文字
 st.markdown(f"""
-<div class="site-header">
+<div class="site-header" translate="no" lang="zh-Hant">
 <div class="top-bar">
-    <a href="?page=home" class="top-bar-logo" style="text-decoration:none;">
+    <a href="?page=home" class="top-bar-logo" style="text-decoration:none;" target="_self">
         <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;flex-shrink:0;">
             <div style="position:absolute;width:36px;height:36px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
@@ -584,12 +625,12 @@ st.markdown(f"""
         <div style="text-align:right;line-height:1.35;">
             <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;white-space:nowrap;">
                 <span><span class="status-dot"></span>系統運行中</span>
-                <span style="color:rgba(255,255,255,0.3);">|</span>
+                <span style="color:rgba(255,255,255,0.45);">|</span>
                 {llm_status_html}
             </div>
             {_freshness_html}
         </div>
-        <span style="color:rgba(255,255,255,0.2);margin:0 4px;">|</span>
+        <span style="color:rgba(255,255,255,0.35);margin:0 4px;">|</span>
         {_user_bar_html}
     </div>
 </div>
@@ -599,7 +640,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── 登出按鈕（第一個 stButton，CSS 會將它 fixed 到右上角）─────────────────────
+# ── 登出按鈕（CSS 以 st-key-btn_logout 定位，不佔版面）───────────────────────
 if st.button("登出", key="btn_logout"):
     logout()
     st.rerun()

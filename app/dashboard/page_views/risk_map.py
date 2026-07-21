@@ -1,8 +1,8 @@
 """
-受害風險地圖頁面邏輯 — pages 層
+受害風險地圖頁面邏輯 — page_views 層
 
 Re-export 自 page_modules.risk_map，統一 import 路徑。
-streamlit_app/pages/4_風險地圖.py 從 app.dashboard.pages.risk_map 引入。
+streamlit_app/pages/4_風險地圖.py 從 app.dashboard.page_views.risk_map 引入。
 
 需求：4.3
 """

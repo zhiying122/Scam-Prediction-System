@@ -442,12 +442,6 @@ label, .stTextInput label, .stTextArea label,
 .stSelectbox [data-baseweb="select"] div {
     color: #1a2332 !important;
 }
-/* Slider 數值標籤 */
-.stSlider [data-testid="stThumbValue"],
-.stSlider [data-testid="stTickBarMin"],
-.stSlider [data-testid="stTickBarMax"] {
-    color: #374151 !important;
-}
 /* Radio button label */
 .stRadio [data-testid="stMarkdownContainer"] p {
     color: #1a2332 !important;
@@ -473,30 +467,53 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div {
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
     flex: 1 !important;
 }
-.stSlider > div > div > div > div { background: #166534 !important; }
-/* Slider thumb（拖曳圓點）與 track 確保在白色背景上可見 */
-.stSlider [data-testid="stThumbValue"] { color: #166534 !important; }
-.stSlider input[type="range"]::-webkit-slider-thumb {
-    background: #166534 !important;
-    border: 2px solid #166534 !important;
+
+/* ── Slider（勿對巢狀 div 套全綠底，會蓋住數值標籤）─────────────────────── */
+[data-testid="stSlider"] {
+    padding-top: 0.25rem !important;
 }
-.stSlider input[type="range"]::-moz-range-thumb {
-    background: #166534 !important;
-    border: 2px solid #166534 !important;
+/* 數值標籤：透明底 + 深綠字，避免綠底深字／重疊色塊 */
+[data-testid="stSlider"] [data-testid="stThumbValue"],
+[data-testid="stSlider"] [data-testid="stTickBarMin"],
+[data-testid="stSlider"] [data-testid="stTickBarMax"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #166534 !important;
+    -webkit-text-fill-color: #166534 !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    box-shadow: none !important;
+    border: none !important;
 }
-/* Slider track 底色（未填充部分）確保可見 */
-.stSlider [data-baseweb="slider"] > div:first-child {
+[data-testid="stSlider"] [data-testid="stThumbValue"] {
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
+}
+/* track 未填充 */
+[data-testid="stSlider"] [data-baseweb="slider"] > div:first-child {
     background: #D1D5DB !important;
 }
-/* Slider 已填充部分 */
-.stSlider [data-baseweb="slider"] > div:first-child > div {
+/* track 已填充 */
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stTickBar"] {
+    background: transparent !important;
+}
+[data-testid="stSlider"] [data-baseweb="slider"] > div:first-child > div {
     background: #166534 !important;
 }
-/* Slider thumb 圓點 */
-.stSlider [data-baseweb="slider"] [role="slider"] {
+/* thumb 圓點 */
+[data-testid="stSlider"] [data-baseweb="slider"] [role="slider"] {
+    background-color: #166534 !important;
     background: #166534 !important;
-    border-color: #166534 !important;
-    box-shadow: 0 0 0 2px rgba(22,101,52,0.3) !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(22,101,52,0.35) !important;
+}
+[data-testid="stSlider"] input[type="range"]::-webkit-slider-thumb {
+    background: #166534 !important;
+    border: 2px solid #ffffff !important;
+}
+[data-testid="stSlider"] input[type="range"]::-moz-range-thumb {
+    background: #166534 !important;
+    border: 2px solid #ffffff !important;
 }
 .stSpinner > div { border-top-color: #166534 !important; }
 

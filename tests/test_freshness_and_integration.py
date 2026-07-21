@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock
 
 from app.live_data.models import FreshnessInfo
-from app.dashboard.pages.freshness import render_freshness_indicator
+from app.dashboard.page_views.freshness import render_freshness_indicator
 
 
 # ── Task 9.1: FreshnessIndicator Tests ────────────────────────────────────────

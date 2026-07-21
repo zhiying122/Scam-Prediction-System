@@ -1,8 +1,8 @@
 """
-沙盤推演頁面邏輯 — pages 層
+沙盤推演頁面邏輯 — page_views 層
 
 Re-export 自 page_modules.sandbox，統一 import 路徑。
-streamlit_app/pages/3_沙盤推演.py 從 app.dashboard.pages.sandbox 引入。
+streamlit_app/pages/3_沙盤推演.py 從 app.dashboard.page_views.sandbox 引入。
 
 需求：4.2
 """

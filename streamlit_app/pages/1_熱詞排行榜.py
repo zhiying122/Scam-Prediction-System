@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pandas as pd
 import streamlit as st
 
-from app.dashboard.pages.hotwords import get_hotword_page_data
+from app.dashboard.page_views.hotwords import get_hotword_page_data
 from streamlit_app.utils.mock_data import HOTWORD_FREQ, TREND_DATA
 
 st.set_page_config(page_title="熱詞排行榜", page_icon="🔥", layout="wide")

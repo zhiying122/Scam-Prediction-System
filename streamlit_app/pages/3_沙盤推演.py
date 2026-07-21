@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import streamlit as st
 
-from app.dashboard.pages.sandbox import (
+from app.dashboard.page_views.sandbox import (
     SandboxParams, run_sandbox_simulation,
     VALID_SCENARIO_TYPES, VALID_TARGET_AUDIENCES,
 )

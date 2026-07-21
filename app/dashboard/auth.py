@@ -1,12 +1,12 @@
 """
-AEGIS CORE — 登入認證模組
+ScamDNA — 登入認證模組
 
 提供 Dashboard 註冊、登入、登出功能，整合 RBAC 角色系統。
 使用 Streamlit session_state 管理登入狀態。
 已註冊帳號存於 session-level in-memory store（重啟後重置）。
 
 預設帳號（Demo 用途）：
-- admin / admin123 → 系統管理員（預建帳號，無需註冊）
+- admin / Aegis@2026 → 系統管理員（預建帳號，無需註冊）
 """
 
 import hashlib
@@ -145,10 +145,10 @@ def get_current_user() -> Optional[UserProfile]:
     return st.session_state.get("user")
 
 
-# ── 登入/註冊頁面 ─────────────────────────────────────────────────────────────
+# ── 登入/註冊頁面（Forest Gate）───────────────────────────────────────────────
 def render_login_page() -> bool:
     """
-    渲染登入/註冊頁面（含 tab 切換）
+    渲染登入/註冊頁面（Forest Gate 正式風格）
 
     Returns:
         True 如果使用者已成功登入
@@ -157,28 +157,12 @@ def render_login_page() -> bool:
     if is_authenticated():
         return True
 
-    # 注入專用 CSS + 背景
+    # 品牌／插畫必須用 st.html：st.markdown 會被 DOMPurify 剝除
     st.html(_LOGIN_CSS)
-    st.html(_LOGIN_HTML)
+    st.html(_LOGIN_STAGE_HTML)
 
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown('<div style="height: 180px;"></div>', unsafe_allow_html=True)
-
-        # 品牌標題
-        st.markdown(
-            '<p style="color:#86efac;font-weight:700;font-size:1.4rem;'
-            'text-align:center;margin-bottom:2px;font-family:Orbitron,monospace;'
-            'letter-spacing:3px;">AEGIS CORE</p>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<p style="color:rgba(255,255,255,0.6);font-size:0.78rem;text-align:center;'
-            'margin-bottom:24px;">AI 詐騙話術進化預警系統</p>',
-            unsafe_allow_html=True,
-        )
-
-        # Tab 切換：登入 / 註冊
         tab_login, tab_register = st.tabs(["登入", "註冊"])
 
         with tab_login:
@@ -204,7 +188,7 @@ def _render_login_form() -> None:
             placeholder="請輸入密碼",
             key="login_password",
         )
-        submitted = st.form_submit_button("登 入", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("登入", use_container_width=True, type="primary")
 
         if submitted:
             if not username or not password:
@@ -218,16 +202,7 @@ def _render_login_form() -> None:
                     login(user)
                     st.rerun()
 
-    # Demo 帳號提示
-    st.markdown(
-        '<div style="text-align:center;margin-top:12px;padding:10px 14px;'
-        'background:rgba(240,253,244,0.95);border:1px solid #BBF7D0;border-radius:8px;">'
-        '<p style="color:#166534;font-size:0.72rem;font-weight:600;margin-bottom:4px;">預設帳號</p>'
-        '<p style="color:#374151;font-size:0.75rem;margin:0;">'
-        '<code>admin</code> ／ <code>Aegis@2026</code></p>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    st.html('<p class="scamdna-demo-hint">Demo · admin / Aegis@2026</p>')
 
 
 def _render_register_form() -> None:
@@ -255,7 +230,7 @@ def _render_register_form() -> None:
             placeholder="再輸入一次密碼",
             key="reg_password2",
         )
-        reg_submitted = st.form_submit_button("註 冊", use_container_width=True, type="primary")
+        reg_submitted = st.form_submit_button("註冊", use_container_width=True, type="primary")
 
         if reg_submitted:
             if not new_username or not new_password or not new_display:
@@ -287,137 +262,539 @@ def render_user_bar() -> str:
     login_time = st.session_state.get("login_time")
     time_str = login_time.strftime("%H:%M") if login_time else ""
 
+    # 避免 display_name 與 role.value 相同時重複顯示（如 admin → 兩個「系統管理員」）
+    name_label = user.display_name
+    if name_label.strip() == user.role.value.strip():
+        name_label = user.username
+
+    time_html = (
+        f'<span class="user-time">{time_str}</span>' if time_str else ""
+    )
+
     return (
-        f'<div class="user-bar">'
-        f'<span class="user-avatar">{user.avatar_emoji}</span>'
-        f'<span class="user-name">{user.display_name}</span>'
+        f'<div class="user-bar" translate="no">'
+        f'<span class="user-avatar" aria-hidden="true">{user.avatar_emoji}</span>'
+        f'<span class="user-name">{name_label}</span>'
         f'<span class="user-role {role_badge_cls}">{user.role.value}</span>'
-        f'<span class="user-time">{time_str}</span>'
+        f'{time_html}'
         f'</div>'
     )
 
 
-# ── 登入頁面 CSS ──────────────────────────────────────────────────────────────
+# ── 登入頁面 CSS — Forest Gate ────────────────────────────────────────────────
 _LOGIN_CSS = """
 <style>
-/* 登入頁面背景 */
-.stApp {
-    background: linear-gradient(135deg, #0f2419 0%, #14532d 40%, #1a3a2a 100%) !important;
-}
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 
-/* 隱藏預設 Streamlit header */
+.stApp {
+    background:
+        radial-gradient(ellipse 90% 55% at 50% -5%, rgba(34,197,94,0.16), transparent 58%),
+        linear-gradient(165deg, #07140F 0%, #0F2419 42%, #14532D 100%) !important;
+    font-family: 'Noto Sans TC', 'Manrope', sans-serif !important;
+}
 header { visibility: hidden !important; }
 #MainMenu { visibility: hidden !important; }
 footer { visibility: hidden !important; }
+[data-testid="stSidebar"] { display: none !important; }
 
-/* Tab 樣式（暗色背景上） */
+.main .block-container {
+    padding-top: 0.5rem !important;
+    padding-bottom: 2.5rem !important;
+    max-width: 520px !important;
+}
+
+.scamdna-stage {
+    position: relative;
+    z-index: 1;
+    width: min(520px, 92vw);
+    margin: 1.5rem auto 0.25rem;
+    text-align: center;
+    animation: scamdnaFadeUp 0.55s ease-out;
+}
+.scamdna-art {
+    width: min(280px, 70vw);
+    height: auto;
+    margin: 0 auto 10px;
+    display: block;
+    filter: drop-shadow(0 12px 28px rgba(0,0,0,0.28));
+    animation: scamdnaFloat 5.5s ease-in-out infinite;
+}
+.scamdna-mark {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    margin: 4px auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.scamdna-mark-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(134,239,172,0.5);
+    box-shadow: 0 0 0 7px rgba(22,101,52,0.22);
+    animation: scamdnaPulse 3.2s ease-in-out infinite;
+}
+.scamdna-mark-core {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #166534, #14532d);
+    color: #ecfdf5;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(187,247,208,0.4);
+}
+.scamdna-brand {
+    margin: 0 !important;
+    color: #F0FDF4 !important;
+    font-family: 'Manrope', 'Noto Sans TC', sans-serif !important;
+    font-size: clamp(2rem, 5vw, 2.55rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.06em !important;
+    line-height: 1.1 !important;
+}
+.scamdna-tagline {
+    margin: 10px 0 0 !important;
+    color: rgba(220,252,231,0.78) !important;
+    font-size: 0.92rem !important;
+    font-weight: 500 !important;
+}
+.scamdna-pills {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+.scamdna-pill {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(236,253,245,0.88);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(134,239,172,0.28);
+    border-radius: 999px;
+    padding: 5px 12px;
+}
+
+.scamdna-login-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.scamdna-login-bg .grid {
+    position: absolute;
+    inset: -48px;
+    background-image:
+      linear-gradient(rgba(134,239,172,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(134,239,172,0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: scamdnaGridDrift 18s linear infinite;
+    opacity: 0.85;
+}
+.scamdna-login-bg .radar {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: min(92vw, 920px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+}
+.scamdna-login-bg .radar-rings {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(134,239,172,0.18);
+    background:
+      repeating-radial-gradient(
+        circle at center,
+        transparent 0,
+        transparent 54px,
+        rgba(134,239,172,0.11) 55px,
+        rgba(134,239,172,0.11) 56px
+      );
+    box-shadow:
+      inset 0 0 0 1px rgba(134,239,172,0.08),
+      0 0 60px rgba(22,101,52,0.15);
+}
+.scamdna-login-bg .radar-cross::before,
+.scamdna-login-bg .radar-cross::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: rgba(134,239,172,0.14);
+}
+.scamdna-login-bg .radar-cross::before {
+    width: 1px;
+    height: 100%;
+    transform: translate(-50%, -50%);
+}
+.scamdna-login-bg .radar-cross::after {
+    width: 100%;
+    height: 1px;
+    transform: translate(-50%, -50%);
+}
+.scamdna-login-bg .radar-sweep {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(134,239,172,0.05) 8deg,
+      rgba(187,247,208,0.28) 28deg,
+      rgba(134,239,172,0.06) 48deg,
+      transparent 70deg
+    );
+    -webkit-mask-image: radial-gradient(circle, #000 0%, #000 68%, transparent 70%);
+    mask-image: radial-gradient(circle, #000 0%, #000 68%, transparent 70%);
+    animation: scamdnaRadarSpin 4.5s linear infinite;
+    transform-origin: center center;
+}
+.scamdna-login-bg .radar-blip {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #86efac;
+    box-shadow: 0 0 10px rgba(134,239,172,0.9);
+    animation: scamdnaBlip 4.5s ease-in-out infinite;
+}
+.scamdna-login-bg .radar-blip.b1 { left: 62%; top: 34%; animation-delay: 0s; }
+.scamdna-login-bg .radar-blip.b2 { left: 28%; top: 58%; animation-delay: 1.4s; }
+.scamdna-login-bg .radar-blip.b3 { left: 70%; top: 66%; animation-delay: 2.6s; }
+.scamdna-login-bg .glow {
+    position: absolute;
+    top: -10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 75vw;
+    max-width: 780px;
+    height: 45vh;
+    background: radial-gradient(ellipse, rgba(22,101,52,0.4) 0%, transparent 70%);
+}
+.scamdna-side-art {
+    position: absolute;
+    top: 18%;
+    width: min(220px, 18vw);
+    opacity: 0.35;
+}
+.scamdna-side-art.left { left: 4%; }
+.scamdna-side-art.right { right: 4%; transform: scaleX(-1); }
+@media (max-width: 960px) {
+    .scamdna-side-art { display: none; }
+}
+
 .stTabs [data-baseweb="tab-list"] {
-    background: rgba(255,255,255,0.05) !important;
-    border-radius: 8px !important;
-    padding: 4px !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255,255,255,0.22) !important;
     gap: 0 !important;
+    padding: 0 !important;
+    justify-content: center !important;
+}
+.stTabs [data-baseweb="tab"],
+.stTabs [data-baseweb="tab"] p,
+.stTabs [data-baseweb="tab"] span,
+.stTabs [data-baseweb="tab"] div {
+    background: transparent !important;
+    color: rgba(236,253,245,0.88) !important;
+    -webkit-text-fill-color: rgba(236,253,245,0.88) !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    border-radius: 0 !important;
+    opacity: 1 !important;
 }
 .stTabs [data-baseweb="tab"] {
-    color: rgba(255,255,255,0.6) !important;
-    font-weight: 600 !important;
-    font-size: 0.88rem !important;
-    border-radius: 6px !important;
-    padding: 8px 24px !important;
+    padding: 10px 28px !important;
 }
-.stTabs [aria-selected="true"] {
-    background: rgba(255,255,255,0.12) !important;
-    color: white !important;
+.stTabs [aria-selected="true"],
+.stTabs [aria-selected="true"] p,
+.stTabs [aria-selected="true"] span,
+.stTabs [aria-selected="true"] div {
+    background: transparent !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+}
+.stTabs [data-baseweb="tab"]:hover,
+.stTabs [data-baseweb="tab"]:hover p,
+.stTabs [data-baseweb="tab"]:hover span {
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
 }
 .stTabs [data-baseweb="tab-highlight"] {
-    background: #22c55e !important;
+    background: #86efac !important;
+    height: 2px !important;
 }
-.stTabs [data-baseweb="tab-border"] {
-    display: none !important;
-}
+.stTabs [data-baseweb="tab-border"] { display: none !important; }
 
-/* 表單容器 */
+div[data-testid="stForm"],
 .stForm {
-    background: rgba(255, 255, 255, 0.97) !important;
+    background: #FFFFFF !important;
     border: 1px solid #E5E7EB !important;
-    border-radius: 14px !important;
-    padding: 28px 24px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(22, 101, 52, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 26px 24px 20px !important;
+    box-shadow:
+        0 1px 2px rgba(15,36,25,0.06),
+        0 22px 48px rgba(7,20,15,0.35) !important;
+    margin-top: 0.85rem !important;
 }
 
-/* 表單內輸入框 */
+/* ── 輸入框：整平外層，消除密碼欄黑邊／黑三角接縫 ───────────────────────── */
+div[data-testid="stForm"] .stTextInput > div,
+.stForm .stTextInput > div {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+div[data-testid="stForm"] .stTextInput [data-baseweb="input"],
+div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"],
+.stForm .stTextInput [data-baseweb="input"],
+.stForm .stTextInput [data-baseweb="base-input"] {
+    background: #F3F6F4 !important;
+    background-color: #F3F6F4 !important;
+    border: 1px solid #D1D5DB !important;
+    border-color: #D1D5DB !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+}
+/* 內層所有容器同色，避免黑底透出 */
+div[data-testid="stForm"] .stTextInput [data-baseweb="input"] *,
+div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"] *,
+.stForm .stTextInput [data-baseweb="input"] *,
+.stForm .stTextInput [data-baseweb="base-input"] * {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+div[data-testid="stForm"] .stTextInput input,
+.stForm .stTextInput input,
 .stForm .stTextInput > div > div > input {
-    background: #F9FAFB !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 8px !important;
-    padding: 10px 14px !important;
-    font-size: 0.88rem !important;
-    transition: border-color 0.2s, box-shadow 0.2s !important;
-}
-.stForm .stTextInput > div > div > input:focus {
-    border-color: #166534 !important;
-    box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.1) !important;
-}
-.stForm .stTextInput [data-baseweb="input"] {
-    background: #F9FAFB !important;
-    border-color: #E5E7EB !important;
-    border-radius: 8px !important;
-}
-
-/* 按鈕 */
-.stForm .stButton > button[data-testid="stBaseButton-primary"],
-.stForm button[data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #166534 0%, #14532d 100%) !important;
-    color: white !important;
+    background: #F3F6F4 !important;
+    background-color: #F3F6F4 !important;
     border: none !important;
     border-radius: 8px !important;
-    padding: 11px !important;
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 4px !important;
-    margin-top: 8px !important;
-    box-shadow: 0 4px 12px rgba(22, 101, 52, 0.25) !important;
-    transition: transform 0.1s, box-shadow 0.2s !important;
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #14532d !important;
+    font-size: 0.9rem !important;
+    box-shadow: none !important;
+    outline: none !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    flex: 1 1 auto !important;
 }
-.stForm .stButton > button[data-testid="stBaseButton-primary"]:hover,
-.stForm button[data-testid="stBaseButton-primary"]:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(22, 101, 52, 0.35) !important;
+div[data-testid="stForm"] .stTextInput input:-webkit-autofill,
+div[data-testid="stForm"] .stTextInput input:-webkit-autofill:hover,
+div[data-testid="stForm"] .stTextInput input:-webkit-autofill:focus,
+.stForm .stTextInput input:-webkit-autofill,
+.stForm .stTextInput input:-webkit-autofill:hover,
+.stForm .stTextInput input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #F3F6F4 inset !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #14532d !important;
+    transition: background-color 99999s ease-out;
 }
-.stForm .stButton > button[data-testid="stBaseButton-primary"] p,
-.stForm .stButton > button[data-testid="stBaseButton-primary"] span,
-.stForm button[data-testid="stBaseButton-primary"] p,
-.stForm button[data-testid="stBaseButton-primary"] span {
-    color: white !important;
-    -webkit-text-fill-color: white !important;
+div[data-testid="stForm"] .stTextInput [data-baseweb="input"]:focus-within,
+.stForm .stTextInput [data-baseweb="input"]:focus-within {
+    border-color: #166534 !important;
+    box-shadow: 0 0 0 3px rgba(22,101,52,0.14) !important;
+}
+/* 隱藏密碼顯示鈕：此鈕是黑塊／黑三角來源 */
+div[data-testid="stForm"] .stTextInput button,
+.stForm .stTextInput button,
+div[data-testid="stForm"] .stTextInput [data-testid="stBaseButton-secondary"],
+.stForm .stTextInput [data-testid="stBaseButton-secondary"] {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
-/* Label 樣式 */
+.stForm button[kind="primary"],
+.stForm button[data-testid="stBaseButton-primary"],
+.stForm [data-testid="stFormSubmitButton"] button,
+div[data-testid="stForm"] button[kind="primary"],
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button {
+    background: #166534 !important;
+    background-color: #166534 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.14em !important;
+    margin-top: 8px !important;
+    box-shadow: 0 2px 10px rgba(22,101,52,0.3) !important;
+}
+.stForm button[kind="primary"]:hover,
+.stForm [data-testid="stFormSubmitButton"] button:hover,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button:hover {
+    background: #14532d !important;
+    background-color: #14532d !important;
+}
+.stForm button[kind="primary"] p,
+.stForm button[kind="primary"] span,
+.stForm [data-testid="stFormSubmitButton"] button p,
+.stForm [data-testid="stFormSubmitButton"] button span,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
 .stForm label,
 .stForm [data-testid="stWidgetLabel"] p {
     color: #374151 !important;
     font-weight: 600 !important;
     font-size: 0.8rem !important;
 }
+
+.scamdna-demo-hint {
+    text-align: center;
+    margin: 14px 0 0 !important;
+    color: rgba(220,252,231,0.4) !important;
+    font-size: 0.68rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em !important;
+}
+
+@keyframes scamdnaFadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scamdnaPulse {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 0.95; transform: scale(1.05); }
+}
+@keyframes scamdnaFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+@keyframes scamdnaGridDrift {
+    from { background-position: 0 0; }
+    to { background-position: 48px 48px; }
+}
+@keyframes scamdnaRadarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@keyframes scamdnaBlip {
+    0%, 70%, 100% { opacity: 0.15; transform: scale(0.7); }
+    78%, 86% { opacity: 1; transform: scale(1.15); }
+}
 </style>
 """
 
-# ── 登入頁面背景裝飾 HTML ─────────────────────────────────────────────────────
-_LOGIN_HTML = """
-<div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">
-    <div style="position:absolute;top:0;left:0;width:100%;height:100%;
-    background-image:
-        linear-gradient(rgba(22,101,52,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(22,101,52,0.04) 1px, transparent 1px);
-    background-size: 60px 60px;"></div>
-    <div style="position:absolute;top:12%;right:8%;width:350px;height:350px;
-    background:radial-gradient(circle, rgba(34,197,94,0.07) 0%, transparent 70%);
-    border-radius:50%;"></div>
-    <div style="position:absolute;bottom:15%;left:6%;width:280px;height:280px;
-    background:radial-gradient(circle, rgba(22,101,52,0.05) 0%, transparent 70%);
-    border-radius:50%;"></div>
+_DNA_SVG = """
+<svg class="scamdna-art" viewBox="0 0 280 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ScamDNA">
+  <defs>
+    <linearGradient id="strandA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#86EFAC"/>
+      <stop offset="100%" stop-color="#166534"/>
+    </linearGradient>
+    <linearGradient id="strandB" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#BBF7D0"/>
+      <stop offset="100%" stop-color="#14532D"/>
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="140" cy="80" rx="118" ry="58" fill="rgba(22,101,52,0.18)"/>
+  <path d="M40 40 C80 10, 120 150, 140 80 C160 10, 200 150, 240 120"
+        fill="none" stroke="url(#strandA)" stroke-width="3.2" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M40 120 C80 150, 120 10, 140 80 C160 150, 200 10, 240 40"
+        fill="none" stroke="url(#strandB)" stroke-width="3.2" stroke-linecap="round" filter="url(#softGlow)"/>
+  <g stroke="rgba(187,247,208,0.55)" stroke-width="1.4">
+    <line x1="70" y1="52" x2="70" y2="108"/>
+    <line x1="100" y1="38" x2="100" y2="122"/>
+    <line x1="140" y1="48" x2="140" y2="112"/>
+    <line x1="180" y1="38" x2="180" y2="122"/>
+    <line x1="210" y1="52" x2="210" y2="108"/>
+  </g>
+  <circle cx="70" cy="52" r="4.2" fill="#86EFAC"/>
+  <circle cx="70" cy="108" r="4.2" fill="#4ADE80"/>
+  <circle cx="100" cy="38" r="4.2" fill="#BBF7D0"/>
+  <circle cx="100" cy="122" r="4.2" fill="#22C55E"/>
+  <circle cx="140" cy="48" r="5" fill="#ECFDF5"/>
+  <circle cx="140" cy="112" r="5" fill="#86EFAC"/>
+  <circle cx="180" cy="38" r="4.2" fill="#4ADE80"/>
+  <circle cx="180" cy="122" r="4.2" fill="#BBF7D0"/>
+  <circle cx="210" cy="52" r="4.2" fill="#22C55E"/>
+  <circle cx="210" cy="108" r="4.2" fill="#86EFAC"/>
+</svg>
+"""
+
+_SIDE_DNA_SVG = """
+<svg viewBox="0 0 120 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M30 20 C55 60, 55 100, 30 140 C5 180, 5 220, 30 260 C55 290, 70 300, 90 310"
+        fill="none" stroke="rgba(134,239,172,0.55)" stroke-width="2.2"/>
+  <path d="M90 20 C65 60, 65 100, 90 140 C115 180, 115 220, 90 260 C65 290, 50 300, 30 310"
+        fill="none" stroke="rgba(74,222,128,0.4)" stroke-width="2.2"/>
+  <g stroke="rgba(187,247,208,0.35)" stroke-width="1">
+    <line x1="38" y1="50" x2="82" y2="50"/>
+    <line x1="38" y1="100" x2="82" y2="100"/>
+    <line x1="38" y1="150" x2="82" y2="150"/>
+    <line x1="38" y1="200" x2="82" y2="200"/>
+    <line x1="38" y1="250" x2="82" y2="250"/>
+  </g>
+</svg>
+"""
+
+_LOGIN_STAGE_HTML = f"""
+<div class="scamdna-login-bg" aria-hidden="true">
+  <div class="grid"></div>
+  <div class="radar">
+    <div class="radar-rings"></div>
+    <div class="radar-cross"></div>
+    <div class="radar-sweep"></div>
+    <span class="radar-blip b1"></span>
+    <span class="radar-blip b2"></span>
+    <span class="radar-blip b3"></span>
+  </div>
+  <div class="glow"></div>
+  <div class="scamdna-side-art left">{_SIDE_DNA_SVG}</div>
+  <div class="scamdna-side-art right">{_SIDE_DNA_SVG}</div>
+</div>
+<div class="scamdna-stage" translate="no" lang="zh-Hant">
+  {_DNA_SVG}
+  <div class="scamdna-mark" aria-hidden="true">
+    <span class="scamdna-mark-ring"></span>
+    <span class="scamdna-mark-core">S</span>
+  </div>
+  <div class="scamdna-brand">ScamDNA</div>
+  <p class="scamdna-tagline">AI 詐騙話術進化預警系統</p>
+  <div class="scamdna-pills">
+    <span class="scamdna-pill">話術 DNA</span>
+    <span class="scamdna-pill">進化預警</span>
+    <span class="scamdna-pill">XAI 解析</span>
+  </div>
 </div>
 """
 
+_LOGIN_HTML = _LOGIN_STAGE_HTML
 
 # ── 使用者列 CSS（嵌入主頁面 header）──────────────────────────────────────────
 USER_BAR_CSS = """
@@ -425,54 +802,44 @@ USER_BAR_CSS = """
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 .user-avatar {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    line-height: 1;
+    color: #ffffff;
 }
 .user-name {
-    color: rgba(255,255,255,0.92);
+    color: #ffffff;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
 }
 .user-role {
     font-size: 0.65rem;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 12px;
+    white-space: nowrap;
 }
 .role-admin {
-    background: rgba(239,68,68,0.2);
-    color: #fca5a5;
-    border: 1px solid rgba(239,68,68,0.3);
+    background: rgba(255,255,255,0.18);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.35);
 }
 .role-analyst {
-    background: rgba(59,130,246,0.2);
-    color: #93c5fd;
-    border: 1px solid rgba(59,130,246,0.3);
+    background: rgba(255,255,255,0.14);
+    color: #e0f2fe;
+    border: 1px solid rgba(255,255,255,0.28);
 }
 .role-viewer {
-    background: rgba(156,163,175,0.2);
-    color: #d1d5db;
-    border: 1px solid rgba(156,163,175,0.3);
+    background: rgba(255,255,255,0.12);
+    color: #f3f4f6;
+    border: 1px solid rgba(255,255,255,0.25);
 }
 .user-time {
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.7);
     font-size: 0.65rem;
-}
-.logout-btn {
-    background: rgba(255,255,255,0.1) !important;
-    border: 1px solid rgba(255,255,255,0.2) !important;
-    color: rgba(255,255,255,0.8) !important;
-    padding: 3px 10px !important;
-    border-radius: 6px !important;
-    font-size: 0.68rem !important;
-    cursor: pointer !important;
-    transition: background 0.15s !important;
-    text-decoration: none !important;
-}
-.logout-btn:hover {
-    background: rgba(239,68,68,0.2) !important;
-    border-color: rgba(239,68,68,0.4) !important;
-    color: #fca5a5 !important;
+    white-space: nowrap;
 }
 """
