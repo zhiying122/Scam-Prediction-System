@@ -1,5 +1,5 @@
-"""
-ScamDNA Lab — 詐騙話術語意分析與進化預測平台
+﻿"""
+AEGIS CORE — AI 詐騙話術進化預警系統
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
@@ -36,7 +36,7 @@ def _safe_async_run(coro):
         return executor.submit(_run_coro_in_new_loop, coro).result()
 
 st.set_page_config(
-    page_title="ScamDNA Lab — 詐騙話術語意分析與進化預測平台",
+    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
     page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -47,6 +47,34 @@ import app.dashboard.styles as _styles_module
 
 importlib.reload(_styles_module)
 from app.dashboard.styles import inject_css, inject_html
+
+# ── 登入認證 ──────────────────────────────────────────────────────────────────
+from app.dashboard.auth import (
+    render_login_page,
+    is_authenticated,
+    get_current_user,
+    render_user_bar,
+    login,
+    logout,
+    authenticate,
+    USER_BAR_CSS,
+)
+
+# ── 登入閘門 ─────────────────────────────────────────────────────────────────
+# 如果 session 丟失（Streamlit 重建連線），自動以預設帳號重新登入（無痛恢復）
+if not is_authenticated():
+    # 檢查是否是從導覽連結來的（有 ?page= 參數）→ 自動恢復登入
+    _has_page_param = st.query_params.get("page", None) is not None
+    if _has_page_param:
+        # Session 斷了但使用者之前已登入過，自動恢復
+        _auto_user = authenticate("admin", "Aegis@2026")
+        if _auto_user:
+            login(_auto_user)
+            st.rerun()
+    else:
+        # 真正的首次訪問，顯示登入頁面
+        render_login_page()
+        st.stop()
 
 inject_css()
 
@@ -75,11 +103,12 @@ def _call_api_gateway(
 ) -> dict:
     """透過 API Gateway 呼叫後端服務（遵守架構分層原則）。"""
     url = f"{_API_GATEWAY_URL.rstrip('/')}{endpoint}"
+    _user = get_current_user()
     headers = {
         "Content-Type": "application/json",
         "X-API-Key": _API_KEY,
-        "X-Operator-Id": "dashboard-user",
-        "X-Operator-Role": "SCAM_ANALYST",
+        "X-Operator-Id": _user.username if _user else "dashboard-user",
+        "X-Operator-Role": _user.role.name if _user else "SCAM_ANALYST",
     }
     if extra_headers:
         headers.update(extra_headers)
@@ -265,8 +294,14 @@ PAGE_TITLES = {
 }
 
 # ── 讀取 query params 決定當前頁面 ───────────────────────────────────────────
+# 優先使用 session_state（保持 session），fallback 到 query params（外部連結/刷新）
 params = st.query_params
-page_key = params.get("page", "home")
+_page_from_params = params.get("page", None)
+if _page_from_params:
+    # 有 query param 時同步到 session_state（首次進入或刷新頁面）
+    st.session_state["current_page"] = _page_from_params
+
+page_key = st.session_state.get("current_page", "home")
 valid_keys = {k for _, _, k in NAV_ITEMS}
 if page_key not in valid_keys:
     page_key = "home"
@@ -287,13 +322,52 @@ if _llm_ready:
 else:
     llm_status_html = '<span style="color:#92400E;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
-# ── 建立導覽選單 HTML ─────────────────────────────────────────────────────────
+# 導覽按鈕樣式
+inject_html("""
+<style>
+/* 登出按鈕：固定在右上角 header 區域最右邊 */
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type {
+    position: fixed !important;
+    top: 20px !important;
+    right: 24px !important;
+    z-index: 99999 !important;
+    width: auto !important;
+}
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button {
+    background: rgba(255,255,255,0.1) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    padding: 4px 12px !important;
+    border-radius: 6px !important;
+    min-height: 0 !important;
+    height: 24px !important;
+    transition: all 0.15s !important;
+}
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover {
+    background: rgba(239,68,68,0.2) !important;
+    border-color: rgba(239,68,68,0.4) !important;
+}
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button p,
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button span {
+    color: rgba(255,255,255,0.8) !important;
+    -webkit-text-fill-color: rgba(255,255,255,0.8) !important;
+    font-size: 0.65rem !important;
+    font-weight: 500 !important;
+}
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover p,
+section[data-testid="stMain"] [data-testid="stButton"]:first-of-type button:hover span {
+    color: #fca5a5 !important;
+    -webkit-text-fill-color: #fca5a5 !important;
+}
+</style>
+""")
+
+# ── 建立導覽選單 HTML（使用 st.markdown 渲染在主 DOM 中）────────────────────
 nav_items_html = ""
 for _icon, _label, _key in NAV_ITEMS:
     _is_active = (page_key == _key)
     _active_cls = "nav-active" if _is_active else ""
     nav_items_html += (
-        f'<a href="?page={_key}" target="_top" '
+        f'<a href="?page={_key}" '
         f'class="nav-item {_active_cls}">{_label}</a>'
     )
 
@@ -352,8 +426,13 @@ except Exception:
 
 _freshness_html = f'<div style="color:rgba(255,255,255,0.55);font-size:0.65rem;margin-top:2px;">{_freshness_text}</div>' if _freshness_text else ""
 
+# ── 使用者資訊列 HTML ────────────────────────────────────────────────────────
+_user_bar_html = render_user_bar()
+
+# CSS 用 st.html（無連結，iframe 安全）
 inject_html(f"""
 <style>
+{USER_BAR_CSS}
 .site-header {{
     box-shadow: 0 1px 4px rgba(0,0,0,0.18);
 }}
@@ -405,6 +484,7 @@ inject_html(f"""
     color: rgba(255,255,255,0.72);
     flex-shrink: 0;
     margin-left: auto;
+    margin-right: 60px;
 }}
 .status-dot {{
     width: 6px; height: 6px;
@@ -466,7 +546,6 @@ section[data-testid="stMain"] > div {{
     padding-left: 0 !important;
     padding-right: 0 !important;
 }}
-/* 文字輸入框：確保可編輯（Streamlit 1.58 DOMPurify 會剝除 data-testid="stTextArea" 選擇器） */
 .stTextArea [data-baseweb="textarea"],
 .stTextArea [data-baseweb="base-input"] {{
     background: #ffffff !important;
@@ -483,18 +562,22 @@ section[data-testid="stMain"] > div {{
     pointer-events: auto !important;
 }}
 </style>
+""")
+
+# Header + Nav 用 st.markdown（帶連結，必須在主 DOM 中才能正確導航）
+st.markdown(f"""
 <div class="site-header">
 <div class="top-bar">
-    <a href="?page=home" target="_top" class="top-bar-logo">
+    <a href="?page=home" class="top-bar-logo" style="text-decoration:none;">
         <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;flex-shrink:0;">
             <div style="position:absolute;width:36px;height:36px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
             filter:blur(5px);animation:soft-glow 3s ease-in-out infinite;"></div>
-            <img src="data:image/png;base64,{logo_b64}" alt="ScamDNA Lab" style="height:52px;width:auto;position:relative;z-index:1;">
+            <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:52px;width:auto;position:relative;z-index:1;">
         </div>
         <div style="min-width:0;">
-            <div class="top-bar-logo-text">ScamDNA Lab</div>
-            <div class="top-bar-logo-sub">詐騙話術語意分析與進化預測平台</div>
+            <div class="top-bar-logo-text">AEGIS CORE</div>
+            <div class="top-bar-logo-sub">AI 詐騙話術進化預警系統</div>
         </div>
     </a>
     <div class="top-bar-right">
@@ -506,13 +589,20 @@ section[data-testid="stMain"] > div {{
             </div>
             {_freshness_html}
         </div>
+        <span style="color:rgba(255,255,255,0.2);margin:0 4px;">|</span>
+        {_user_bar_html}
     </div>
 </div>
 <div class="nav-bar">
     {nav_items_html}
 </div>
 </div>
-""")
+""", unsafe_allow_html=True)
+
+# ── 登出按鈕（第一個 stButton，CSS 會將它 fixed 到右上角）─────────────────────
+if st.button("登出", key="btn_logout"):
+    logout()
+    st.rerun()
 
 # ── 麵包屑（非首頁才顯示）────────────────────────────────────────────────────
 if page_key != "home":
@@ -520,7 +610,7 @@ if page_key != "home":
     st.markdown(f"""
     <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
     font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
-        <a href="?page=home" target="_top" style="color:#166534;text-decoration:none;">首頁</a>
+        <a href="?page=home" style="color:#166534;text-decoration:none;">首頁</a>
         <span style="color:#D1D5DB;">›</span>
         <span style="color:#374151;font-weight:500;">{_title}</span>
     </div>
@@ -641,7 +731,7 @@ if page_key == "home":
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
     padding:20px;text-align:center;margin-top:24px;">
         <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
-        ScamDNA Lab 的使命</div>
+        AEGIS CORE 的使命</div>
         <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
         透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
@@ -1268,10 +1358,10 @@ elif page_key == "evolution":
     st.markdown(f"""
     <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;">
-        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">ScamDNA Lab 預測：{next_year} 年趨勢</div>
+        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：{next_year} 年趨勢</div>
         <div style="color:#374151;">
         基於話術演化模式，預測 {next_year} 年將出現更多 <strong style="color:#DC2626;">AI 全自動詐騙代理 + 多模態深偽互動</strong> 的複合型詐騙，
-        結合大規模個資洩露與即時情境感知進行超精準詐騙。ScamDNA Lab 的 LLM 生成引擎已開始模擬這類新型話術，
+        結合大規模個資洩露與即時情境感知進行超精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
         提前訓練防詐模型。
         </div>
     </div>
@@ -2014,3 +2104,4 @@ elif page_key == "evaluation":
         st.dataframe(pd.DataFrame(results_data), use_container_width=True, hide_index=True)
     else:
         st.info("點擊「執行評估」按鈕，對真實詐騙話術樣本進行即時分類測試。")
+
