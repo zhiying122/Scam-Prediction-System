@@ -13,7 +13,8 @@ st.set_page_config(page_title="風險地圖", page_icon="🗺️", layout="wide"
 st.title("🗺️ 受害風險地圖")
 st.caption("依年齡層與地區維度呈現詐騙受害風險分布")
 
-RISK_COLORS = {"高": "#FF6B6B", "中": "#FFE66D", "低": "#A8E6CF"}
+RISK_COLORS = {"高": "#FECACA", "中": "#FDE68A", "低": "#BBF7D0"}
+RISK_TEXT_COLORS = {"高": "#991B1B", "中": "#92400E", "低": "#166534"}
 
 # ── 篩選器 ────────────────────────────────────────────────────────────────────
 with st.expander("篩選設定", expanded=False):
@@ -89,7 +90,8 @@ df_detail = pd.DataFrame([
 # 風險等級顏色標記
 def highlight_risk(val):
     color = RISK_COLORS.get(val, "")
-    return f"background-color: {color}; color: #333" if color else ""
+    text_color = RISK_TEXT_COLORS.get(val, "#1a2332")
+    return f"background-color: {color}; color: {text_color}" if color else ""
 
 st.dataframe(
     df_detail.style.applymap(highlight_risk, subset=["風險等級"]),

@@ -5,20 +5,27 @@ ScamDNA — 登入認證模組
 使用 Streamlit session_state 管理登入狀態。
 已註冊帳號存於 session-level in-memory store（重啟後重置）。
 
-預設帳號（Demo 用途）：
+預設帳號（Demo 用途，定義於 DEMO_USERNAME / DEMO_PASSWORD 常數）：
 - admin / Aegis@2026 → 系統管理員（預建帳號，無需註冊）
+  ※ 修改密碼請只改 DEMO_PASSWORD，並執行 tests/test_auth_dashboard.py
 """
 
+import base64
 import hashlib
+import os
 import re
-import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from app.access_controller.rbac import Role
+
+load_dotenv()
+load_dotenv(".env.local", override=True)
 
 
 @dataclass
@@ -37,18 +44,99 @@ def _hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
+# ── Demo／內建帳號（單一來源，勿在其他檔案硬編碼）────────────────────────────
+DEMO_USERNAME = "admin"
+DEMO_PASSWORD = "Aegis@2026"
+
+
+def demo_credentials_hint() -> str:
+    """登入頁 Demo 提示文字（僅公開 Demo 帳號，不含 .env 本機管理員）。"""
+    return f"Demo · {DEMO_USERNAME} / {DEMO_PASSWORD}"
+
+
+def _load_local_admin_accounts_from_env() -> dict[str, dict]:
+    """
+    從環境變數 DASHBOARD_LOCAL_ADMINS 載入本機管理員。
+
+    格式（勿寫入程式碼／前端／Git）：
+      帳號:密碼
+      帳號:密碼:顯示名稱
+    多組以逗號分隔。僅能設定於本機 .env。
+    """
+    raw = os.environ.get("DASHBOARD_LOCAL_ADMINS", "").strip()
+    if not raw:
+        return {}
+
+    accounts: dict[str, dict] = {}
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        parts = entry.split(":", 2)
+        if len(parts) < 2:
+            continue
+        username = parts[0].strip().lower()
+        password = parts[1]
+        display_name = parts[2].strip() if len(parts) > 2 and parts[2].strip() else username
+        if not username or not password:
+            continue
+        accounts[username] = {
+            "password_hash": _hash_password(password),
+            "display_name": display_name,
+            "role": Role.SYSTEM_ADMIN,
+            "avatar_emoji": "⬡",
+            "source": "local_env",
+        }
+    return accounts
+
+
+def _build_default_user_db() -> dict[str, dict]:
+    """建立含內建管理員與 .env 本機管理員的預設使用者庫。"""
+    db = {
+        DEMO_USERNAME: {
+            "password_hash": _hash_password(DEMO_PASSWORD),
+            "display_name": "系統管理員",
+            "role": Role.SYSTEM_ADMIN,
+            "avatar_emoji": "⬡",
+            "source": "demo",
+        },
+    }
+    db.update(_load_local_admin_accounts_from_env())
+    return db
+
+
+def _sync_builtin_admin(db: dict[str, dict]) -> None:
+    """內建 admin 密碼雜湊與 DEMO_PASSWORD 常數保持同步（更新常數後無需清 session）。"""
+    expected_hash = _hash_password(DEMO_PASSWORD)
+    if DEMO_USERNAME not in db:
+        db[DEMO_USERNAME] = _build_default_user_db()[DEMO_USERNAME]
+        db[DEMO_USERNAME]["source"] = "demo"
+        return
+    if db[DEMO_USERNAME].get("password_hash") != expected_hash:
+        db[DEMO_USERNAME]["password_hash"] = expected_hash
+
+
+def _sync_local_admins(db: dict[str, dict]) -> None:
+    """本機 .env 管理員與 DASHBOARD_LOCAL_ADMINS 保持同步。"""
+    env_accounts = _load_local_admin_accounts_from_env()
+    env_usernames = set(env_accounts.keys())
+
+    for username in list(db.keys()):
+        if db[username].get("source") == "local_env" and username not in env_usernames:
+            del db[username]
+
+    for username, data in env_accounts.items():
+        db[username] = data
+
+
 # ── 使用者資料庫（in-memory，存在 session_state 確保跨 rerun 持久）────────────
 def _get_user_db() -> dict[str, dict]:
     """取得使用者資料庫（首次存取時初始化預設帳號）"""
     if "_user_db" not in st.session_state:
-        st.session_state["_user_db"] = {
-            "admin": {
-                "password_hash": _hash_password("Aegis@2026"),
-                "display_name": "系統管理員",
-                "role": Role.SYSTEM_ADMIN,
-                "avatar_emoji": "⬡",
-            },
-        }
+        st.session_state["_user_db"] = _build_default_user_db()
+    else:
+        _sync_builtin_admin(st.session_state["_user_db"])
+        _sync_local_admins(st.session_state["_user_db"])
     return st.session_state["_user_db"]
 
 
@@ -138,6 +226,49 @@ def is_authenticated() -> bool:
     return st.session_state.get("authenticated", False)
 
 
+# ── 瀏覽器刷新登出（F5 強制回登入；站內 ?page= 切換不受影響）────────────────
+_REFRESH_LOGOUT_PARAM = "_refresh_logout"
+
+
+def handle_browser_refresh_logout() -> None:
+    """
+    處理瀏覽器 F5 / 強制刷新後的第二輪請求：清除登入狀態。
+
+    站內以 <a href=\"?page=...\"> 切換頁面屬 navigate，不會帶此參數。
+    """
+    if st.query_params.get(_REFRESH_LOGOUT_PARAM) == "1":
+        logout()
+        st.query_params.clear()
+        st.rerun()
+
+
+def install_browser_refresh_guard() -> None:
+    """
+    注入 JS：偵測 performance.navigation type === \"reload\" 時追加
+    _refresh_logout=1 並重導，使下一輪 Python 執行 handle_browser_refresh_logout()。
+    """
+    import streamlit.components.v1 as components
+
+    param = _REFRESH_LOGOUT_PARAM
+    components.html(
+        f"""
+        <script>
+        (function () {{
+            const nav = performance.getEntriesByType("navigation")[0];
+            if (!nav || nav.type !== "reload") return;
+            const loc = window.parent.location;
+            const url = new URL(loc.href);
+            if (url.searchParams.get("{param}") === "1") return;
+            url.searchParams.set("{param}", "1");
+            window.parent.location.replace(url.toString());
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def get_current_user() -> Optional[UserProfile]:
     """取得目前登入的使用者"""
     if not is_authenticated():
@@ -197,12 +328,11 @@ def _render_login_form() -> None:
                 user = authenticate(username, password)
                 if user is None:
                     st.error("帳號或密碼錯誤")
-                    time.sleep(0.5)
                 else:
                     login(user)
                     st.rerun()
 
-    st.html('<p class="scamdna-demo-hint">Demo · admin / Aegis@2026</p>')
+    st.html(f'<p class="scamdna-demo-hint">{demo_credentials_hint()}</p>')
 
 
 def _render_register_form() -> None:
@@ -337,18 +467,24 @@ footer { visibility: hidden !important; }
     animation: scamdnaPulse 3.2s ease-in-out infinite;
 }
 .scamdna-mark-core {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    background: linear-gradient(145deg, #166534, #14532d);
-    color: #ecfdf5;
-    font-family: 'Manrope', sans-serif;
-    font-weight: 800;
-    font-size: 1rem;
+    background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(187,247,208,0.4);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+.scamdna-mark-shield {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
 }
 .scamdna-brand {
     margin: 0 !important;
@@ -361,7 +497,7 @@ footer { visibility: hidden !important; }
 }
 .scamdna-tagline {
     margin: 10px 0 0 !important;
-    color: rgba(220,252,231,0.78) !important;
+    color: rgba(220,252,231,0.92) !important;
     font-size: 0.92rem !important;
     font-weight: 500 !important;
 }
@@ -502,20 +638,28 @@ footer { visibility: hidden !important; }
     padding: 0 !important;
     justify-content: center !important;
 }
+.stTabs [aria-selected="false"],
+.stTabs [aria-selected="false"] p,
+.stTabs [aria-selected="false"] span,
+.stTabs [aria-selected="false"] div,
+.stTabs button[role="tab"]:not([aria-selected="true"]),
+.stTabs button[role="tab"]:not([aria-selected="true"]) * {
+    color: rgba(236,253,245,0.92) !important;
+    -webkit-text-fill-color: rgba(236,253,245,0.92) !important;
+    opacity: 1 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    padding: 10px 28px !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    border-radius: 0 !important;
+}
 .stTabs [data-baseweb="tab"],
 .stTabs [data-baseweb="tab"] p,
 .stTabs [data-baseweb="tab"] span,
 .stTabs [data-baseweb="tab"] div {
     background: transparent !important;
-    color: rgba(236,253,245,0.88) !important;
-    -webkit-text-fill-color: rgba(236,253,245,0.88) !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    border-radius: 0 !important;
-    opacity: 1 !important;
-}
-.stTabs [data-baseweb="tab"] {
-    padding: 10px 28px !important;
 }
 .stTabs [aria-selected="true"],
 .stTabs [aria-selected="true"] p,
@@ -549,6 +693,30 @@ div[data-testid="stForm"],
         0 1px 2px rgba(15,36,25,0.06),
         0 22px 48px rgba(7,20,15,0.35) !important;
     margin-top: 0.85rem !important;
+}
+
+/* ── 登入輸入契約：帳密欄必須永遠可輸入（修改樣式時勿移除此區塊）────────── */
+div[data-testid="stForm"] .stTextInput,
+.stForm .stTextInput {
+    pointer-events: auto !important;
+}
+div[data-testid="stForm"] .stTextInput input,
+.stForm .stTextInput input,
+.stForm .stTextInput > div > div > input {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+div[data-testid="stForm"] .stTextInput [data-baseweb="input"],
+div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"],
+.stForm .stTextInput [data-baseweb="input"],
+.stForm .stTextInput [data-baseweb="base-input"] {
+    pointer-events: auto !important;
+    opacity: 1 !important;
 }
 
 /* ── 輸入框：整平外層，消除密碼欄黑邊／黑三角接縫 ───────────────────────── */
@@ -673,7 +841,7 @@ div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button span {
 .scamdna-demo-hint {
     text-align: center;
     margin: 14px 0 0 !important;
-    color: rgba(220,252,231,0.4) !important;
+    color: rgba(220,252,231,0.82) !important;
     font-size: 0.68rem !important;
     font-weight: 500 !important;
     letter-spacing: 0.04em !important;
@@ -763,6 +931,21 @@ _SIDE_DNA_SVG = """
 </svg>
 """
 
+def _build_shield_mark_html() -> str:
+    """登入頁品牌標記：使用 static/logo.png 盾牌。"""
+    logo_path = Path(__file__).parent / "static" / "logo.png"
+    if not logo_path.exists():
+        return '<span class="scamdna-mark-core">S</span>'
+    logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
+    return (
+        '<span class="scamdna-mark-core">'
+        f'<img src="data:image/png;base64,{logo_b64}" alt="" class="scamdna-mark-shield">'
+        "</span>"
+    )
+
+
+_SHIELD_MARK_HTML = _build_shield_mark_html()
+
 _LOGIN_STAGE_HTML = f"""
 <div class="scamdna-login-bg" aria-hidden="true">
   <div class="grid"></div>
@@ -782,7 +965,7 @@ _LOGIN_STAGE_HTML = f"""
   {_DNA_SVG}
   <div class="scamdna-mark" aria-hidden="true">
     <span class="scamdna-mark-ring"></span>
-    <span class="scamdna-mark-core">S</span>
+    {_SHIELD_MARK_HTML}
   </div>
   <div class="scamdna-brand">ScamDNA</div>
   <p class="scamdna-tagline">AI 詐騙話術進化預警系統</p>
@@ -814,6 +997,9 @@ USER_BAR_CSS = """
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .user-role {
     font-size: 0.65rem;
@@ -838,7 +1024,7 @@ USER_BAR_CSS = """
     border: 1px solid rgba(255,255,255,0.25);
 }
 .user-time {
-    color: rgba(255,255,255,0.7);
+    color: rgba(255,255,255,0.9);
     font-size: 0.65rem;
     white-space: nowrap;
 }

@@ -1,4 +1,4 @@
-# AEGIS CORE — AI 詐騙話術進化預警系統
+# ScamDNA — AI 詐騙話術進化預警系統
 
 > 從被動防禦到主動預測 — 運用生成式 AI 構築下一代防詐護城河
 
@@ -71,7 +71,7 @@ python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
 
 ## 解決方案
 
-AEGIS CORE 採用「以 AI 對抗 AI」的逆向思維：
+ScamDNA 採用「以 AI 對抗 AI」的逆向思維：
 
 1. **LLM 話術裂變生成** — GPT-4o / Gemini / Ollama 逆向模擬詐騙犯思維，生成多種變種話術
 2. **NLP 語意分析** — Sentence-BERT 384 維向量 + TF-IDF + K-Means 分群
@@ -250,6 +250,8 @@ python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
 | 帳號 | 密碼 | 角色 |
 |------|------|------|
 | `admin` | `Aegis@2026` | 系統管理員（完整權限） |
+
+> 帳密程式定義於 `app/dashboard/auth.py` 的 `DEMO_USERNAME` / `DEMO_PASSWORD`；修改密碼請只改該處並執行 `pytest tests/test_auth_dashboard.py`。
 
 ### 註冊新帳號
 

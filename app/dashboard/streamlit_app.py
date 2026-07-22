@@ -1,5 +1,5 @@
 ﻿"""
-AEGIS CORE — AI 詐騙話術進化預警系統
+ScamDNA — AI 詐騙話術進化預警系統
 啟動指令：python -m streamlit run app/dashboard/streamlit_app.py
 """
 
@@ -36,7 +36,7 @@ def _safe_async_run(coro):
         return executor.submit(_run_coro_in_new_loop, coro).result()
 
 st.set_page_config(
-    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
+    page_title="ScamDNA — AI 詐騙話術進化預警系統",
     page_icon="⬡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -56,27 +56,22 @@ from app.dashboard.auth import (
     is_authenticated,
     get_current_user,
     render_user_bar,
-    login,
     logout,
-    authenticate,
+    handle_browser_refresh_logout,
+    install_browser_refresh_guard,
     USER_BAR_CSS,
 )
 
+# 瀏覽器 F5 刷新 → 下一輪強制登出（須在登入閘門之前）
+handle_browser_refresh_logout()
+
 # ── 登入閘門 ─────────────────────────────────────────────────────────────────
-# 如果 session 丟失（Streamlit 重建連線），自動以預設帳號重新登入（無痛恢復）
 if not is_authenticated():
-    # 檢查是否是從導覽連結來的（有 ?page= 參數）→ 自動恢復登入
-    _has_page_param = st.query_params.get("page", None) is not None
-    if _has_page_param:
-        # Session 斷了但使用者之前已登入過，自動恢復
-        _auto_user = authenticate("admin", "Aegis@2026")
-        if _auto_user:
-            login(_auto_user)
-            st.rerun()
-    else:
-        # 真正的首次訪問，顯示登入頁面
-        render_login_page()
-        st.stop()
+    render_login_page()
+    st.stop()
+
+# 已登入：僅 F5 reload 會觸發登出，站內 page 切換不影響
+install_browser_refresh_guard()
 
 inject_css()
 
@@ -322,7 +317,7 @@ if _llm_ready:
         provider_label = "OpenAI（備援 Ollama）"
     llm_status_html = f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">● LLM: {provider_label}</span>'
 else:
-    llm_status_html = '<span style="color:#92400E;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
+    llm_status_html = '<span style="color:#fde68a;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
 # 登出按鈕：僅鎖定 key=btn_logout，避免 :first-of-type 誤傷其他按鈕造成重疊鬼影
 inject_html("""
@@ -415,25 +410,44 @@ try:
     _live_mgr = get_live_data_manager()
     if _live_mgr is not None:
         _freshness_info = _live_mgr.get_freshness_info()
-        # 快取過期時在背景觸發擷取，不阻塞頁面渲染
-        if _freshness_info.is_static or _freshness_info.cache_age_hours > 6.0:
+        # 快取超過排程間隔時在背景觸發擷取，不阻塞頁面渲染
+        from app.config import get_settings as _get_settings
+
+        _fetch_interval = float(_get_settings().data_fetch_interval_hours)
+        if _freshness_info.is_static or _freshness_info.cache_age_hours >= _fetch_interval:
             try:
                 import threading
+                import time as _time
 
-                def _trigger_refresh_via_api() -> None:
-                    try:
-                        _requests.post(
-                            f"{_API_GATEWAY_URL.rstrip('/')}/v1/data/refresh",
-                            headers={"X-API-Key": _API_KEY},
-                            timeout=5,
-                        )
-                    except Exception:
-                        pass
+                _debounce_sec = 1800  # 30 分鐘內不重複觸發
+                _now = _time.time()
+                _last_trigger = st.session_state.get("_data_refresh_triggered_at", 0.0)
+                if _now - _last_trigger >= _debounce_sec:
+                    st.session_state["_data_refresh_triggered_at"] = _now
 
-                threading.Thread(
-                    target=_trigger_refresh_via_api,
-                    daemon=True,
-                ).start()
+                    def _trigger_data_refresh() -> None:
+                        try:
+                            resp = _requests.post(
+                                f"{_API_GATEWAY_URL.rstrip('/')}/v1/data/refresh",
+                                headers={"X-API-Key": _API_KEY},
+                                timeout=5,
+                            )
+                            if resp.status_code == 202:
+                                return
+                        except Exception:
+                            pass
+                        # API Gateway 未啟動時，直接在本機觸發排程擷取
+                        try:
+                            from app.live_data import get_fetch_scheduler
+
+                            get_fetch_scheduler().trigger_now()
+                        except Exception:
+                            pass
+
+                    threading.Thread(
+                        target=_trigger_data_refresh,
+                        daemon=True,
+                    ).start()
             except Exception:
                 pass
         _freshness_text = render_freshness_indicator(_freshness_info)
@@ -487,7 +501,7 @@ inject_html(f"""
     white-space: nowrap;
 }}
 .top-bar-logo-sub {{
-    color: rgba(255,255,255,0.62);
+    color: rgba(255,255,255,0.88);
     font-size: 0.62rem;
     letter-spacing: 0.2px;
     line-height: 1.35;
@@ -502,7 +516,7 @@ inject_html(f"""
     color: rgba(255,255,255,0.92);
     flex-shrink: 0;
     margin-left: auto;
-    margin-right: 88px;
+    margin-right: 100px;
 }}
 .top-bar-right span {{
     color: inherit;
@@ -525,8 +539,8 @@ inject_html(f"""
     min-height: 42px;
 }}
 .nav-item {{
-    color: rgba(255,255,255,0.9) !important;
-    -webkit-text-fill-color: rgba(255,255,255,0.9) !important;
+    color: rgba(255,255,255,0.95) !important;
+    -webkit-text-fill-color: rgba(255,255,255,0.95) !important;
     font-size: 0.8rem;
     font-weight: 500;
     padding: 10px 4px;
@@ -566,7 +580,7 @@ section[data-testid="stSidebar"] {{
     translate: no;
 }}
 .freshness-line {{
-    color: rgba(255,255,255,0.85) !important;
+    color: rgba(255,255,255,0.92) !important;
     font-size: 0.65rem;
     margin-top: 2px;
 }}
@@ -601,6 +615,16 @@ section[data-testid="stMain"] > div {{
     cursor: text !important;
     pointer-events: auto !important;
 }}
+.stTextArea textarea::placeholder {{
+    color: #6B7280 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+}}
+.stTextInput input::placeholder {{
+    color: #6B7280 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+}}
 </style>
 """)
 
@@ -614,10 +638,10 @@ st.markdown(f"""
             <div style="position:absolute;width:36px;height:36px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
             filter:blur(5px);animation:soft-glow 3s ease-in-out infinite;"></div>
-            <img src="data:image/png;base64,{logo_b64}" alt="AEGIS CORE" style="height:52px;width:auto;position:relative;z-index:1;">
+            <img src="data:image/png;base64,{logo_b64}" alt="ScamDNA" style="height:52px;width:auto;position:relative;z-index:1;">
         </div>
         <div style="min-width:0;">
-            <div class="top-bar-logo-text">AEGIS CORE</div>
+            <div class="top-bar-logo-text">ScamDNA</div>
             <div class="top-bar-logo-sub">AI 詐騙話術進化預警系統</div>
         </div>
     </a>
@@ -625,12 +649,12 @@ st.markdown(f"""
         <div style="text-align:right;line-height:1.35;">
             <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;white-space:nowrap;">
                 <span><span class="status-dot"></span>系統運行中</span>
-                <span style="color:rgba(255,255,255,0.45);">|</span>
+                <span style="color:rgba(255,255,255,0.7);">|</span>
                 {llm_status_html}
             </div>
             {_freshness_html}
         </div>
-        <span style="color:rgba(255,255,255,0.35);margin:0 4px;">|</span>
+        <span style="color:rgba(255,255,255,0.7);margin:0 4px;">|</span>
         {_user_bar_html}
     </div>
 </div>
@@ -643,6 +667,8 @@ st.markdown(f"""
 # ── 登出按鈕（CSS 以 st-key-btn_logout 定位，不佔版面）───────────────────────
 if st.button("登出", key="btn_logout"):
     logout()
+    st.query_params.clear()
+    st.session_state.pop("current_page", None)
     st.rerun()
 
 # ── 麵包屑（非首頁才顯示）────────────────────────────────────────────────────
@@ -772,7 +798,7 @@ if page_key == "home":
     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
     padding:20px;text-align:center;margin-top:24px;">
         <div style="color:#166534;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
-        AEGIS CORE 的使命</div>
+        ScamDNA 的使命</div>
         <div style="color:#374151;font-size:1rem;margin-top:8px;line-height:1.6;">
         透過 AI 逆向模擬詐騙邏輯，提前佈署防護機制
         </div>
@@ -1347,12 +1373,14 @@ elif page_key == "evolution":
     ]).set_index("年份")
 
     col_t1, col_t2 = st.columns(2)
+    from app.dashboard.page_views.charts import render_dark_line_chart
+
     with col_t1:
         st.subheader("平均損失趨勢")
-        st.line_chart(df_trend["平均損失（元）"])
+        render_dark_line_chart(df_trend["平均損失（元）"])
     with col_t2:
         st.subheader("案件數趨勢")
-        st.line_chart(df_trend["案件數"])
+        render_dark_line_chart(df_trend["案件數"])
 
     st.markdown("---")
     st.subheader("話術演化歷程")
@@ -1399,10 +1427,10 @@ elif page_key == "evolution":
     st.markdown(f"""
     <div style="background:#FEF2F2;border:1px solid #FECACA;
     border-radius:10px;padding:16px;">
-        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">AEGIS CORE 預測：{next_year} 年趨勢</div>
+        <div style="color:#991B1B;font-weight:700;margin-bottom:8px;">ScamDNA 預測：{next_year} 年趨勢</div>
         <div style="color:#374151;">
         基於話術演化模式，預測 {next_year} 年將出現更多 <strong style="color:#DC2626;">AI 全自動詐騙代理 + 多模態深偽互動</strong> 的複合型詐騙，
-        結合大規模個資洩露與即時情境感知進行超精準詐騙。AEGIS CORE 的 LLM 生成引擎已開始模擬這類新型話術，
+        結合大規模個資洩露與即時情境感知進行超精準詐騙。ScamDNA 的 LLM 生成引擎已開始模擬這類新型話術，
         提前訓練防詐模型。
         </div>
     </div>
@@ -1819,7 +1847,7 @@ elif page_key == "xai":
 
                 st.markdown(
                     f'<div style="line-height:2;font-size:1.05rem;padding:12px;'
-                    f'border:1px solid #dee2e6;border-radius:6px;background:#fafafa;">'
+                    f'border:1px solid #dee2e6;border-radius:6px;background:#fafafa;color:#1a2332;">'
                     f'{"".join(html_parts)}</div>',
                     unsafe_allow_html=True,
                 )

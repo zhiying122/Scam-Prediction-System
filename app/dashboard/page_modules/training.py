@@ -197,7 +197,7 @@ def generate_certificate_html(session: TrainingSession) -> str:
     ">
         <div style="font-size: 3rem;">{level_emoji}</div>
         <h2 style="color: #2c3e50; margin: 10px 0 5px;">防詐免疫認證證書</h2>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">ScamOracle 詐騙免疫訓練平台</p>
+        <p style="color: #4B5563; font-size: 0.9rem;">ScamOracle 詐騙免疫訓練平台</p>
         <hr style="border: 1px solid #bdc3c7; margin: 15px 0;">
         <p style="font-size: 1.1rem; color: #2c3e50;">本證書認證持有人已完成</p>
         <h3 style="color: #e74c3c; margin: 5px 0;">「{session.scam_type}」{session.difficulty}防詐訓練</h3>
@@ -209,9 +209,9 @@ def generate_certificate_html(session: TrainingSession) -> str:
             margin: 15px 0;
         ">
             <div style="font-size: 2.5rem; font-weight: bold;">{score_pct:.0f}%</div>
-            <div style="font-size: 0.9rem; opacity: 0.8;">答題正確率</div>
+            <div style="font-size: 0.9rem; color: #e5e7eb;">答題正確率</div>
         </div>
-        <p style="color: #7f8c8d; font-size: 0.85rem;">認證日期：{date_str}</p>
+        <p style="color: #4B5563; font-size: 0.85rem;">認證日期：{date_str}</p>
         <p style="color: #27ae60; font-weight: bold; font-size: 0.9rem;">
             ✅ 此人具備識別 {session.scam_type} 的基本防詐能力
         </p>

@@ -15,18 +15,18 @@ st.caption("高亮顯示詐騙話術中觸發心理操控特徵的具體片段")
 
 # ── 標籤顏色對應 ──────────────────────────────────────────────────────────────
 TAG_COLORS = {
-    "緊迫感製造": "#FF6B6B",
-    "權威偽裝":   "#4ECDC4",
-    "利益誘導":   "#FFE66D",
-    "情緒勒索":   "#A8E6CF",
-    "信任建立":   "#C3B1E1",
+    "信任建立": "#d4edda",
+    "緊迫感製造": "#fff3cd",
+    "情緒勒索":   "#f8d7da",
+    "權威偽裝":   "#cce5ff",
+    "利益誘導":   "#e2d9f3",
 }
 TAG_TEXT_COLORS = {
-    "緊迫感製造": "#fff",
-    "權威偽裝":   "#fff",
-    "利益誘導":   "#333",
-    "情緒勒索":   "#333",
-    "信任建立":   "#333",
+    "信任建立": "#155724",
+    "緊迫感製造": "#856404",
+    "情緒勒索":   "#721c24",
+    "權威偽裝":   "#004085",
+    "利益誘導":   "#4a235a",
 }
 
 highlighter = XAIHighlighter()
@@ -99,8 +99,8 @@ if analyze_btn or text_input:
                 html_parts.append(text_input[prev_end:])
 
             html_content = (
-                '<div style="font-size:1.1rem;line-height:2;padding:12px;'
-                'background:#1e1e1e;border-radius:8px;">'
+                '<div style="font-size:1.1rem;line-height:2;padding:12px;color:#1a2332;'
+                'background:#fafafa;border:1px solid #dee2e6;border-radius:8px;">'
                 + "".join(html_parts) + "</div>"
             )
             components.html(html_content, height=180, scrolling=True)

@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.config import get_settings
 from app.live_data.models import CachedData, FreshnessInfo, NormalizedData
 from app.live_data.normalizer import is_data_complete
 
@@ -100,13 +101,19 @@ class CacheManager:
             )
 
         now = datetime.now(timezone.utc)
-        age_hours = (now - cached.cached_at).total_seconds() / 3600
+        cached_at = cached.cached_at
+        if cached_at.tzinfo is None:
+            cached_at = cached_at.replace(tzinfo=timezone.utc)
+        age_hours = (now - cached_at).total_seconds() / 3600
+
+        # 與排程間隔一致：6 小時內視為正常最新資料，超過才標示快取
+        fresh_threshold = float(get_settings().data_fetch_interval_hours)
 
         return FreshnessInfo(
             source_name=cached.source_name,
-            fetched_at=cached.cached_at,
-            is_fresh=age_hours < 1.0 and not cached.is_fallback,
-            is_cached=not cached.is_fallback and age_hours >= 1.0,
+            fetched_at=cached_at,
+            is_fresh=age_hours < fresh_threshold and not cached.is_fallback,
+            is_cached=not cached.is_fallback and age_hours >= fresh_threshold,
             is_static=cached.is_fallback,
             cache_age_hours=age_hours,
         )
@@ -155,6 +162,8 @@ class CacheManager:
 
             data = NormalizedData.model_validate(payload["data"])
             cached_at = datetime.fromisoformat(payload["cached_at"])
+            if cached_at.tzinfo is None:
+                cached_at = cached_at.replace(tzinfo=timezone.utc)
             source_name = payload.get("source_name", data.source_name)
 
             return CachedData(

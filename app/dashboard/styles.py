@@ -85,7 +85,7 @@ section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div >
     box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
 }
 [data-testid="stMetricLabel"] {
-    color: #6B7280 !important;
+    color: #4B5563 !important;
     font-size: 0.72rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
@@ -258,6 +258,19 @@ button[data-testid="stBaseButton-primary"]:disabled div,
     border-color: #166534 !important;
     box-shadow: 0 0 0 2px rgba(22,101,52,0.12) !important;
 }
+/* placeholder 確保可讀（避免與輸入文字重疊或過淡） */
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {
+    color: #6B7280 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+}
+.stTextInput input::-webkit-input-placeholder,
+.stTextArea textarea::-webkit-input-placeholder {
+    color: #6B7280 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #6B7280 !important;
+}
 
 /* ── 進度條 ──────────────────────────────────────────────────────────────── */
 .stProgress > div > div > div > div {
@@ -416,7 +429,7 @@ h3 {
     font-size: 1rem !important;
 }
 hr { border-color: #E5E7EB !important; margin: 1rem 0 !important; }
-.stCaption, small { color: #9CA3AF !important; font-size: 0.78rem !important; }
+.stCaption, small { color: #6B7280 !important; font-size: 0.78rem !important; }
 .stCheckbox label { color: #374151 !important; font-size: 0.875rem !important; }
 
 /* ── Form / Label 文字確保可見 ───────────────────────────────────────────── */
@@ -468,26 +481,70 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
     flex: 1 !important;
 }
 
-/* ── Slider（勿對巢狀 div 套全綠底，會蓋住數值標籤）─────────────────────── */
+/* ── Slider（Streamlit 1.58+ 使用 stSliderThumbValue / stSliderTickBar）──── */
 [data-testid="stSlider"] {
     padding-top: 0.25rem !important;
+    padding-bottom: 0.35rem !important;
 }
-/* 數值標籤：透明底 + 深綠字，避免綠底深字／重疊色塊 */
+[data-testid="stSlider"] [data-baseweb="slider"] {
+    margin-top: 1.6rem !important;
+    margin-bottom: 1.35rem !important;
+}
+/* 目前數值、最小值、最大值：深色粗體 + 足夠字級 */
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"],
+[data-testid="stSlider"] [data-testid="stSliderTickBar"],
 [data-testid="stSlider"] [data-testid="stThumbValue"],
 [data-testid="stSlider"] [data-testid="stTickBarMin"],
 [data-testid="stSlider"] [data-testid="stTickBarMax"] {
     background: transparent !important;
     background-color: transparent !important;
-    color: #166534 !important;
-    -webkit-text-fill-color: #166534 !important;
-    font-weight: 600 !important;
-    font-size: 0.8rem !important;
+    color: #1a2332 !important;
+    -webkit-text-fill-color: #1a2332 !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    line-height: 1.2 !important;
     box-shadow: none !important;
     border: none !important;
+    opacity: 1 !important;
+    z-index: 2 !important;
 }
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"] *,
+[data-testid="stSlider"] [data-testid="stSliderTickBar"] *,
+[data-testid="stSlider"] [data-testid="stThumbValue"] *,
+[data-testid="stSlider"] [data-testid="stTickBarMin"] *,
+[data-testid="stSlider"] [data-testid="stTickBarMax"] * {
+    color: #1a2332 !important;
+    -webkit-text-fill-color: #1a2332 !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    opacity: 1 !important;
+}
+/* 拖曳點上方數值：白底綠框，避免與軌道重疊 */
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"],
 [data-testid="stSlider"] [data-testid="stThumbValue"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #166534 !important;
+    border-radius: 6px !important;
+    padding: 2px 10px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12) !important;
     color: #14532d !important;
     -webkit-text-fill-color: #14532d !important;
+    min-width: 1.5rem !important;
+    text-align: center !important;
+}
+/* 軌道兩端最小／最大值 */
+[data-testid="stSlider"] [data-testid="stSliderTickBar"] {
+    color: #374151 !important;
+    -webkit-text-fill-color: #374151 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+}
+[data-testid="stSlider"] [data-testid="stSliderTickBar"] * {
+    color: #374151 !important;
+    -webkit-text-fill-color: #374151 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
 }
 /* track 未填充 */
 [data-testid="stSlider"] [data-baseweb="slider"] > div:first-child {
@@ -567,7 +624,7 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
     color: #166534;
     margin-bottom: 8px;
 }
-.feature-card-desc { font-size: 0.85rem; color: #6B7280; line-height: 1.6; }
+.feature-card-desc { font-size: 0.85rem; color: #4B5563; line-height: 1.6; }
 
 /* ── cyber-card 相容 ─────────────────────────────────────────────────────── */
 .cyber-card {

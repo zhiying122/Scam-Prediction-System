@@ -29,7 +29,7 @@ class TestRenderFreshnessIndicator:
         result = render_freshness_indicator(info)
         assert "✅" in result
         assert "資料已更新" in result
-        assert "2024-06-15 10:30" in result
+        assert "2024-06-15 18:30" in result
         assert "data.gov.tw" in result
 
     def test_yellow_cached_under_24h(self):
@@ -45,7 +45,7 @@ class TestRenderFreshnessIndicator:
         result = render_freshness_indicator(info)
         assert "⚠️" in result
         assert "快取資料" in result
-        assert "2024-06-15 10:30" in result
+        assert "2024-06-15 18:30" in result
         assert "6 小時前更新" in result
 
     def test_red_cached_over_24h(self):
@@ -61,7 +61,7 @@ class TestRenderFreshnessIndicator:
         result = render_freshness_indicator(info)
         assert "🔴" in result
         assert "資料可能過時" in result
-        assert "2024-06-13 10:30" in result
+        assert "2024-06-13 18:30" in result
         assert "2 天前更新" in result
 
     def test_gray_static_data(self):

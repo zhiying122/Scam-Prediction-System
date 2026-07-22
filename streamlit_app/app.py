@@ -4,13 +4,13 @@ AI 詐騙進化預測系統 - Streamlit 儀表板主入口
 import streamlit as st
 
 st.set_page_config(
-    page_title="AEGIS CORE — AI 詐騙話術進化預警系統",
+    page_title="ScamDNA — AI 詐騙話術進化預警系統",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🛡️ AEGIS CORE — AI 詐騙話術進化預警系統")
+st.title("🛡️ ScamDNA — AI 詐騙話術進化預警系統")
 st.markdown("從被動防禦到主動預測，運用生成式 AI 構築下一代防詐護城河。")
 
 st.divider()
