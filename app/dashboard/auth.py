@@ -12,8 +12,10 @@ ScamDNA — 登入認證模組
 
 import base64
 import hashlib
+import hmac
 import os
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -208,59 +210,457 @@ def authenticate(username: str, password: str) -> Optional[UserProfile]:
 
 
 def login(user: UserProfile) -> None:
-    """將使用者資訊寫入 session_state"""
+    """將使用者資訊寫入 session_state，並標記需寫入瀏覽器 cookie。"""
     st.session_state["authenticated"] = True
     st.session_state["user"] = user
     st.session_state["login_time"] = datetime.now()
+    st.session_state["_pending_auth_cookie"] = user.username
+    st.session_state["_auth_session_live"] = True
+    # 登入當輪為 Streamlit rerun，勿被 refresh guard 誤判為重新輸入網址
+    st.session_state["_skip_browser_refresh_logout"] = True
+    st.session_state.pop("_block_cookie_restore", None)
+    st.session_state.pop("_clear_auth_cookie", None)
 
 
 def logout() -> None:
-    """清除登入狀態"""
+    """清除登入狀態與瀏覽器 cookie。"""
     st.session_state["authenticated"] = False
     st.session_state.pop("user", None)
     st.session_state.pop("login_time", None)
+    st.session_state.pop("_pending_auth_cookie", None)
+    st.session_state.pop("_auth_cookie_ok", None)
+    st.session_state.pop("_skip_browser_refresh_logout", None)
+    st.session_state.pop("_auth_session_live", None)
+    st.session_state["_clear_auth_cookie"] = True
+    st.session_state["_block_cookie_restore"] = True
 
 
 def is_authenticated() -> bool:
     """檢查是否已登入"""
-    return st.session_state.get("authenticated", False)
+    return bool(st.session_state.get("authenticated", False))
 
 
-# ── 瀏覽器刷新登出（F5 強制回登入；站內 ?page= 切換不受影響）────────────────
+# ── 登入 cookie + 站內導覽 token（嚴格閘門）────────────────────────────────
+# cookie：僅在「帶有效 _nav」的站內連結整頁導向時還原登入
+# 直接輸入網址／F5／無 _nav → 一律登入頁（禁止靠 cookie 偷渡）
+_AUTH_COOKIE_NAME = "scamdna_auth"
+_FORCE_LOGOUT_COOKIE = "scamdna_force_logout"
+_AUTH_MAX_AGE_SEC = 60 * 60 * 12  # 12 小時
 _REFRESH_LOGOUT_PARAM = "_refresh_logout"
+_NAV_PARAM = "_nav"
+_NAV_MAX_AGE_SEC = 5 * 60  # 站內導覽 token 5 分鐘
 
 
-def handle_browser_refresh_logout() -> None:
+def _auth_secret() -> str:
+    return os.environ.get("DASHBOARD_AUTH_SECRET") or DEMO_PASSWORD
+
+
+def _make_auth_token(username: str) -> str:
+    ts = str(int(time.time()))
+    msg = f"{username.strip().lower()}:{ts}"
+    sig = hmac.new(
+        _auth_secret().encode("utf-8"),
+        msg.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return base64.urlsafe_b64encode(f"{msg}:{sig}".encode("utf-8")).decode("ascii")
+
+
+def _parse_auth_token(token: str) -> Optional[str]:
+    try:
+        raw = base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8")
+        username, ts, sig = raw.rsplit(":", 2)
+        msg = f"{username}:{ts}"
+        expected = hmac.new(
+            _auth_secret().encode("utf-8"),
+            msg.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        if int(time.time()) - int(ts) > _AUTH_MAX_AGE_SEC:
+            return None
+        return username
+    except Exception:
+        return None
+
+
+def _make_nav_token(username: str) -> str:
+    """短效站內導覽憑證：僅允許帶此參數的連結還原登入。"""
+    ts = str(int(time.time()))
+    msg = f"nav:{username.strip().lower()}:{ts}"
+    sig = hmac.new(
+        _auth_secret().encode("utf-8"),
+        msg.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:32]
+    return base64.urlsafe_b64encode(f"{msg}:{sig}".encode("utf-8")).decode("ascii")
+
+
+def _parse_nav_token(token: str) -> Optional[str]:
+    try:
+        raw = base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8")
+        prefix, username, ts, sig = raw.rsplit(":", 3)
+        if prefix != "nav":
+            return None
+        msg = f"nav:{username}:{ts}"
+        expected = hmac.new(
+            _auth_secret().encode("utf-8"),
+            msg.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()[:32]
+        if not hmac.compare_digest(sig, expected):
+            return None
+        if int(time.time()) - int(ts) > _NAV_MAX_AGE_SEC:
+            return None
+        return username
+    except Exception:
+        return None
+
+
+def build_page_href(page_key: str) -> str:
+    """產生帶 _nav 憑證的站內連結（無登入者則僅 page 參數）。"""
+    user = get_current_user()
+    if user is None:
+        return f"?page={page_key}"
+    token = _make_nav_token(user.username)
+    return f"?page={page_key}&{_NAV_PARAM}={token}"
+
+
+def _strip_nav_param_from_url() -> None:
+    """還原登入後立刻移除 _nav，避免 F5 重放憑證。"""
+    if _NAV_PARAM not in st.query_params:
+        return
+    retained = {k: v for k, v in st.query_params.items() if k != _NAV_PARAM}
+    st.query_params.clear()
+    for key, value in retained.items():
+        st.query_params[key] = value
+
+
+def _profile_from_username(username: str) -> Optional[UserProfile]:
+    db = _get_user_db()
+    user_data = db.get(username.strip().lower())
+    if user_data is None:
+        return None
+    return UserProfile(
+        username=username.strip().lower(),
+        display_name=user_data["display_name"],
+        role=user_data["role"],
+        avatar_emoji=user_data["avatar_emoji"],
+        last_login=datetime.now(),
+    )
+
+
+def _inject_cookie_script(*, clear: bool = False, username: str | None = None) -> None:
+    """透過 JS 寫入／清除頂層文件 cookie（導覽 <a href> 整頁載入後仍可讀取）。"""
+    import streamlit.components.v1 as components
+
+    if clear:
+        script = f"""
+        <script>
+        (function () {{
+          const names = ["{_AUTH_COOKIE_NAME}", "{_FORCE_LOGOUT_COOKIE}"];
+          names.forEach(function (name) {{
+            const cleared = name + "=; path=/; max-age=0; SameSite=Lax";
+            try {{ window.top.document.cookie = cleared; }} catch (e) {{ document.cookie = cleared; }}
+          }});
+        }})();
+        </script>
+        """
+    else:
+        token = _make_auth_token(username or "")
+        script = f"""
+        <script>
+        (function () {{
+          const name = "{_AUTH_COOKIE_NAME}";
+          const value = encodeURIComponent("{token}");
+          const maxAge = {_AUTH_MAX_AGE_SEC};
+          const cookie = name + "=" + value + "; path=/; max-age=" + maxAge + "; SameSite=Lax";
+          try {{ window.top.document.cookie = cookie; }} catch (e) {{ document.cookie = cookie; }}
+        }})();
+        </script>
+        """
+    components.html(script, height=0, width=0)
+
+
+def sync_auth_cookies() -> None:
+    """處理登入後寫入／登出後清除 cookie。"""
+    if st.session_state.pop("_clear_auth_cookie", False):
+        _inject_cookie_script(clear=True)
+        return
+    pending = st.session_state.pop("_pending_auth_cookie", None)
+    if pending:
+        _inject_cookie_script(username=pending)
+        return
+    # 已登入時定期延長 cookie，避免導覽後遺失
+    if is_authenticated():
+        user = get_current_user()
+        if user is not None and not st.session_state.get("_auth_cookie_ok"):
+            _inject_cookie_script(username=user.username)
+            st.session_state["_auth_cookie_ok"] = True
+
+
+def try_restore_session_from_cookie() -> bool:
     """
-    處理瀏覽器 F5 / 強制刷新後的第二輪請求：清除登入狀態。
+    從瀏覽器 cookie 還原登入。
 
-    站內以 <a href=\"?page=...\"> 切換頁面屬 navigate，不會帶此參數。
+    僅應在站內連結帶有效 _nav 時呼叫；禁止在直接輸入網址時呼叫。
+    """
+    if is_authenticated():
+        return True
+    if st.session_state.get("_block_cookie_restore"):
+        return False
+    try:
+        token = st.context.cookies.get(_AUTH_COOKIE_NAME)
+    except Exception:
+        token = None
+    if not token:
+        return False
+    username = _parse_auth_token(token)
+    if not username:
+        return False
+    user = _profile_from_username(username)
+    if user is None:
+        return False
+    st.session_state["authenticated"] = True
+    st.session_state["user"] = user
+    st.session_state["login_time"] = datetime.now()
+    st.session_state["_auth_cookie_ok"] = True
+    st.session_state["_auth_session_live"] = True
+    return True
+
+
+def _consume_force_logout_cookie() -> bool:
+    """若瀏覽器帶有 force-logout cookie，清除並回傳 True。"""
+    try:
+        flag = st.context.cookies.get(_FORCE_LOGOUT_COOKIE)
+    except Exception:
+        flag = None
+    if flag != "1":
+        return False
+    # 請前端清掉（隨 sync / logout 一併清）
+    st.session_state["_clear_auth_cookie"] = True
+    return True
+
+
+def handle_browser_refresh_logout() -> bool:
+    """
+    處理 F5 / Ctrl+Shift+R 帶入的 _refresh_logout=1。
+
+    Returns:
+        True 表示本次應強制登出並顯示登入頁（不再 rerun，避免 cookie 競態還原）。
     """
     if st.query_params.get(_REFRESH_LOGOUT_PARAM) == "1":
         logout()
         st.query_params.clear()
-        st.rerun()
+        return True
+    return False
+
+
+def enforce_login_gate() -> bool:
+    """
+    嚴格登入閘門（單一入口）。
+
+    Returns:
+        True  → 呼叫端應顯示登入頁並 st.stop()
+        False → 已通過認證，可繼續渲染 Dashboard
+    """
+    if handle_browser_refresh_logout():
+        return True
+
+    if st.query_params.get("logout") == "1":
+        logout()
+        st.query_params.clear()
+        return True
+
+    if _consume_force_logout_cookie():
+        logout()
+        return True
+
+    # 登出後殘留旗標：禁止任何還原
+    if st.session_state.get("_block_cookie_restore") and not is_authenticated():
+        return True
+
+    nav_raw = st.query_params.get(_NAV_PARAM)
+    nav_user = _parse_nav_token(nav_raw) if nav_raw else None
+
+    if nav_user:
+        # 站內 ?page=&_nav= 導覽：允許 cookie 還原
+        if not is_authenticated():
+            try_restore_session_from_cookie()
+        user = get_current_user()
+        if user is not None and user.username == nav_user:
+            st.session_state["_auth_session_live"] = True
+            st.session_state.pop("_block_cookie_restore", None)
+            # 本輪為站內導覽落地，禁止 refresh guard 立刻再登出
+            st.session_state["_skip_browser_refresh_logout"] = True
+            _strip_nav_param_from_url()
+            return False
+        logout()
+        return True
+
+    # 無有效 _nav：禁止靠 cookie 還原
+    if is_authenticated() and st.session_state.get("_auth_session_live"):
+        # 同一 Streamlit session 內的 widget rerun（登入後操作）→ 放行
+        # F5 若重用 session，交由 refresh guard（force-logout cookie / meta refresh）處理
+        return False
+
+    # 直接輸入網址／新分頁／新 session：一律登入頁，並清掉殘留 cookie
+    if is_authenticated():
+        logout()
+    else:
+        st.session_state["_clear_auth_cookie"] = True
+        st.session_state["_block_cookie_restore"] = True
+    return True
 
 
 def install_browser_refresh_guard() -> None:
     """
-    注入 JS：偵測 performance.navigation type === \"reload\" 時追加
-    _refresh_logout=1 並重導，使下一輪 Python 執行 handle_browser_refresh_logout()。
+    注入 JS：F5 / Ctrl+Shift+R / 重新輸入網址 → 寫 force-logout cookie，
+    並以父頁 meta refresh／連結點擊導向 _refresh_logout=1。
+
+    站內 ?page=&_nav= 連結不觸發。
+    components.html 在沙箱 iframe 內，top.location 可能被擋，故改操父文件。
     """
     import streamlit.components.v1 as components
 
     param = _REFRESH_LOGOUT_PARAM
+    auth_cookie = _AUTH_COOKIE_NAME
+    force_cookie = _FORCE_LOGOUT_COOKIE
+    intent_key = "scamdna_inapp_nav"
+    handled_key = "scamdna_guard_handled"
+    skip_logout = "true" if st.session_state.pop("_skip_browser_refresh_logout", False) else "false"
+
     components.html(
         f"""
         <script>
         (function () {{
-            const nav = performance.getEntriesByType("navigation")[0];
-            if (!nav || nav.type !== "reload") return;
-            const loc = window.parent.location;
-            const url = new URL(loc.href);
-            if (url.searchParams.get("{param}") === "1") return;
-            url.searchParams.set("{param}", "1");
-            window.parent.location.replace(url.toString());
+            function topWin() {{
+                try {{ return window.top; }} catch (e) {{
+                    try {{ return window.parent; }} catch (e2) {{ return null; }}
+                }}
+            }}
+            const top = topWin();
+            if (!top) return;
+
+            function setCookie(name, value, maxAge) {{
+                const c = name + "=" + value + "; path=/; max-age=" + maxAge + "; SameSite=Lax";
+                try {{ top.document.cookie = c; }} catch (e) {{
+                    try {{ document.cookie = c; }} catch (e2) {{}}
+                }}
+            }}
+
+            function hookInAppNavClicks() {{
+                try {{
+                    if (top.__scamdnaNavHooked) return;
+                    top.__scamdnaNavHooked = true;
+                    top.document.addEventListener("click", function (ev) {{
+                        const el = ev.target;
+                        if (!el || !el.closest) return;
+                        const a = el.closest("a[href]");
+                        if (!a) return;
+                        const href = a.getAttribute("href") || "";
+                        if (href.indexOf("logout=") !== -1) return;
+                        if (href.indexOf("page=") === -1) return;
+                        try {{ top.sessionStorage.setItem("{intent_key}", "1"); }} catch (e) {{}}
+                    }}, true);
+                }} catch (e) {{}}
+            }}
+
+            function navEntry() {{
+                try {{
+                    return top.performance.getEntriesByType("navigation")[0] || null;
+                }} catch (e) {{
+                    return null;
+                }}
+            }}
+
+            function loadId() {{
+                const nav = navEntry();
+                if (nav) return String(nav.type) + "@" + String(Math.floor(nav.startTime || 0));
+                try {{
+                    if (top.performance.navigation) {{
+                        return "legacy@" + String(top.performance.navigation.type);
+                    }}
+                }} catch (e) {{}}
+                return "unknown";
+            }}
+
+            function isReload() {{
+                try {{
+                    const nav = navEntry();
+                    if (nav && nav.type === "reload") return true;
+                }} catch (e) {{}}
+                try {{
+                    if (top.performance.navigation && top.performance.navigation.type === 1) {{
+                        return true;
+                    }}
+                }} catch (e) {{}}
+                return false;
+            }}
+
+            function consumeInAppIntent() {{
+                try {{
+                    if (top.sessionStorage.getItem("{intent_key}") === "1") {{
+                        top.sessionStorage.removeItem("{intent_key}");
+                        return true;
+                    }}
+                }} catch (e) {{}}
+                return false;
+            }}
+
+            function forceParentLogoutRedirect() {{
+                let loc;
+                try {{ loc = top.location; }} catch (e) {{ return; }}
+                if (!loc) return;
+                const url = new URL(loc.href);
+                if (url.searchParams.get("{param}") === "1") return;
+                url.searchParams.set("{param}", "1");
+                url.searchParams.delete("page");
+                url.searchParams.delete("{_NAV_PARAM}");
+                const target = url.toString();
+
+                // 1) 父文件 meta refresh（不受 iframe sandbox top-navigation 限制）
+                try {{
+                    const meta = top.document.createElement("meta");
+                    meta.httpEquiv = "refresh";
+                    meta.content = "0;url=" + target;
+                    top.document.head.appendChild(meta);
+                }} catch (e) {{}}
+
+                // 2) 父文件隱藏連結 click
+                try {{
+                    const a = top.document.createElement("a");
+                    a.href = target;
+                    a.style.display = "none";
+                    top.document.body.appendChild(a);
+                    a.click();
+                }} catch (e) {{}}
+
+                // 3) 直接改 location（部分環境仍可用）
+                try {{ loc.replace(target); }} catch (e) {{}}
+            }}
+
+            hookInAppNavClicks();
+
+            const id = loadId();
+            try {{
+                if (top.sessionStorage.getItem("{handled_key}") === id) {{
+                    return;
+                }}
+            }} catch (e) {{}}
+
+            const skipLogout = {skip_logout};
+            const inApp = consumeInAppIntent();
+            const mustLogout = (!skipLogout) && (isReload() || !inApp);
+
+            try {{ top.sessionStorage.setItem("{handled_key}", id); }} catch (e) {{}}
+
+            if (!mustLogout) return;
+
+            setCookie("{force_cookie}", "1", 60);
+            setCookie("{auth_cookie}", "", 0);
+            forceParentLogoutRedirect();
         }})();
         </script>
         """,
@@ -331,8 +731,6 @@ def _render_login_form() -> None:
                 else:
                     login(user)
                     st.rerun()
-
-    st.html(f'<p class="scamdna-demo-hint">{demo_credentials_hint()}</p>')
 
 
 def _render_register_form() -> None:
@@ -986,6 +1384,7 @@ USER_BAR_CSS = """
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    height: 28px;
 }
 .user-avatar {
     font-size: 1rem;
@@ -997,7 +1396,7 @@ USER_BAR_CSS = """
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
-    max-width: 140px;
+    max-width: 88px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -1027,5 +1426,7 @@ USER_BAR_CSS = """
     color: rgba(255,255,255,0.9);
     font-size: 0.65rem;
     white-space: nowrap;
+    min-width: 2.5em;
+    text-align: right;
 }
 """

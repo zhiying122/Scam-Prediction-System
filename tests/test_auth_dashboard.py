@@ -45,13 +45,70 @@ class TestDemoCredentialSingleSource:
         assert "render_login_page()" in source
         assert "st.stop()" in source
         assert "authenticate(DEMO_USERNAME" not in source
-        assert "handle_browser_refresh_logout()" in source
+        assert "enforce_login_gate()" in source
         assert "install_browser_refresh_guard()" in source
+        assert "sync_auth_cookies()" in source
+        assert "build_page_href(" in source
+        assert 'href="?logout=1"' in source
+        assert 'class="top-bar-logout"' in source
+        assert 'key="btn_logout"' not in source
+        # 禁止無條件 cookie 還原（必須走 enforce_login_gate / _nav）
+        assert "try_restore_session_from_cookie()" not in source
 
     def test_auth_has_refresh_logout_helpers(self) -> None:
         assert hasattr(auth, "handle_browser_refresh_logout")
         assert hasattr(auth, "install_browser_refresh_guard")
+        assert hasattr(auth, "try_restore_session_from_cookie")
+        assert hasattr(auth, "sync_auth_cookies")
+        assert hasattr(auth, "enforce_login_gate")
+        assert hasattr(auth, "build_page_href")
         assert auth._REFRESH_LOGOUT_PARAM == "_refresh_logout"
+        assert auth._AUTH_COOKIE_NAME == "scamdna_auth"
+        assert auth._NAV_PARAM == "_nav"
+        import inspect
+
+        source = inspect.getsource(auth.install_browser_refresh_guard)
+        assert 'nav.type === "reload"' in source
+        assert "performance.navigation.type === 1" in source
+        assert "searchParams.delete(\"page\")" in source
+        assert "top.performance" in source or "window.top.performance" in source
+        assert "scamdna_inapp_nav" in source
+        assert "httpEquiv" in source or "meta" in source
+        assert "_skip_browser_refresh_logout" in inspect.getsource(auth.login)
+        handle_src = inspect.getsource(auth.handle_browser_refresh_logout)
+        assert "st.rerun()" not in handle_src
+        restore_src = inspect.getsource(auth.try_restore_session_from_cookie)
+        assert "_block_cookie_restore" in restore_src
+        gate_src = inspect.getsource(auth.enforce_login_gate)
+        assert "_NAV_PARAM" in gate_src or "_nav" in gate_src
+        assert "try_restore_session_from_cookie()" in gate_src
+
+    def test_nav_token_roundtrip(self) -> None:
+        token = auth._make_nav_token("admin")
+        assert auth._parse_nav_token(token) == "admin"
+        assert auth._parse_nav_token("invalid") is None
+
+    def test_nav_token_rejects_tampering(self) -> None:
+        import base64
+
+        token = auth._make_nav_token("admin")
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        bad = base64.urlsafe_b64encode(raw.replace("admin", "hacker", 1).encode()).decode()
+        assert auth._parse_nav_token(bad) is None
+
+    def test_auth_token_roundtrip(self) -> None:
+        token = auth._make_auth_token("admin")
+        assert auth._parse_auth_token(token) == "admin"
+        assert auth._parse_auth_token("invalid") is None
+
+    def test_auth_token_rejects_tampering(self) -> None:
+        token = auth._make_auth_token("admin")
+        # 竄改 payload
+        import base64
+
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        bad = base64.urlsafe_b64encode(raw.replace("admin", "hacker", 1).encode()).decode()
+        assert auth._parse_auth_token(bad) is None
 
     def test_demo_hint_never_shows_local_env_accounts(self, monkeypatch) -> None:
         monkeypatch.setenv("DASHBOARD_LOCAL_ADMINS", "hiddenuser:hiddenpass:Hidden Admin")

@@ -121,6 +121,49 @@ class TestRenderFreshnessIndicator:
 
 # ── Task 10.2: Module Factory Functions Tests ─────────────────────────────────
 
+class TestCacheManagerDiskSync:
+    """CacheManager 應同步較新的磁碟快取（跨程序更新）。"""
+
+    def test_load_prefers_newer_disk_over_stale_memory(self, tmp_path):
+        import time
+        from datetime import datetime, timezone
+
+        from app.live_data.cache_manager import CacheManager
+        from app.live_data.models import AnnualStat, NormalizedData, ScamTypeStat
+
+        cache_file = tmp_path / "live_cache.json"
+        mgr = CacheManager(cache_file_path=str(cache_file))
+
+        def _make(source: str, cases: int) -> NormalizedData:
+            return NormalizedData(
+                scam_cases_by_region={"台北市": cases},
+                scam_type_stats={
+                    "假冒銀行客服": ScamTypeStat(
+                        cases=cases, avg_loss_ntd=1000, trend="上升"
+                    )
+                },
+                monthly_trend=[],
+                victim_age_distribution={},
+                annual_stats={
+                    "2026": AnnualStat(total_cases=cases, total_loss_billion=0.1)
+                },
+                source_name=source,
+                fetched_at=datetime.now(timezone.utc),
+            )
+
+        mgr.store(_make("old-source", 1))
+        old_at = mgr.load().cached_at
+
+        time.sleep(0.02)
+        other = CacheManager(cache_file_path=str(cache_file))
+        other.store(_make("new-source", 2))
+
+        loaded = mgr.load()
+        assert loaded is not None
+        assert loaded.source_name == "new-source"
+        assert loaded.cached_at >= old_at
+
+
 class TestModuleFactoryFunctions:
     """Test that factory functions in app/live_data/__init__.py work correctly."""
 

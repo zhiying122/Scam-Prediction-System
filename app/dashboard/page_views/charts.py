@@ -10,10 +10,10 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-_LINE_COLOR = "#1E40AF"
-_AXIS_COLOR = "#374151"
-_GRID_COLOR = "#9CA3AF"
-_DOMAIN_COLOR = "#6B7280"
+_LINE_COLOR = "#1E3A8A"
+_AXIS_COLOR = "#1F2937"
+_GRID_COLOR = "#6B7280"
+_DOMAIN_COLOR = "#4B5563"
 
 
 def render_dark_line_chart(
@@ -51,8 +51,8 @@ def render_dark_line_chart(
         alt.Chart(chart_df)
         .mark_line(
             color=_LINE_COLOR,
-            strokeWidth=3,
-            point=alt.OverlayMarkDef(color=_LINE_COLOR, size=55, filled=True),
+            strokeWidth=3.5,
+            point=alt.OverlayMarkDef(color=_LINE_COLOR, size=65, filled=True),
         )
         .encode(
             x=alt.X(f"{x_col}:O", axis=axis_x),

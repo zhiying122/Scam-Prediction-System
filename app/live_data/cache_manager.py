@@ -69,22 +69,41 @@ class CacheManager:
         """
         載入快取資料
 
-        優先從記憶體載入，記憶體為空時從磁碟載入。
+        優先記憶體；若磁碟快取較新（例如 API Gateway 程序已更新），
+        則同步覆蓋記憶體，避免跨程序不同步。
 
         Returns:
             快取資料，若無快取則回傳 None
         """
-        if self._memory_cache is not None:
-            if is_data_complete(self._memory_cache.data):
-                return self._memory_cache
-            logger.warning("記憶體快取不完整，改從磁碟重新載入")
-            self._memory_cache = None
         disk_data = self._load_from_disk()
         if disk_data is not None and is_data_complete(disk_data.data):
-            self._memory_cache = disk_data
-        elif disk_data is not None:
-            logger.warning("磁碟快取不完整，視為無快取")
-        return self._memory_cache
+            if self._memory_cache is None or not is_data_complete(self._memory_cache.data):
+                self._memory_cache = disk_data
+                return self._memory_cache
+
+            mem_at = self._memory_cache.cached_at
+            disk_at = disk_data.cached_at
+            if mem_at.tzinfo is None:
+                mem_at = mem_at.replace(tzinfo=timezone.utc)
+            if disk_at.tzinfo is None:
+                disk_at = disk_at.replace(tzinfo=timezone.utc)
+
+            if disk_at > mem_at:
+                logger.info(
+                    "偵測到較新的磁碟快取，同步至記憶體：來源='%s'",
+                    disk_data.source_name,
+                )
+                self._memory_cache = disk_data
+            return self._memory_cache
+
+        if disk_data is not None:
+            logger.warning("磁碟快取不完整，改用記憶體快取（若有）")
+
+        if self._memory_cache is not None and is_data_complete(self._memory_cache.data):
+            return self._memory_cache
+
+        self._memory_cache = None
+        return None
 
     def get_freshness_info(self) -> FreshnessInfo:
         """

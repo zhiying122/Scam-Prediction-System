@@ -57,20 +57,21 @@ from app.dashboard.auth import (
     get_current_user,
     render_user_bar,
     logout,
-    handle_browser_refresh_logout,
+    enforce_login_gate,
     install_browser_refresh_guard,
+    sync_auth_cookies,
+    build_page_href,
     USER_BAR_CSS,
 )
 
-# 瀏覽器 F5 刷新 → 下一輪強制登出（須在登入閘門之前）
-handle_browser_refresh_logout()
-
-# ── 登入閘門 ─────────────────────────────────────────────────────────────────
-if not is_authenticated():
+# ── 嚴格登入閘門：直接輸入網址／F5 必須重新登入；僅站內 _nav 連結可延續 ──
+if enforce_login_gate():
+    sync_auth_cookies()  # 清除殘留 auth cookie
     render_login_page()
     st.stop()
 
-# 已登入：僅 F5 reload 會觸發登出，站內 page 切換不影響
+# 已登入：寫入／延長 cookie；F5／重輸網址由 refresh guard 強制登出
+sync_auth_cookies()
 install_browser_refresh_guard()
 
 inject_css()
@@ -319,58 +320,10 @@ if _llm_ready:
 else:
     llm_status_html = '<span style="color:#fde68a;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
-# 登出按鈕：僅鎖定 key=btn_logout，避免 :first-of-type 誤傷其他按鈕造成重疊鬼影
+# 隱藏 Streamlit 預設 chrome；登出已併入 top-bar，不再用 fixed 按鈕
 inject_html("""
 <style>
 html, body, .stApp { translate: no; }
-div.st-key-btn_logout {
-    position: fixed !important;
-    top: 18px !important;
-    right: 20px !important;
-    z-index: 99999 !important;
-    width: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-div.st-key-btn_logout [data-testid="stButton"] {
-    margin: 0 !important;
-}
-div.st-key-btn_logout button,
-div.st-key-btn_logout [data-testid="stBaseButton-secondary"],
-div.st-key-btn_logout [data-testid="stBaseButton-secondary"] {
-    background: rgba(255,255,255,0.12) !important;
-    border: 1px solid rgba(255,255,255,0.35) !important;
-    box-shadow: none !important;
-    outline: none !important;
-    padding: 4px 12px !important;
-    border-radius: 6px !important;
-    min-height: 0 !important;
-    height: 28px !important;
-    transition: background 0.15s, border-color 0.15s !important;
-}
-div.st-key-btn_logout button::before,
-div.st-key-btn_logout button::after {
-    display: none !important;
-    content: none !important;
-}
-div.st-key-btn_logout button:hover {
-    background: rgba(239,68,68,0.25) !important;
-    border-color: rgba(252,165,165,0.55) !important;
-}
-div.st-key-btn_logout button p,
-div.st-key-btn_logout button span,
-div.st-key-btn_logout button div {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    font-size: 0.72rem !important;
-    font-weight: 600 !important;
-}
-div.st-key-btn_logout button:hover p,
-div.st-key-btn_logout button:hover span,
-div.st-key-btn_logout button:hover div {
-    color: #fecaca !important;
-    -webkit-text-fill-color: #fecaca !important;
-}
 </style>
 """)
 
@@ -379,8 +332,9 @@ nav_items_html = ""
 for _icon, _label, _key in NAV_ITEMS:
     _is_active = (page_key == _key)
     _active_cls = "nav-active" if _is_active else ""
+    _href = build_page_href(_key)
     nav_items_html += (
-        f'<a href="?page={_key}" target="_self" rel="noopener" '
+        f'<a href="{_href}" target="_self" rel="noopener" '
         f'class="nav-item {_active_cls}">{_label}</a>'
     )
 
@@ -419,24 +373,27 @@ try:
                 import threading
                 import time as _time
 
-                _debounce_sec = 1800  # 30 分鐘內不重複觸發
+                # 過期越久越積極：≥24h 立即可再觸發；否則 30 分鐘 debounce
+                _debounce_sec = 60 if _freshness_info.cache_age_hours >= 24 else 1800
                 _now = _time.time()
                 _last_trigger = st.session_state.get("_data_refresh_triggered_at", 0.0)
                 if _now - _last_trigger >= _debounce_sec:
                     st.session_state["_data_refresh_triggered_at"] = _now
 
                     def _trigger_data_refresh() -> None:
+                        api_ok = False
                         try:
                             resp = _requests.post(
                                 f"{_API_GATEWAY_URL.rstrip('/')}/v1/data/refresh",
                                 headers={"X-API-Key": _API_KEY},
                                 timeout=5,
                             )
-                            if resp.status_code == 202:
-                                return
+                            api_ok = resp.status_code == 202
                         except Exception:
-                            pass
-                        # API Gateway 未啟動時，直接在本機觸發排程擷取
+                            api_ok = False
+                        if api_ok:
+                            return
+                        # API Gateway 未啟動或失敗時，直接在本機觸發排程擷取
                         try:
                             from app.live_data import get_fetch_scheduler
 
@@ -447,9 +404,12 @@ try:
                     threading.Thread(
                         target=_trigger_data_refresh,
                         daemon=True,
+                        name="dashboard-data-refresh",
                     ).start()
             except Exception:
                 pass
+            # 背景更新後，再讀一次（若磁碟已被 API 寫入則立即反映）
+            _freshness_info = _live_mgr.get_freshness_info()
         _freshness_text = render_freshness_indicator(_freshness_info)
     else:
         _freshness_text = "顯示靜態預設資料"
@@ -516,7 +476,62 @@ inject_html(f"""
     color: rgba(255,255,255,0.92);
     flex-shrink: 0;
     margin-left: auto;
-    margin-right: 100px;
+    height: 64px;
+    max-width: min(720px, 62vw);
+}}
+.top-bar-status {{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+    line-height: 1.35;
+    text-align: right;
+}}
+.top-bar-status-row {{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    white-space: nowrap;
+}}
+.top-bar-divider {{
+    color: rgba(255,255,255,0.7);
+    flex-shrink: 0;
+}}
+.top-bar-user-wrap {{
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 168px;
+    max-width: 220px;
+}}
+.top-bar-logout {{
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 12px !important;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}}
+.top-bar-logout:hover {{
+    background: rgba(239,68,68,0.25) !important;
+    border-color: rgba(252,165,165,0.55);
+    color: #fecaca !important;
+    -webkit-text-fill-color: #fecaca !important;
+    text-decoration: none !important;
 }}
 .top-bar-right span {{
     color: inherit;
@@ -527,6 +542,15 @@ inject_html(f"""
     background: #86efac;
     display: inline-block;
     margin-right: 4px;
+}}
+.freshness-line {{
+    color: rgba(255,255,255,0.92) !important;
+    font-size: 0.65rem;
+    margin-top: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }}
 .nav-bar {{
     background: #166534;
@@ -582,7 +606,11 @@ section[data-testid="stSidebar"] {{
 .freshness-line {{
     color: rgba(255,255,255,0.92) !important;
     font-size: 0.65rem;
-    margin-top: 2px;
+    margin-top: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }}
 @keyframes soft-glow {{
     0%, 100% {{ opacity: 0.3; transform: scale(0.9); }}
@@ -633,7 +661,7 @@ section[data-testid="stMain"] > div {{
 st.markdown(f"""
 <div class="site-header" translate="no" lang="zh-Hant">
 <div class="top-bar">
-    <a href="?page=home" class="top-bar-logo" style="text-decoration:none;" target="_self">
+    <a href="{build_page_href('home')}" class="top-bar-logo" style="text-decoration:none;" target="_self">
         <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;flex-shrink:0;">
             <div style="position:absolute;width:36px;height:36px;border-radius:50%;
             background:radial-gradient(circle,rgba(91,192,222,0.35) 0%,rgba(91,192,222,0.1) 40%,transparent 70%);
@@ -646,16 +674,17 @@ st.markdown(f"""
         </div>
     </a>
     <div class="top-bar-right">
-        <div style="text-align:right;line-height:1.35;">
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;white-space:nowrap;">
+        <div class="top-bar-status">
+            <div class="top-bar-status-row">
                 <span><span class="status-dot"></span>系統運行中</span>
-                <span style="color:rgba(255,255,255,0.7);">|</span>
+                <span class="top-bar-divider">|</span>
                 {llm_status_html}
             </div>
             {_freshness_html}
         </div>
-        <span style="color:rgba(255,255,255,0.7);margin:0 4px;">|</span>
-        {_user_bar_html}
+        <span class="top-bar-divider">|</span>
+        <div class="top-bar-user-wrap">{_user_bar_html}</div>
+        <a href="?logout=1" class="top-bar-logout" target="_self" rel="noopener">登出</a>
     </div>
 </div>
 <div class="nav-bar">
@@ -664,20 +693,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── 登出按鈕（CSS 以 st-key-btn_logout 定位，不佔版面）───────────────────────
-if st.button("登出", key="btn_logout"):
-    logout()
-    st.query_params.clear()
-    st.session_state.pop("current_page", None)
-    st.rerun()
-
 # ── 麵包屑（非首頁才顯示）────────────────────────────────────────────────────
 if page_key != "home":
     _title, _desc = PAGE_TITLES.get(page_key, (page_key, ""))
     st.markdown(f"""
     <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
     font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
-        <a href="?page=home" style="color:#166534;text-decoration:none;">首頁</a>
+        <a href="{build_page_href('home')}" style="color:#166534;text-decoration:none;">首頁</a>
         <span style="color:#D1D5DB;">›</span>
         <span style="color:#374151;font-weight:500;">{_title}</span>
     </div>
@@ -2079,6 +2101,8 @@ elif page_key == "evaluation":
     st.markdown("---")
 
     # ── 月度趨勢圖 ────────────────────────────────────────────────────────────
+    from app.dashboard.page_views.charts import render_dark_line_chart
+
     st.subheader("台灣詐騙案件月度趨勢")
     st.caption("資料來源：內政部警政署 165 反詐騙諮詢專線統計")
     df_trend = pd.DataFrame(MONTHLY_TREND)
@@ -2086,10 +2110,10 @@ elif page_key == "evaluation":
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         st.markdown("**案件數趨勢**")
-        st.line_chart(df_trend["cases"])
+        render_dark_line_chart(df_trend["cases"])
     with col_t2:
         st.markdown("**損失金額趨勢（億元）**")
-        st.line_chart(df_trend["amount_billion"])
+        render_dark_line_chart(df_trend["amount_billion"])
 
     st.markdown("---")
 

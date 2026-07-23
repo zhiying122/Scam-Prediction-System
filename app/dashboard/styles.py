@@ -102,9 +102,14 @@ section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div >
 /* Streamlit 1.58+ 使用 data-testid="stBaseButton-primary"，舊版使用 kind="primary" */
 .stButton > button[data-testid="stBaseButton-primary"],
 button[data-testid="stBaseButton-primary"],
-.stButton > button[kind="primary"] {
+.stButton > button[kind="primary"],
+.stForm button[kind="primary"],
+.stForm button[data-testid="stBaseButton-primary"],
+.stForm [data-testid="stFormSubmitButton"] button,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button {
     background: #166534 !important;
     color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     border: none !important;
     border-radius: 6px !important;
     font-weight: 600 !important;
@@ -120,15 +125,34 @@ button[data-testid="stBaseButton-primary"] span,
 button[data-testid="stBaseButton-primary"] div,
 .stButton > button[kind="primary"] p,
 .stButton > button[kind="primary"] span,
-.stButton > button[kind="primary"] div {
+.stButton > button[kind="primary"] div,
+.stForm button[kind="primary"] p,
+.stForm button[kind="primary"] span,
+.stForm button[kind="primary"] div,
+.stForm button[data-testid="stBaseButton-primary"] p,
+.stForm button[data-testid="stBaseButton-primary"] span,
+.stForm button[data-testid="stBaseButton-primary"] div,
+.stForm [data-testid="stFormSubmitButton"] button p,
+.stForm [data-testid="stFormSubmitButton"] button span,
+.stForm [data-testid="stFormSubmitButton"] button div,
+.stForm [data-testid="stFormSubmitButton"] [data-testid="stMarkdownContainer"] p,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button span,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button div,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] [data-testid="stMarkdownContainer"] p {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
 }
 .stButton > button[data-testid="stBaseButton-primary"]:hover,
 button[data-testid="stBaseButton-primary"]:hover,
-.stButton > button[kind="primary"]:hover {
+.stButton > button[kind="primary"]:hover,
+.stForm button[kind="primary"]:hover,
+.stForm button[data-testid="stBaseButton-primary"]:hover,
+.stForm [data-testid="stFormSubmitButton"] button:hover,
+div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button:hover {
     background: #14532d !important;
     color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 .stButton > button[data-testid="stBaseButton-secondary"],
 .stButton > button[data-testid="stBaseButton-tertiary"],
@@ -202,8 +226,7 @@ button[data-testid="stBaseButton-primary"]:disabled div,
 
 /* ── 輸入框 ──────────────────────────────────────────────────────────────── */
 .stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stSelectbox > div > div > div {
+.stTextArea > div > div > textarea {
     background: white !important;
     border: 1px solid #D1D5DB !important;
     border-radius: 6px !important;
@@ -247,6 +270,7 @@ button[data-testid="stBaseButton-primary"]:disabled div,
 }
 .stTextInput [data-baseweb="input"] {
     background: #ffffff !important;
+    border: 1px solid #D1D5DB !important;
     border-color: #D1D5DB !important;
     border-radius: 6px !important;
 }
@@ -435,7 +459,7 @@ hr { border-color: #E5E7EB !important; margin: 1rem 0 !important; }
 /* ── Form / Label 文字確保可見 ───────────────────────────────────────────── */
 .stForm {
     background: white !important;
-    border: 1px solid #E5E7EB !important;
+    border: 1px solid #9CA3AF !important;
     border-radius: 10px !important;
     padding: 16px !important;
 }
@@ -450,9 +474,9 @@ label, .stTextInput label, .stTextArea label,
     font-weight: 500 !important;
     font-size: 0.875rem !important;
 }
-/* Selectbox 選項文字 */
+/* Selectbox 選項文字（勿對所有 div 設樣式，以免蓋掉外框） */
 .stSelectbox [data-baseweb="select"] span,
-.stSelectbox [data-baseweb="select"] div {
+.stMultiSelect [data-baseweb="select"] span {
     color: #1a2332 !important;
 }
 /* Radio button label */
@@ -687,7 +711,101 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
 }
 .neon-text { color: #166534; font-weight: 600; }
 .neon-red { color: #DC2626; font-weight: 600; }
+
+/* ── Selectbox / Multiselect 外框（置於最後以提高優先級）──────────────────── */
+/* Streamlit 1.58：Baseweb 常用 inset box-shadow 當邊框；不可設 box-shadow:none */
+.stSelectbox [data-baseweb="select"],
+.stMultiSelect [data-baseweb="select"],
+div[data-baseweb="select"] {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #6B7280 !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1px #6B7280 !important;
+    min-height: 40px !important;
+}
+.stSelectbox [data-baseweb="select"] > div,
+.stMultiSelect [data-baseweb="select"] > div,
+div[data-baseweb="select"] > div {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #6B7280 !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 0 0 1px #6B7280 !important;
+    min-height: 38px !important;
+}
+/* 控制列（label 下方的實際選單列） */
+.stSelectbox > div:not(:first-child),
+.stMultiSelect > div:not(:first-child) {
+    border: 1.5px solid #6B7280 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: inset 0 0 0 1px #6B7280 !important;
+}
+.stForm .stSelectbox > div:not(:first-child),
+.stForm .stMultiSelect > div:not(:first-child),
+.stForm div[data-baseweb="select"],
+.stForm div[data-baseweb="select"] > div {
+    border: 1.5px solid #6B7280 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: inset 0 0 0 1px #6B7280 !important;
+}
+.stSelectbox [data-baseweb="select"]:hover,
+.stSelectbox [data-baseweb="select"]:hover > div,
+.stSelectbox > div:not(:first-child):hover,
+.stForm .stSelectbox > div:not(:first-child):hover {
+    border-color: #374151 !important;
+    box-shadow: inset 0 0 0 1px #374151 !important;
+}
+.stSelectbox [data-baseweb="select"]:focus-within,
+.stSelectbox [data-baseweb="select"]:focus-within > div,
+.stSelectbox > div:not(:first-child):focus-within {
+    border-color: #166534 !important;
+    box-shadow: inset 0 0 0 1px #166534, 0 0 0 2px rgba(22,101,52,0.15) !important;
+}
 </style>
+"""
+
+# 下拉選單外框：經由父頁 head 注入，避免 st.html DOMPurify 剝除屬性選擇器
+_SELECTBOX_BORDER_CSS = """
+.stSelectbox [data-baseweb="select"],
+.stMultiSelect [data-baseweb="select"],
+div[data-baseweb="select"] {
+  background: #ffffff !important;
+  border: 1.5px solid #6B7280 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1px #6B7280 !important;
+  min-height: 40px !important;
+}
+.stSelectbox [data-baseweb="select"] > div,
+.stMultiSelect [data-baseweb="select"] > div,
+div[data-baseweb="select"] > div {
+  background: #ffffff !important;
+  border: 1.5px solid #6B7280 !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1px #6B7280 !important;
+  min-height: 38px !important;
+}
+.stSelectbox > div:not(:first-child),
+.stMultiSelect > div:not(:first-child),
+.stForm .stSelectbox > div:not(:first-child),
+.stForm .stMultiSelect > div:not(:first-child) {
+  border: 1.5px solid #6B7280 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 1px #6B7280 !important;
+}
+.stSelectbox div[role="combobox"],
+.stForm .stSelectbox div[role="combobox"],
+.stSelectbox div[role="button"],
+.stForm .stSelectbox div[role="button"] {
+  border: 1.5px solid #6B7280 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: inset 0 0 0 1px #6B7280 !important;
+  min-height: 38px !important;
+}
 """
 
 
@@ -697,8 +815,39 @@ def inject_html(html: str) -> None:
     st.html(html)
 
 
+def _inject_selectbox_border_into_parent() -> None:
+    """把下拉選單邊框 CSS 寫進父頁 head（繞過 st.html 過濾）。"""
+    import streamlit.components.v1 as components
+
+    css = _SELECTBOX_BORDER_CSS.replace("\\", "\\\\").replace("`", "\\`")
+    components.html(
+        f"""
+        <script>
+        (function () {{
+          const id = "scamdna-selectbox-border-css";
+          let doc;
+          try {{ doc = window.top.document; }} catch (e) {{
+            try {{ doc = window.parent.document; }} catch (e2) {{ return; }}
+          }}
+          if (!doc || !doc.head) return;
+          let el = doc.getElementById(id);
+          if (!el) {{
+            el = doc.createElement("style");
+            el.id = id;
+            doc.head.appendChild(el);
+          }}
+          el.textContent = `{css}`;
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def inject_css() -> None:
     inject_html(GLOBAL_CSS)
+    _inject_selectbox_border_into_parent()
 
 
 def card(content: str, glow: bool = False) -> str:
