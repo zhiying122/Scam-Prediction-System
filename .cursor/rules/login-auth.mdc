@@ -1,0 +1,53 @@
+---
+description: 登入頁帳密與輸入欄變更規範（避免更新後無法輸入或登入）
+globs: app/dashboard/auth.py,app/dashboard/streamlit_app.py,app/dashboard/styles.py
+alwaysApply: false
+---
+
+# 登入帳密與輸入欄規範
+
+## 本機專用管理員（不進 Git、不顯示於前端）
+
+- 個人帳號**只能**寫在本機 `.env` 或 `.env.local` 的 `DASHBOARD_LOCAL_ADMINS`（建議用 `.env.local`）
+- 格式：`帳號:密碼` 或 `帳號:密碼:顯示名稱`，多組以逗號分隔
+- **禁止**寫入 `auth.py`、`streamlit_app.py`、登入頁 HTML、README、測試固定字串
+- `demo_credentials_hint()` 只顯示 Demo 帳號，不得包含本機帳號
+
+## 單一來源（SSOT）
+
+- Demo／內建帳號**只能**定義在 `app/dashboard/auth.py` 的 `DEMO_USERNAME`、`DEMO_PASSWORD`
+- 其他檔案必須 `from app.dashboard.auth import DEMO_USERNAME, DEMO_PASSWORD`（或 `demo_credentials_hint()`）
+- **禁止**在 `streamlit_app.py`、README、HTML 字串中硬編碼 `Aegis@2026` 等密碼
+
+## 更新帳密流程
+
+1. 只修改 `auth.py` 的 `DEMO_PASSWORD`（必要時改 `DEMO_USERNAME`）
+2. `_sync_builtin_admin()` 會自動同步 session 內 admin 雜湊，**不必**手動清瀏覽器
+3. 執行 `pytest tests/test_auth_dashboard.py` 確認通過
+4. 若改密碼，同步更新 README 登入表格（文件用，非程式邏輯）
+
+## 登入頁輸入欄 CSS 禁則
+
+修改 `auth.py` 的 `_LOGIN_CSS` 時**不可**：
+
+- 對 `input` / `textarea` 使用 `opacity: 0`、`pointer-events: none`（密碼顯示鈕除外）
+- 對表單容器使用 `overflow: hidden` 裁切輸入區
+- 移除「登入輸入契約」區塊（`pointer-events: auto`、`opacity: 1`、`cursor: text`）
+- 在登入失敗後加入 `time.sleep()` 阻塞互動
+
+## 全域樣式隔離
+
+- `inject_css()`（`styles.py`）必須在 `streamlit_app.py` 的登入閘門 **`st.stop()` 之後**呼叫
+- 勿在 `styles.py` 用無範圍選擇器覆蓋 `div[data-testid="stForm"] .stTextInput`
+
+## 表單行為
+
+- 登入／註冊表單使用 `clear_on_submit=False`，避免送出後清空導致重試困難
+- widget key 固定：`login_username`、`login_password`（勿隨意更名）
+
+## 檢查清單（變更 auth 相關程式後）
+
+- [ ] 帳密僅來自 `DEMO_*` 常數
+- [ ] 登入頁可輸入帳號、密碼並聚焦
+- [ ] Demo 提示與常數一致
+- [ ] `pytest tests/test_auth_dashboard.py` 通過

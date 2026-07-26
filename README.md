@@ -25,21 +25,22 @@
 
 ## 快速開始
 
-```bash
-# 1. 建立虛擬環境並安裝依賴
+```powershell
+# 1. 建立虛擬環境並安裝依賴（建議 Python 3.11–3.13）
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.venv\Scripts\activate
 pip install -r requirements.txt
 
 # 2. 設定環境變數
-cp .env.example .env
+copy .env.example .env
 # 編輯 .env：設定 LLM_PROVIDER 與 API_KEY
+# 個人 Dashboard 帳號可寫在 .env.local 的 DASHBOARD_LOCAL_ADMINS
 
-# 3. 啟動後端 API Gateway（終端機 1）
-python -m uvicorn app.api_gateway.main:app --host 0.0.0.0 --port 8001
+# 3. 一鍵啟動（Docker → API :8001 → Dashboard :8502）
+.\scripts\start-dev.ps1
 
-# 4. 啟動前端 Dashboard（終端機 2）
-python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
+# 停止本機 API / Dashboard（可加 -AlsoDocker 一併停容器）
+.\scripts\stop-dev.ps1
 ```
 
 | 服務 | 網址 |
@@ -156,9 +157,9 @@ assert sum(TAIWAN_SCAM_CASES_BY_REGION.values()) == ANNUAL_STATS[2026]["total_ca
 
 | 項目 | 版本 |
 |------|------|
-| Python | 3.11 以上 |
+| Python | 3.11 以上（建議 3.11–3.13；3.14 需 `dev_shims`） |
 | 作業系統 | Windows / macOS / Linux |
-| Docker Desktop | 最新版（可選，基礎設施尚未接入） |
+| Docker Desktop | 最新版（本機完整啟動建議必備：Postgres / Redis / Qdrant） |
 | Ollama | 最新版（使用本地 LLM 時） |
 
 ### 步驟 1：建立虛擬環境
@@ -216,28 +217,34 @@ API_GATEWAY_URL=http://localhost:8001
 
 ## 啟動服務
 
-開兩個終端機：
+### 建議：一鍵腳本（Windows）
 
-### 終端機 1 — API Gateway（port 8001）
+```powershell
+.\scripts\start-dev.ps1              # Docker → API → Dashboard，並做健康檢查
+.\scripts\stop-dev.ps1               # 停止 API / Dashboard
+.\scripts\stop-dev.ps1 -AlsoDocker   # 連同 docker compose stop
+.\scripts\start-dev.ps1 -SkipDocker  # 僅啟動前後端（容器已在跑時）
+```
 
-```bash
+正確順序：**Docker Desktop → `docker compose` → API `:8001` → Dashboard `:8502`**。  
+日誌與 PID 寫在 `.dev/`（已 gitignore）。若使用 Python 3.14，腳本會自動帶入 `dev_shims`（`uuid_utils` 相容 shim）。
+
+### 手動啟動（進階）
+
+```powershell
+docker compose up -d
+
+# 終端機 1 — API Gateway
+$env:PYTHONPATH = "$PWD\dev_shims"   # 僅 Python 3.14 需要
 python -m uvicorn app.api_gateway.main:app --host 0.0.0.0 --port 8001
-```
 
-啟動成功訊息：
-```
-INFO | API Gateway 啟動中 | 環境: development | 版本: 1.0.0
-INFO | 預測分析排程器已啟動
-INFO | 即時資料擷取排程器已啟動
-```
-
-### 終端機 2 — Dashboard（port 8502）
-
-```bash
+# 終端機 2 — Dashboard
 python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
 ```
 
-瀏覽器開啟 http://localhost:8502
+啟動成功後確認：
+- http://localhost:8001/v1/health → `"status":"healthy"`
+- 瀏覽器開啟 http://localhost:8502
 
 ---
 

@@ -47,9 +47,16 @@ coverage.xml
 # 日誌
 *.log
 
+# 本機啟動腳本執行狀態（PID / 重導向 log）
+.dev/
+
 # 模型快取（sentence-transformers 下載的模型，僅排除 repo 根目錄）
 /models/
 
 # 系統自動產生的快取（不應納入版本控制）
 data/live_cache.json
 data/timeline_cache.json
+
+# Streamlit ��������
+.streamlit/credentials.toml
+

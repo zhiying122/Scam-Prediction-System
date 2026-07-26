@@ -141,6 +141,7 @@ def analyze_user_response(user_text: str, scenario: str) -> dict[str, Any]:
         "掛斷", "不相信", "詐騙", "假的", "報警", "165",
         "不轉帳", "不提供", "確認", "官方電話", "家人",
         "不對", "懷疑", "奇怪", "不可能", "查證",
+        "不會打電話", "銀行不會", "自己打", "官方客服",
     ]
 
     resistance_score = sum(1 for kw in resistance_keywords if kw in user_text)

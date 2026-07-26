@@ -836,7 +836,7 @@ if page_key == "home":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "llm_demo":
     st.title("LLM 話術生成 Demo")
-    st.markdown("輸入基礎詐騙情境，呼叫 LLM 生成多種變形話術，並即時進行 XAI 分析。")
+    st.markdown("選擇基礎詐騙情境，呼叫 LLM 生成多種變形話術，並即時進行 XAI 分析。")
 
     import json
     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
@@ -850,20 +850,35 @@ elif page_key == "llm_demo":
         "情緒勒索": "#721c24", "權威偽裝": "#004085", "利益誘導": "#4a235a",
     }
 
+    # 預設情境（與模擬器常見類型對齊，供 Demo 快速切換）
+    LLM_DEMO_SCENARIOS = [
+        "假冒銀行客服，聲稱帳戶出現異常交易",
+        "假冒電信業者，聲稱未繳電話費",
+        "投資詐騙，宣稱穩賺不賠的內部消息",
+        "假冒檢警，聲稱帳戶涉案需配合調查",
+        "愛情／交友詐騙，誘導匯款或投資",
+    ]
+    _CUSTOM_SCENARIO_LABEL = "其他（自行輸入）"
+
     has_api_key = bool(st.session_state.get("openai_api_key"))
     _current_provider = st.session_state.get("llm_provider", "openai")
     if not has_api_key:
         st.warning("未偵測到 LLM 設定，將使用示範資料。請在 .env 設定 LLM_PROVIDER，並確認 API Gateway 已啟動。")
 
-    if "llm_scenario" not in st.session_state:
-        st.session_state.llm_scenario = "假冒銀行客服，聲稱帳戶出現異常交易"
-
-    scenario = st.text_area(
+    selected_scenario = st.selectbox(
         "詐騙情境描述",
-        height=100,
-        key="llm_scenario",
-        placeholder="請輸入基礎詐騙情境，例如：假冒銀行客服，聲稱帳戶出現異常交易",
+        options=LLM_DEMO_SCENARIOS + [_CUSTOM_SCENARIO_LABEL],
+        key="llm_scenario_choice",
     )
+    if selected_scenario == _CUSTOM_SCENARIO_LABEL:
+        scenario = st.text_area(
+            "自訂情境",
+            height=100,
+            key="llm_scenario_custom",
+            placeholder="請輸入基礎詐騙情境，例如：假冒物流簡訊，聲稱包裹卡關需補運費",
+        ).strip()
+    else:
+        scenario = selected_scenario
 
     col1, col2 = st.columns(2)
     with col1:
@@ -880,7 +895,9 @@ elif page_key == "llm_demo":
 
     if submitted:
         samples = []
-        if has_api_key:
+        if not scenario:
+            st.error("請選擇情境，或在「其他」中輸入自訂情境描述。")
+        elif has_api_key:
             _generate_timeout = _llm_generate_timeout_seconds()
             with st.spinner(
                 f"正在透過 API Gateway 呼叫 {_current_provider.capitalize()} 生成話術"
@@ -1098,10 +1115,13 @@ elif page_key == "simulator":
     # 初始化 session
     if "sim_session" not in st.session_state:
         st.session_state["sim_session"] = None
+    if "sim_awaiting_reply" not in st.session_state:
+        st.session_state["sim_awaiting_reply"] = False
 
     sim: SimulatorSession | None = st.session_state["sim_session"]
 
-    if sim is None or sim.is_ended:
+    # 進行中若正在等 LLM，即使 is_ended 也不跳回設定頁（避免狀態競態）
+    if sim is None or (sim.is_ended and not st.session_state.get("sim_awaiting_reply")):
         # 設定畫面
         st.subheader("選擇詐騙情境")
         scenario = st.selectbox("詐騙類型", list(SIMULATOR_SCENARIOS.keys()))
@@ -1123,6 +1143,7 @@ elif page_key == "simulator":
             opening = info["opening"].replace("{name}", "您")
             new_sim.add_message("assistant", opening)
             st.session_state["sim_session"] = new_sim
+            st.session_state["sim_awaiting_reply"] = False
             st.rerun()
 
     else:
@@ -1190,34 +1211,14 @@ elif page_key == "simulator":
                 """, unsafe_allow_html=True)
 
         # 輸入區
-        if not sim.is_ended:
+        # 兩段式送出：先 rerun 顯示使用者訊息，再呼叫 LLM，避免長時間無 UI 回饋與連點。
+        awaiting_reply = bool(st.session_state.get("sim_awaiting_reply"))
+
+        if awaiting_reply and not sim.is_ended:
             st.markdown("---")
-            user_input = st.text_input(
-                "你的回應",
-                placeholder="輸入你的回應...",
-                key=f"sim_input_{sim.turn_count}",
-            )
-
-            col_btn1, col_btn2 = st.columns([3, 1])
-            with col_btn1:
-                send = st.button("發送", type="primary", use_container_width=True)
-            with col_btn2:
-                if st.button("結束", use_container_width=True):
-                    sim.is_ended = True
-                    sim.end_reason = "escaped"
-                    st.rerun()
-
-            if send and user_input.strip():
-                sim.add_message("user", user_input)
-
-                # 分析用戶回應
-                analysis = analyze_user_response(user_input, sim.scenario)
-                if analysis["is_resisting"]:
-                    sim.user_resistance_score += analysis["resistance_score"]
-
-                # 呼叫後端 API 生成詐騙犯回應
-                if sim.turn_count < 8:
-                    try:
+            with st.spinner("詐騙犯正在回覆，請稍候…"):
+                try:
+                    if sim.turn_count < 8:
                         messages = build_simulator_prompt(sim.scenario, sim.messages)
                         api_result = _call_api_gateway(
                             "/v1/scam/simulator",
@@ -1225,21 +1226,63 @@ elif page_key == "simulator":
                             timeout=_llm_generate_timeout_seconds(),
                         )
                         if api_result.get("error"):
-                            sim.add_message("assistant", "（系統錯誤：未取得有效回應，請稍後再試）")
+                            sim.add_message(
+                                "assistant",
+                                "（系統錯誤：未取得有效回應，請稍後再試）",
+                            )
                             st.error(f"模擬器回應失敗：{api_result['error']}")
                         else:
-                            scammer_reply = api_result.get("reply", "")
+                            scammer_reply = (api_result.get("reply") or "").strip()
                             if not scammer_reply:
                                 sim.add_message("assistant", "（系統錯誤：回應內容為空）")
                             else:
                                 sim.add_message("assistant", scammer_reply)
-                    except Exception:
-                        sim.add_message("assistant", "（系統錯誤，請重試）")
-                elif sim.turn_count >= 8:
-                    sim.is_ended = True
-                    sim.end_reason = "escaped" if sim.user_resistance_score >= 3 else "caught"
+                    else:
+                        sim.is_ended = True
+                        sim.end_reason = (
+                            "escaped" if sim.user_resistance_score >= 3 else "caught"
+                        )
+                except Exception as exc:
+                    sim.add_message("assistant", f"（系統錯誤，請重試：{exc}）")
+                finally:
+                    st.session_state["sim_awaiting_reply"] = False
+                    st.session_state["sim_session"] = sim
+            st.rerun()
 
+        elif not sim.is_ended:
+            st.markdown("---")
+            with st.form("sim_chat_form", clear_on_submit=True):
+                user_input = st.text_input(
+                    "你的回應",
+                    placeholder="輸入你的回應...",
+                )
+                col_btn1, col_btn2 = st.columns([3, 1])
+                with col_btn1:
+                    send = st.form_submit_button(
+                        "發送", type="primary", use_container_width=True
+                    )
+                with col_btn2:
+                    end = st.form_submit_button("結束", use_container_width=True)
+
+            if end:
+                sim.is_ended = True
+                sim.end_reason = "escaped"
+                st.session_state["sim_awaiting_reply"] = False
+                st.session_state["sim_session"] = sim
                 st.rerun()
+
+            if send:
+                text = (user_input or "").strip()
+                if not text:
+                    st.warning("請先輸入回應再發送。")
+                else:
+                    sim.add_message("user", text)
+                    analysis = analyze_user_response(text, sim.scenario)
+                    if analysis["is_resisting"]:
+                        sim.user_resistance_score += analysis["resistance_score"]
+                    st.session_state["sim_session"] = sim
+                    st.session_state["sim_awaiting_reply"] = True
+                    st.rerun()
 
         else:
             # 結束畫面
@@ -1258,6 +1301,7 @@ elif page_key == "simulator":
 
             if st.button("再試一次", type="primary"):
                 st.session_state["sim_session"] = None
+                st.session_state["sim_awaiting_reply"] = False
                 st.rerun()
 
 

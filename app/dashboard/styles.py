@@ -1,5 +1,5 @@
 """
-ScamOracle 全域 CSS — 專業商務風
+ScamDNA 全域 CSS — 專業商務風
 參考：ceogo.com.tw 風格
 - 深綠頂部導覽列（logo 左、選單中、狀態右）
 - 米白/白色主體，無多餘空白

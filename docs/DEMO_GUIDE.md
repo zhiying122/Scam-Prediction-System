@@ -17,34 +17,38 @@
 
 ## 啟動步驟
 
-### 1. 啟動後端服務（Docker，可選）
+建議用專案腳本一次拉起（Docker → API → Dashboard）：
 
-> PostgreSQL / Redis / Qdrant 容器為預先配置的基礎設施 scaffold，**應用程式目前尚未接入**。本地 Demo 可直接啟動 API 與 Dashboard，無需先啟動 Docker。
-
-```bash
-# 僅在需要預先啟動基礎設施容器時執行
-docker-compose up -d
-
-# 確認服務狀態
-docker-compose ps
+```powershell
+.\scripts\start-dev.ps1
 ```
 
-### 2. 啟動 API Server（可選）
+| 服務 | 網址 |
+|------|------|
+| Dashboard | http://localhost:8502 |
+| API 文件 | http://localhost:8001/docs |
+| 健康檢查 | http://localhost:8001/v1/health |
 
-```bash
-# 若需要展示 API 端點
-uvicorn app.api_gateway.main:app --reload --port 8001
+停止：
+
+```powershell
+.\scripts\stop-dev.ps1
+# 或連同容器：.\scripts\stop-dev.ps1 -AlsoDocker
 ```
 
-API 文件：http://localhost:8001/docs
+### 手動步驟（進階）
 
-### 3. 啟動 Streamlit 儀表板
+```powershell
+# 1. 基礎設施
+docker compose up -d
+docker compose ps
 
-```bash
-streamlit run app/dashboard/streamlit_app.py
+# 2. API Gateway
+python -m uvicorn app.api_gateway.main:app --host 0.0.0.0 --port 8001
+
+# 3. Dashboard
+python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
 ```
-
-瀏覽器自動開啟：http://localhost:8501
 
 ---
 
