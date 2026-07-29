@@ -756,18 +756,52 @@ section[data-testid="stMain"] div[data-testid="stVerticalBlockBorderWrapper"]:ha
   background: #ffffff !important;
   border: 1.5px solid #166534 !important;
   border-radius: 14px !important;
-  padding: 1.5rem 1.35rem 1.3rem !important;
+  padding: 1.1rem 1.2rem 1.15rem !important;
   box-sizing: border-box !important;
   box-shadow: 0 10px 28px rgba(22,101,52,0.10) !important;
   max-width: 320px !important;
   width: 100% !important;
   margin: 0 auto !important;
   text-align: left !important;
+  gap: 0.2rem !important;
   animation: scamdnaEmbedIn 0.55s ease-out both !important;
+}
+/* 卡片內、標題上方的空 iframe／style 殼層壓扁 */
+section[data-testid="stMain"] div[data-testid="stVerticalBlock"]:has(.scamdna-panel-head) > div:not(:has(.scamdna-panel-head)):not(:has(.stTabs)):not(:has(.stForm)):not(:has([data-testid="stForm"])) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+.scamdna-panel-head {
+  margin: 0 0 0.1rem !important;
+  padding: 0 !important;
+}
+.stTabs {
+  margin-top: 0.15rem !important;
+  width: 100% !important;
+}
+.stTabs [data-baseweb="tab-list"] {
+  justify-content: flex-start !important;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+.stTabs [data-baseweb="tab"] {
+  padding: 8px 14px 8px 0 !important;
+}
+.stTabs [data-baseweb="tab-panel"] {
+  padding-top: 0.35rem !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 .stTabs, .stForm, .stForm label, .stForm .stTextInput {
   text-align: left !important;
   width: 100% !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
 }
 div[data-testid="stForm"], .stForm {
   background: transparent !important;
@@ -778,18 +812,36 @@ div[data-testid="stForm"], .stForm {
   max-width: 100% !important;
   margin: 0 !important;
 }
+/* 隱藏 Press Enter to submit form 浮層 */
+[data-testid="InputInstructions"],
+.stForm [data-testid="InputInstructions"],
+div[data-testid="stTextInput"] [data-testid="InputInstructions"] {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 .stForm .stTextInput,
+.stForm [data-testid="stWidgetLabel"],
 .stForm [data-testid="stFormSubmitButton"],
-.stForm [data-testid="stFormSubmitButton"] > button {
+.stForm [data-testid="stFormSubmitButton"] > button,
+.stForm [data-testid="stElementContainer"],
+.stForm [data-testid="element-container"] {
   width: 100% !important;
   max-width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 .stForm .stTextInput > div:last-child,
 .stForm .stTextInput [data-baseweb="input"],
 .stForm .stTextInput [data-baseweb="base-input"] {
   width: 100% !important;
+  margin-left: 0 !important;
   background: #ffffff !important;
   border: 1.5px solid #9CA3AF !important;
   border-radius: 8px !important;
@@ -820,6 +872,7 @@ div[data-testid="stForm"], .stForm {
   border: none !important;
   border-radius: 8px !important;
   width: 100% !important;
+  margin-left: 0 !important;
 }
 #scamdna-login-left.scamdna-split-left,
 .scamdna-split-left {
@@ -1045,6 +1098,48 @@ def _inject_login_shell() -> None:
           wrap.innerHTML = `{html}`;
           const panel = wrap.firstElementChild;
           if (panel) doc.body.appendChild(panel);
+
+          function collapseCardTopGap() {{
+            const head = doc.querySelector(".scamdna-panel-head");
+            if (!head) return;
+            let node = head;
+            while (node && node.parentElement) {{
+              const parent = node.parentElement;
+              const kids = Array.from(parent.children || []);
+              const idx = kids.indexOf(node);
+              for (let i = 0; i < idx; i++) {{
+                const prev = kids[i];
+                if (!prev) continue;
+                const text = (prev.innerText || "").trim();
+                const hasUseful = prev.querySelector && (
+                  prev.querySelector(".stTabs") ||
+                  prev.querySelector(".stForm") ||
+                  prev.querySelector('[data-testid="stForm"]') ||
+                  prev.querySelector(".scamdna-panel-head")
+                );
+                if (!hasUseful && (!text || prev.querySelector("iframe, style"))) {{
+                  prev.style.setProperty("height", "0", "important");
+                  prev.style.setProperty("min-height", "0", "important");
+                  prev.style.setProperty("max-height", "0", "important");
+                  prev.style.setProperty("margin", "0", "important");
+                  prev.style.setProperty("padding", "0", "important");
+                  prev.style.setProperty("overflow", "hidden", "important");
+                  prev.style.setProperty("border", "none", "important");
+                }}
+              }}
+              const tid = parent.getAttribute && parent.getAttribute("data-testid");
+              if (tid === "stVerticalBlock" || tid === "stVerticalBlockBorderWrapper") break;
+              node = parent;
+            }}
+            doc.querySelectorAll('[data-testid="InputInstructions"]').forEach(function (el) {{
+              el.style.setProperty("display", "none", "important");
+              el.style.setProperty("visibility", "hidden", "important");
+            }});
+          }}
+          collapseCardTopGap();
+          setTimeout(collapseCardTopGap, 50);
+          setTimeout(collapseCardTopGap, 200);
+          setTimeout(collapseCardTopGap, 500);
         }})();
         </script>
         """,
@@ -1054,7 +1149,7 @@ def _inject_login_shell() -> None:
 
 
 def clear_login_shell() -> None:
-    """登入成功後移除父頁左牆與登入專用 CSS，避免殘留到 Dashboard。"""
+    """登入成功後移除父頁左牆與登入專用 CSS，並恢復頁面可捲動。"""
     import streamlit.components.v1 as components
 
     components.html(
@@ -1070,6 +1165,74 @@ def clear_login_shell() -> None:
           if (panel) panel.remove();
           const style = doc.getElementById("scamdna-login-parent-css");
           if (style) style.remove();
+
+          // 登入頁曾鎖住 overflow / 100vh，這裡強制恢復 Dashboard 可下拉
+          const unlock = doc.getElementById("scamdna-scroll-unlock-css");
+          const cssText = `
+            html, body, .stApp {
+              overflow: visible !important;
+              overflow-x: hidden !important;
+              overflow-y: auto !important;
+              height: auto !important;
+              max-height: none !important;
+            }
+            [data-testid="stAppViewContainer"],
+            .stAppViewContainer,
+            section[data-testid="stMain"],
+            .main,
+            .main .block-container,
+            div[data-testid="stMainBlockContainer"],
+            .stMainBlockContainer {
+              overflow: visible !important;
+              overflow-y: visible !important;
+              height: auto !important;
+              max-height: none !important;
+              min-height: 0 !important;
+            }
+            .stApp, [data-testid="stAppViewContainer"] {
+              min-height: 100vh !important;
+            }
+          `;
+          let el = unlock;
+          if (!el) {
+            el = doc.createElement("style");
+            el.id = "scamdna-scroll-unlock-css";
+            doc.head.appendChild(el);
+          }
+          el.textContent = cssText;
+
+          [doc.documentElement, doc.body].forEach(function (n) {
+            if (!n || !n.style) return;
+            n.style.removeProperty("overflow");
+            n.style.removeProperty("overflow-x");
+            n.style.removeProperty("overflow-y");
+            n.style.removeProperty("height");
+            n.style.removeProperty("max-height");
+            n.style.setProperty("overflow-y", "auto", "important");
+            n.style.setProperty("height", "auto", "important");
+          });
+
+          // 清掉登入頁對主容器的 60%/100vh 佈局殘留
+          doc.querySelectorAll(
+            '.main .block-container, div[data-testid="stMainBlockContainer"], .stMainBlockContainer'
+          ).forEach(function (m) {
+            if (!m || !m.style) return;
+            ["height", "min-height", "max-height", "overflow", "margin-left",
+             "width", "max-width", "display", "justify-content", "align-items"].forEach(function (p) {
+              m.style.removeProperty(p);
+            });
+            m.style.setProperty("height", "auto", "important");
+            m.style.setProperty("max-height", "none", "important");
+            m.style.setProperty("overflow-x", "hidden", "important");
+            m.style.setProperty("overflow-y", "visible", "important");
+            m.style.setProperty("margin-left", "auto", "important");
+            m.style.setProperty("margin-right", "auto", "important");
+            m.style.setProperty("width", "100%", "important");
+            m.style.setProperty("max-width", "1400px", "important");
+            m.style.setProperty("padding-left", "32px", "important");
+            m.style.setProperty("padding-right", "32px", "important");
+            m.style.setProperty("box-sizing", "border-box", "important");
+          });
         })();
         </script>
         """,
@@ -1080,7 +1243,7 @@ def clear_login_shell() -> None:
 
 def _render_login_form() -> None:
     """渲染登入表單"""
-    with st.form("login_form", clear_on_submit=False):
+    with st.form("login_form", clear_on_submit=False, border=False):
         username = st.text_input(
             "帳號",
             placeholder="請輸入帳號",
@@ -1108,7 +1271,7 @@ def _render_login_form() -> None:
 
 def _render_register_form() -> None:
     """渲染註冊表單"""
-    with st.form("register_form", clear_on_submit=False):
+    with st.form("register_form", clear_on_submit=False, border=False):
         new_username = st.text_input(
             "帳號",
             placeholder="英文字母、數字、底線（3-20 字元）",
@@ -1238,7 +1401,8 @@ header, .stAppHeader, #MainMenu, footer {
 .scamdna-panel-head {
     position: relative;
     z-index: 1;
-    margin: 0 0 0.15rem;
+    margin: 0 0 0.1rem !important;
+    padding: 0 !important;
     text-align: center;
 }
 .scamdna-panel-title {
@@ -1258,17 +1422,22 @@ header, .stAppHeader, #MainMenu, footer {
     line-height: 1.45;
 }
 
-/* Tabs */
-.stTabs { margin-top: 0.35rem !important; width: 100% !important; }
-.stTabs [data-baseweb="tab-panel"] { padding-top: 0.45rem !important; }
+/* Tabs：左對齊，與表單同緣 */
+.stTabs { margin-top: 0.15rem !important; width: 100% !important; }
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 0.35rem !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
 .stTabs [data-baseweb="tab-list"] {
     background: transparent !important;
     border-bottom: 1px solid var(--line) !important;
     gap: 0 !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
+    padding-left: 0 !important;
 }
 .stTabs [data-baseweb="tab"] {
-    padding: 10px 20px !important;
+    padding: 8px 14px 8px 0 !important;
     background: transparent !important;
     font-weight: 600 !important;
     font-size: 0.92rem !important;
@@ -1300,12 +1469,24 @@ header, .stAppHeader, #MainMenu, footer {
     max-width: 100% !important;
     margin: 0 !important;
 }
+/* 隱藏 Press Enter to submit form */
+[data-testid="InputInstructions"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 /* ── 登入輸入契約：帳密欄必須永遠可輸入（修改樣式時勿移除此區塊）────────── */
 .stForm .stTextInput,
 .stForm label {
     width: 100% !important;
     text-align: left !important;
     pointer-events: auto !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
 }
 .stForm .stTextInput input {
     pointer-events: auto !important;
@@ -1322,6 +1503,7 @@ header, .stAppHeader, #MainMenu, footer {
 }
 .stForm .stTextInput > div:last-child {
     width: 100% !important;
+    margin-left: 0 !important;
     background: #ffffff !important;
     border: 1.5px solid #9CA3AF !important;
     border-radius: 8px !important;
@@ -1352,6 +1534,7 @@ header, .stAppHeader, #MainMenu, footer {
     font-weight: 700 !important;
     letter-spacing: 0.12em !important;
     margin-top: 10px !important;
+    margin-left: 0 !important;
     width: 100% !important;
 }
 .stForm button[kind="primary"]:hover,

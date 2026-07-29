@@ -23,7 +23,8 @@ col_chart, col_table = st.columns([3, 2])
 with col_chart:
     st.subheader("頻率長條圖")
     df_bar = pd.DataFrame({"關鍵詞": ranking, "出現次數": freq_values})
-    st.bar_chart(df_bar.set_index("關鍵詞"), height=420)
+    from app.dashboard.page_views.charts import render_dark_bar_chart
+    render_dark_bar_chart(df_bar.set_index("關鍵詞"), height=420)
 
 with col_table:
     st.subheader("排行榜 Top 20")

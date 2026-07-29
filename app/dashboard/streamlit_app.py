@@ -631,19 +631,44 @@ header[data-testid="stHeader"],
     display: none !important;
     height: 0 !important;
     min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}}
+html, body, .stApp {{
+    margin: 0 !important;
+    padding: 0 !important;
+    --header-height: 0px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    max-height: none !important;
 }}
 .stApp, [data-testid="stAppViewContainer"], .stAppViewContainer {{
     padding-top: 0 !important;
     margin-top: 0 !important;
+    min-height: 100vh !important;
+    height: auto !important;
+    overflow: visible !important;
 }}
 .main .block-container,
 div[data-testid="stMainBlockContainer"],
 .stMainBlockContainer {{
-    padding-top: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    padding-bottom: 1.5rem !important;
-    max-width: 100% !important;
+    padding-top: calc(var(--scamdna-header-h, 106px) + 12px) !important;
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+    padding-bottom: 2rem !important;
+    max-width: 1400px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0 !important;
+    box-sizing: border-box !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
 }}
 section[data-testid="stMain"],
 section[data-testid="stMain"] > div {{
@@ -654,10 +679,64 @@ section[data-testid="stMain"] > div {{
 }}
 .site-header {{
     margin: 0 !important;
+    padding: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 999999 !important;
 }}
-[data-testid="stMarkdownContainer"]:has(.site-header) {{
+[data-testid="stMarkdownContainer"]:has(.site-header),
+div:has(> .site-header) {{
+    height: 0 !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
+}}
+iframe[height="0"],
+iframe[height="0px"] {{
+    height: 0 !important;
+    min-height: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+    visibility: hidden !important;
+}}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {{
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    margin: 0 0 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    align-items: stretch !important;
+}}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="stColumn"] {{
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    position: relative !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+}}
+[data-testid="stMetric"] {{
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    margin: 0 !important;
+}}
+.stDataFrame,
+[data-testid="stDataFrame"],
+[data-testid="stVegaLiteChart"],
+.stAltairChart {{
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }}
 .stTextArea [data-baseweb="textarea"],
 .stTextArea [data-baseweb="base-input"] {{
@@ -728,7 +807,7 @@ st.markdown(f"""
 if page_key != "home":
     _title, _desc = PAGE_TITLES.get(page_key, (page_key, ""))
     st.markdown(f"""
-    <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 32px;
+    <div style="background:white;border-bottom:1px solid #E5E7EB;padding:8px 0;
     font-size:0.8rem;color:#6B7280;display:flex;align-items:center;gap:6px;">
         <a href="{build_page_href('home')}" style="color:#166534;text-decoration:none;">首頁</a>
         <span style="color:#D1D5DB;">›</span>
@@ -1839,10 +1918,12 @@ elif page_key == "hotwords":
 
         st.subheader("熱詞頻率長條圖")
         import pandas as pd
+        from app.dashboard.page_views.charts import render_dark_bar_chart
+
         df_chart = pd.DataFrame(
             list(chart_data.items()), columns=["關鍵詞", "出現次數"]
         ).set_index("關鍵詞")
-        st.bar_chart(df_chart)
+        render_dark_bar_chart(df_chart, height=420)
 
         st.subheader("排行榜明細")
         import pandas as pd

@@ -169,5 +169,7 @@ class TestLoginCssContract:
 
     def test_login_forms_keep_values_on_submit(self) -> None:
         source = open("app/dashboard/auth.py", encoding="utf-8").read()
-        assert 'st.form("login_form", clear_on_submit=False)' in source
-        assert 'st.form("register_form", clear_on_submit=False)' in source
+        assert 'st.form("login_form"' in source
+        assert 'st.form("register_form"' in source
+        assert source.count("clear_on_submit=False") >= 2
+        assert 'border=False' in source

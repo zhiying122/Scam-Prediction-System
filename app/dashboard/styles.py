@@ -47,9 +47,14 @@ header[data-testid="stHeader"],
 [data-testid="collapsedControl"] { display: none !important; }
 
 /* ── 壓縮所有多餘空白（頂部貼齊自訂 header）─────────────────────────────── */
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
 .stApp {
     margin-top: 0 !important;
     padding-top: 0 !important;
+    --header-height: 0px !important;
 }
 [data-testid="stAppViewContainer"],
 .stAppViewContainer {
@@ -59,11 +64,20 @@ header[data-testid="stHeader"],
 .main .block-container,
 div[data-testid="stMainBlockContainer"],
 .stMainBlockContainer {
-    padding-top: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-top: calc(var(--scamdna-header-h, 106px) + 12px) !important;
+    padding-left: 32px !important;
+    padding-right: 32px !important;
     padding-bottom: 2rem !important;
-    max-width: 100% !important;
+    max-width: 1400px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
 }
 section[data-testid="stMain"],
 section[data-testid="stMain"] > div,
@@ -74,53 +88,122 @@ section[data-testid="stMain"] > div:first-child {
 .stMarkdown { margin-bottom: 0.25rem !important; }
 div[data-testid="stVerticalBlock"] { gap: 0.5rem !important; }
 div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
-/* 自訂 site-header 貼頂，消除 markdown 容器上方空隙 */
+/* 自訂 site-header 貼頂（完整規則另由父頁 _TOP_FLUSH_CSS 注入） */
 .site-header {
     margin: 0 !important;
-    position: relative;
-    z-index: 10;
+    padding: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 999999 !important;
 }
-[data-testid="stMarkdownContainer"]:has(.site-header) {
+[data-testid="stMarkdownContainer"]:has(.site-header),
+div:has(> .site-header) {
+    height: 0 !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
+}
+/* 壓扁 height=0 的 components iframe／純 style 的 st.html，避免頂部米色空條 */
+iframe[height="0"],
+iframe[height="0px"] {
+    display: block !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    width: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: absolute !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+}
+div:has(> iframe[height="0"]),
+div:has(> iframe[height="0px"]),
+[data-testid="stElementContainer"]:has(iframe[height="0"]),
+[data-testid="element-container"]:has(iframe[height="0"]),
+[data-testid="stVerticalBlockBorderWrapper"]:has(iframe[height="0"]) {
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
 }
 
-/* 子頁面內容留白（header 維持全寬） */
-section[data-testid="stMain"] h1,
-section[data-testid="stMain"] h2,
-section[data-testid="stMain"] h3,
-section[data-testid="stMain"] .stTextArea,
-section[data-testid="stMain"] .stTextInput,
-section[data-testid="stMain"] [data-testid="stButton"],
-section[data-testid="stMain"] [data-testid="stForm"],
-section[data-testid="stMain"] [data-testid="stSelectbox"],
-section[data-testid="stMain"] [data-testid="stSlider"],
-section[data-testid="stMain"] [data-testid="stCheckbox"],
-section[data-testid="stMain"] [data-testid="stMetric"],
-section[data-testid="stMain"] [data-testid="stDataFrame"],
-section[data-testid="stMain"] [data-testid="stNotification"],
-section[data-testid="stMain"] [data-testid="stExpander"],
-section[data-testid="stMain"] [data-testid="stProgress"],
-section[data-testid="stMain"] > div > div[data-testid="stVerticalBlock"] > div > [data-testid="stMarkdownContainer"] {
-    margin-left: 32px !important;
-    margin-right: 32px !important;
-}
+/* 內容留白改由 block-container padding 統一處理，避免雙倍 margin 造成錯位 */
 
 /* ── 頁面內容區域 ────────────────────────────────────────────────────────── */
 .page-body {
-    padding: 24px 32px;
-    max-width: 1400px;
-    margin: 0 auto;
+    padding: 0;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+.hero-section {
+    margin: 0 0 8px !important;
+    padding: 6px 0 2px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* ── Metric 卡片 ─────────────────────────────────────────────────────────── */
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="stColumn"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) [data-testid="stElementContainer"],
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) [data-testid="element-container"] {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    transform: none !important;
+}
 [data-testid="stMetric"] {
     background: white !important;
-    border: 1px solid #E5E7EB !important;
+    border: 1px solid #D1D5DB !important;
     border-radius: 10px !important;
-    padding: 16px 20px !important;
+    padding: 16px 18px !important;
+    margin: 0 !important;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
     transition: box-shadow 0.2s !important;
+    height: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 [data-testid="stMetric"]:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
@@ -378,11 +461,23 @@ div[data-testid="stNotification"][kind="info"] {
 }
 
 /* ── DataFrame ───────────────────────────────────────────────────────────── */
-.stDataFrame {
+.stDataFrame,
+[data-testid="stDataFrame"],
+[data-testid="stDataFrameResizable"] {
     border: 1px solid #E5E7EB !important;
     border-radius: 8px !important;
-    overflow: hidden !important;
+    overflow: auto !important;
     background: white !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+div[data-testid="stElementContainer"]:has([data-testid="stDataFrame"]),
+div[data-testid="element-container"]:has([data-testid="stDataFrame"]) {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
 }
 /* 表格標題置中，數值靠右 */
 .stDataFrame th {
@@ -529,21 +624,25 @@ label, .stTextInput label, .stTextArea label,
     color: #374151 !important;
 }
 
-/* ── Column 等高對齊 ─────────────────────────────────────────────────────── */
+/* ── Column 等高對齊（勿對深層強制 flex:1，避免 metric／表格被撐破）──────── */
 div[data-testid="stHorizontalBlock"] {
     align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-    display: flex !important;
-    flex-direction: column !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
 }
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-}
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
-    flex: 1 !important;
+/* Vega / Altair 圖表不溢出 */
+[data-testid="stVegaLiteChart"],
+.stVegaLiteChart,
+.stAltairChart {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
 }
 
 /* ── Slider（Streamlit 1.58+ 使用 stSliderThumbValue / stSliderTickBar）──── */
@@ -720,15 +819,26 @@ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div > div {
 
 .feature-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     gap: 16px;
-    margin-bottom: 8px;
+    margin: 0 0 12px !important;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .feature-grid .feature-card {
     margin: 0;
     height: auto;
     min-height: unset;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+@media (max-width: 900px) {
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @keyframes pulse-glow {
@@ -850,22 +960,199 @@ div[data-baseweb="select"] > div {
 """
 
 
+# 頂部貼齊：經父頁 head 注入（st.html DOMPurify 會剝除屬性選擇器）
+# 策略：site-header 固定貼頂；主內容用 padding 避開；禁止負 margin / absolute 拉飛元件
+_TOP_FLUSH_CSS = """
+html, body, .stApp {
+  margin: 0 !important;
+  padding: 0 !important;
+  --header-height: 0px !important;
+  --scamdna-header-h: 106px;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+[data-testid="stAppViewContainer"],
+.stAppViewContainer,
+section[data-testid="stMain"],
+.main,
+.main .block-container,
+div[data-testid="stMainBlockContainer"],
+.stMainBlockContainer {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  height: auto !important;
+  max-height: none !important;
+}
+.stApp, [data-testid="stAppViewContainer"] {
+  min-height: 100vh !important;
+}
+header,
+header[data-testid="stHeader"],
+[data-testid="stHeader"],
+.stAppHeader,
+[data-testid="stToolbar"],
+.stAppToolbar,
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+.stDeployButton,
+[data-testid="stAppDeployButton"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+[data-testid="stAppViewContainer"],
+.stAppViewContainer,
+section[data-testid="stMain"],
+section[data-testid="stMain"] > div {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+.site-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 999999 !important;
+  box-sizing: border-box !important;
+}
+[data-testid="stMarkdownContainer"]:has(.site-header),
+div:has(> .site-header) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: visible !important;
+}
+.main .block-container,
+div[data-testid="stMainBlockContainer"],
+.stMainBlockContainer {
+  padding-top: calc(var(--scamdna-header-h) + 12px) !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+  padding-bottom: 2rem !important;
+  max-width: 1400px !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 0 !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  height: auto !important;
+  max-height: none !important;
+}
+iframe[height="0"],
+iframe[height="0px"] {
+  display: block !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  width: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+/* 僅壓扁「只有」零高 iframe 的空殼，勿用過寬 :has 誤傷內容 */
+[data-testid="stElementContainer"]:has(> iframe[height="0"]):not(:has([data-testid="stMetric"])):not(:has(.site-header)):not(:has(table)):not(:has([data-testid="stDataFrame"])),
+[data-testid="element-container"]:has(> iframe[height="0"]):not(:has([data-testid="stMetric"])):not(:has(.site-header)) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+.hero-section {
+  margin: 0 0 8px !important;
+  padding: 6px 0 2px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="stColumn"] {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box !important;
+}
+[data-testid="stMetric"] {
+  margin: 0 !important;
+  border: 1px solid #D1D5DB !important;
+  height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+.stDataFrame,
+[data-testid="stDataFrame"],
+[data-testid="stVegaLiteChart"],
+.stAltairChart {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+"""
+
+
 def inject_html(html: str) -> None:
     """注入 HTML/CSS（Streamlit 1.58+ 需用 st.html，勿用 st.markdown 包 <style>）。"""
     import streamlit as st
     st.html(html)
 
 
-def _inject_selectbox_border_into_parent() -> None:
-    """把下拉選單邊框 CSS 寫進父頁 head（繞過 st.html 過濾）。"""
+def _inject_parent_css(style_id: str, css: str) -> None:
+    """把 CSS 寫進父頁 head（繞過 st.html DOMPurify）。"""
     import streamlit.components.v1 as components
 
-    css = _SELECTBOX_BORDER_CSS.replace("\\", "\\\\").replace("`", "\\`")
+    css_escaped = css.replace("\\", "\\\\").replace("`", "\\`")
     components.html(
         f"""
         <script>
         (function () {{
-          const id = "scamdna-selectbox-border-css";
+          const id = "{style_id}";
           let doc;
           try {{ doc = window.top.document; }} catch (e) {{
             try {{ doc = window.parent.document; }} catch (e2) {{ return; }}
@@ -877,7 +1164,155 @@ def _inject_selectbox_border_into_parent() -> None:
             el.id = id;
             doc.head.appendChild(el);
           }}
+          el.textContent = `{css_escaped}`;
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def _inject_selectbox_border_into_parent() -> None:
+    """把下拉選單邊框 CSS 寫進父頁 head（繞過 st.html 過濾）。"""
+    _inject_parent_css("scamdna-selectbox-border-css", _SELECTBOX_BORDER_CSS)
+
+
+def _inject_top_flush_into_parent() -> None:
+    """綠列固定貼頂：只調 header 與主容器 padding，不拉飛任何內容框。"""
+    import streamlit.components.v1 as components
+
+    css = _TOP_FLUSH_CSS.replace("\\", "\\\\").replace("`", "\\`")
+    components.html(
+        f"""
+        <script>
+        (function () {{
+          let doc;
+          try {{ doc = window.top.document; }} catch (e) {{
+            try {{ doc = window.parent.document; }} catch (e2) {{ return; }}
+          }}
+          if (!doc || !doc.head) return;
+
+          const id = "scamdna-top-flush-css";
+          let el = doc.getElementById(id);
+          if (!el) {{
+            el = doc.createElement("style");
+            el.id = id;
+            doc.head.appendChild(el);
+          }}
           el.textContent = `{css}`;
+
+          function repairBrokenInline() {{
+            // 清掉先前負 margin / absolute 造成的跨框、突出
+            const broken = doc.querySelectorAll(
+              '[data-testid="stMetric"], [data-testid="stColumn"], ' +
+              '[data-testid="stHorizontalBlock"], [data-testid="stElementContainer"], ' +
+              '[data-testid="element-container"], [data-testid="stDataFrame"]'
+            );
+            broken.forEach(function (node) {{
+              if (!node || !node.style) return;
+              const mt = node.style.marginTop || "";
+              if (mt && (mt.startsWith("-") || parseFloat(mt) < 0)) {{
+                node.style.removeProperty("margin-top");
+              }}
+              const pos = (node.style.position || "").toLowerCase();
+              if (pos === "absolute" || pos === "fixed") {{
+                // 勿動真正的 site-header；其餘內容框拉回文件流
+                if (node.classList && node.classList.contains("site-header")) return;
+                if (node.querySelector && node.querySelector(".site-header")) return;
+                node.style.removeProperty("position");
+                node.style.removeProperty("top");
+                node.style.removeProperty("left");
+                node.style.removeProperty("right");
+                node.style.removeProperty("width");
+                node.style.removeProperty("height");
+                node.style.removeProperty("max-height");
+                node.style.removeProperty("opacity");
+                node.style.removeProperty("pointer-events");
+                node.style.removeProperty("transform");
+              }}
+            }});
+          }}
+
+          function flushTop() {{
+            const header = doc.querySelector(".site-header");
+            if (!header) return;
+
+            header.style.setProperty("position", "fixed", "important");
+            header.style.setProperty("top", "0px", "important");
+            header.style.setProperty("left", "0", "important");
+            header.style.setProperty("right", "0", "important");
+            header.style.setProperty("width", "100%", "important");
+            header.style.setProperty("z-index", "999999", "important");
+            header.style.setProperty("margin", "0", "important");
+            header.style.setProperty("transform", "none", "important");
+
+            repairBrokenInline();
+
+            const h = Math.max(96, Math.ceil(header.getBoundingClientRect().height || 106));
+            doc.documentElement.style.setProperty("--scamdna-header-h", h + "px");
+            const padTop = h + 12;
+            const mains = doc.querySelectorAll(
+              '.main .block-container, div[data-testid="stMainBlockContainer"], .stMainBlockContainer'
+            );
+            mains.forEach(function (m) {{
+              [
+                "height", "max-height", "min-height", "overflow", "margin-left",
+                "margin-right", "width", "max-width", "display", "justify-content",
+                "align-items", "position", "top", "left"
+              ].forEach(function (p) {{ m.style.removeProperty(p); }});
+              m.style.setProperty("height", "auto", "important");
+              m.style.setProperty("max-height", "none", "important");
+              m.style.setProperty("overflow-x", "hidden", "important");
+              m.style.setProperty("overflow-y", "visible", "important");
+              m.style.setProperty("padding-top", padTop + "px", "important");
+              m.style.setProperty("padding-left", "32px", "important");
+              m.style.setProperty("padding-right", "32px", "important");
+              m.style.setProperty("margin-top", "0", "important");
+              m.style.setProperty("margin-left", "auto", "important");
+              m.style.setProperty("margin-right", "auto", "important");
+              m.style.setProperty("max-width", "1400px", "important");
+              m.style.setProperty("width", "100%", "important");
+              m.style.setProperty("box-sizing", "border-box", "important");
+            }});
+            [doc.documentElement, doc.body].forEach(function (n) {{
+              if (!n || !n.style) return;
+              n.style.setProperty("overflow-x", "hidden", "important");
+              n.style.setProperty("overflow-y", "auto", "important");
+              n.style.setProperty("height", "auto", "important");
+              n.style.setProperty("max-height", "none", "important");
+            }});
+          }}
+
+          let timer = null;
+          let runs = 0;
+          function scheduleFlush() {{
+            if (timer) return;
+            timer = setTimeout(function () {{
+              timer = null;
+              flushTop();
+              runs += 1;
+              // 幾次穩定後停止 observer，避免持續改 DOM 造成版面抖動
+              if (runs >= 8 && window.__scamdnaTopFlushObs) {{
+                try {{ window.__scamdnaTopFlushObs.disconnect(); }} catch (e) {{}}
+                window.__scamdnaTopFlushObs = null;
+              }}
+            }}, 120);
+          }}
+
+          flushTop();
+          setTimeout(flushTop, 80);
+          setTimeout(flushTop, 400);
+          try {{
+            // 先斷開舊 observer（避免熱重載後仍跑舊版負 margin 邏輯）
+            if (window.__scamdnaTopFlushObs) {{
+              try {{ window.__scamdnaTopFlushObs.disconnect(); }} catch (e) {{}}
+              window.__scamdnaTopFlushObs = null;
+            }}
+            window.__scamdnaTopFlushObs = new MutationObserver(scheduleFlush);
+            window.__scamdnaTopFlushObs.observe(doc.body, {{ childList: true, subtree: true }});
+            window.__scamdnaLayoutVersion = 3;
+          }} catch (e) {{}}
         }})();
         </script>
         """,
@@ -888,6 +1323,7 @@ def _inject_selectbox_border_into_parent() -> None:
 
 def inject_css() -> None:
     inject_html(GLOBAL_CSS)
+    _inject_top_flush_into_parent()
     _inject_selectbox_border_into_parent()
 
 
