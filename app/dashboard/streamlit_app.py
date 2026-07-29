@@ -61,6 +61,7 @@ from app.dashboard.auth import (
     install_browser_refresh_guard,
     sync_auth_cookies,
     build_page_href,
+    clear_login_shell,
     USER_BAR_CSS,
 )
 
@@ -71,6 +72,7 @@ if enforce_login_gate():
     st.stop()
 
 # 已登入：寫入／延長 cookie；F5／重輸網址由 refresh guard 強制登出
+clear_login_shell()
 sync_auth_cookies()
 install_browser_refresh_guard()
 
@@ -616,17 +618,46 @@ section[data-testid="stSidebar"] {{
     0%, 100% {{ opacity: 0.3; transform: scale(0.9); }}
     50% {{ opacity: 0.7; transform: scale(1.1); }}
 }}
-.main .block-container {{
+/* 收合 Streamlit 頂部 chrome（visibility:hidden 仍會留下白條） */
+header,
+header[data-testid="stHeader"],
+[data-testid="stHeader"],
+.stAppHeader,
+[data-testid="stToolbar"],
+.stAppToolbar,
+[data-testid="stDecoration"],
+.stDeployButton,
+[data-testid="stAppDeployButton"] {{
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}}
+.stApp, [data-testid="stAppViewContainer"], .stAppViewContainer {{
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}}
+.main .block-container,
+div[data-testid="stMainBlockContainer"],
+.stMainBlockContainer {{
     padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
     padding-bottom: 1.5rem !important;
     max-width: 100% !important;
 }}
+section[data-testid="stMain"],
 section[data-testid="stMain"] > div {{
     padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    margin-top: 0 !important;
+}}
+.site-header {{
+    margin: 0 !important;
+}}
+[data-testid="stMarkdownContainer"]:has(.site-header) {{
+    margin: 0 !important;
+    padding: 0 !important;
 }}
 .stTextArea [data-baseweb="textarea"],
 .stTextArea [data-baseweb="base-input"] {{
@@ -765,8 +796,6 @@ if page_key == "home":
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
     # 統計數字
     col1, col2, col3, col4 = st.columns(4)
     col1.metric(f"{_latest_year} 年詐騙案件", f"{_total_cases:,} 件", _case_delta)
@@ -774,7 +803,6 @@ if page_key == "home":
     col3.metric("XAI 規則式基準準確率", f"{MODEL_PERFORMANCE['accuracy']:.1%}", "規則式分類器")
     col4.metric("預警排程頻率", "每 24 小時", "↓ 傳統需 14 天")
 
-    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 系統功能")
 
     # 功能卡片 — 用單一 CSS Grid 確保同排等高
@@ -807,7 +835,6 @@ if page_key == "home":
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 台灣詐騙現況（資料來源：警政署 165 專線）")
 
     scam_df = pd.DataFrame([

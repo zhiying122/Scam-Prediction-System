@@ -23,26 +23,67 @@ html, body, [class*="css"] {
     color: #1a2332 !important;
 }
 
-/* ── 隱藏 Streamlit 預設元素 ─────────────────────────────────────────────── */
-#MainMenu { visibility: hidden !important; }
-footer { visibility: hidden !important; }
-header { visibility: hidden !important; }
+/* ── 隱藏 Streamlit 預設元素（須 display:none，visibility:hidden 仍佔位）─── */
+#MainMenu { display: none !important; }
+footer { display: none !important; }
+header,
+header[data-testid="stHeader"],
+[data-testid="stHeader"],
+.stAppHeader,
+[data-testid="stToolbar"],
+.stAppToolbar,
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+.stDeployButton,
+[data-testid="stAppDeployButton"] {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 [data-testid="stSidebar"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 
-/* ── 壓縮所有多餘空白 ────────────────────────────────────────────────────── */
-.main .block-container {
+/* ── 壓縮所有多餘空白（頂部貼齊自訂 header）─────────────────────────────── */
+.stApp {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+[data-testid="stAppViewContainer"],
+.stAppViewContainer {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+.main .block-container,
+div[data-testid="stMainBlockContainer"],
+.stMainBlockContainer {
     padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
     padding-bottom: 2rem !important;
     max-width: 100% !important;
 }
+section[data-testid="stMain"],
+section[data-testid="stMain"] > div,
 section[data-testid="stMain"] > div:first-child {
     padding-top: 0 !important;
+    margin-top: 0 !important;
 }
 .stMarkdown { margin-bottom: 0.25rem !important; }
-div[data-testid="stVerticalBlock"] > div { gap: 0.75rem !important; }
+div[data-testid="stVerticalBlock"] { gap: 0.5rem !important; }
+div[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
+/* 自訂 site-header 貼頂，消除 markdown 容器上方空隙 */
+.site-header {
+    margin: 0 !important;
+    position: relative;
+    z-index: 10;
+}
+[data-testid="stMarkdownContainer"]:has(.site-header) {
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
 /* 子頁面內容留白（header 維持全寬） */
 section[data-testid="stMain"] h1,

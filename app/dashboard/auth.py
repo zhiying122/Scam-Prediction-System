@@ -18,7 +18,6 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import streamlit as st
@@ -679,7 +678,7 @@ def get_current_user() -> Optional[UserProfile]:
 # ── 登入/註冊頁面（Forest Gate）───────────────────────────────────────────────
 def render_login_page() -> bool:
     """
-    渲染登入/註冊頁面（Forest Gate 正式風格）
+    渲染登入/註冊頁面（Forest Narrative：左 6 敘事牆／右 4 表單）
 
     Returns:
         True 如果使用者已成功登入
@@ -688,21 +687,395 @@ def render_login_page() -> bool:
     if is_authenticated():
         return True
 
-    # 品牌／插畫必須用 st.html：st.markdown 會被 DOMPurify 剝除
+    # 左牆＋關鍵 layout 寫入父頁，避免被捲進 Streamlit 右欄造成重疊異狀
+    _inject_login_shell()
     st.html(_LOGIN_CSS)
-    st.html(_LOGIN_STAGE_HTML)
+    st.html(_LOGIN_PANEL_HEAD_HTML)
 
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    with col2:
-        tab_login, tab_register = st.tabs(["登入", "註冊"])
+    tab_login, tab_register = st.tabs(["登入", "註冊"])
 
-        with tab_login:
-            _render_login_form()
+    with tab_login:
+        _render_login_form()
 
-        with tab_register:
-            _render_register_form()
+    with tab_register:
+        _render_register_form()
 
     return False
+
+
+# 父頁注入：完整左牆 HTML + layout／框線 CSS（繞過 st.html DOMPurify）
+_LOGIN_PARENT_CSS = """
+.stApp {
+  --ink: #15261c;
+  --muted: #5b6b61;
+  --forest: #166534;
+  --forest-deep: #124a2b;
+  --paper: #f6f7f4;
+  --split-left: 60%;
+  --split-right: 40%;
+  background: #eef1ec !important;
+  overflow-x: hidden !important;
+}
+header, [data-testid="stHeader"], .stAppHeader,
+[data-testid="stToolbar"], .stAppToolbar, [data-testid="stDecoration"],
+#MainMenu, footer, [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+}
+.main .block-container,
+div[data-testid="stMainBlockContainer"] {
+  position: relative !important;
+  z-index: 5 !important;
+  margin-left: 60% !important;
+  width: 40% !important;
+  max-width: 40% !important;
+  min-height: 100vh !important;
+  height: 100vh !important;
+  padding: 1.5rem 1.25rem !important;
+  box-sizing: border-box !important;
+  background: #eef1ec !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  overflow: auto !important;
+}
+.main .block-container > div,
+div[data-testid="stMainBlockContainer"] > div {
+  width: 100% !important;
+  max-width: 340px !important;
+  margin: 0 auto !important;
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+section[data-testid="stMain"] div[data-testid="stVerticalBlock"]:has(.scamdna-panel-head),
+section[data-testid="stMain"] div[data-testid="stVerticalBlockBorderWrapper"]:has(.scamdna-panel-head) {
+  background: #ffffff !important;
+  border: 1.5px solid #166534 !important;
+  border-radius: 14px !important;
+  padding: 1.5rem 1.35rem 1.3rem !important;
+  box-sizing: border-box !important;
+  box-shadow: 0 10px 28px rgba(22,101,52,0.10) !important;
+  max-width: 320px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  text-align: left !important;
+  animation: scamdnaEmbedIn 0.55s ease-out both !important;
+}
+.stTabs, .stForm, .stForm label, .stForm .stTextInput {
+  text-align: left !important;
+  width: 100% !important;
+}
+div[data-testid="stForm"], .stForm {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+.stForm .stTextInput,
+.stForm [data-testid="stFormSubmitButton"],
+.stForm [data-testid="stFormSubmitButton"] > button {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+.stForm .stTextInput > div:last-child,
+.stForm .stTextInput [data-baseweb="input"],
+.stForm .stTextInput [data-baseweb="base-input"] {
+  width: 100% !important;
+  background: #ffffff !important;
+  border: 1.5px solid #9CA3AF !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 0 0 1px #9CA3AF !important;
+  min-height: 40px !important;
+  box-sizing: border-box !important;
+}
+.stForm .stTextInput > div:last-child:focus-within,
+.stForm .stTextInput [data-baseweb="input"]:focus-within,
+.stForm .stTextInput [data-baseweb="base-input"]:focus-within {
+  border-color: #166534 !important;
+  box-shadow: inset 0 0 0 1px #166534, 0 0 0 3px rgba(22,101,52,0.12) !important;
+}
+.stForm .stTextInput input {
+  border: none !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+  color: #15261c !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+.stForm .stTextInput button {
+  display: none !important;
+}
+.stForm [data-testid="stFormSubmitButton"] > button {
+  background: #166534 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  width: 100% !important;
+}
+#scamdna-login-left.scamdna-split-left,
+.scamdna-split-left {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 60% !important;
+  height: 100vh !important;
+  z-index: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  padding: clamp(2.2rem, 5.5vh, 4rem) clamp(2rem, 4.8vw, 4.25rem) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(ellipse 65% 50% at 12% 18%, rgba(187,247,208,0.20), transparent 55%),
+    radial-gradient(ellipse 50% 42% at 92% 82%, rgba(15,47,31,0.55), transparent 58%),
+    linear-gradient(155deg, #1c5537 0%, #14532d 46%, #0d281c 100%) !important;
+  color: #f0fdf4 !important;
+  line-height: normal !important;
+  animation: scamdnaEmbedIn 0.55s ease-out both !important;
+}
+.scamdna-split-left .content {
+  position: relative !important;
+  z-index: 1 !important;
+  max-width: 440px !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+.scamdna-eyebrow {
+  margin: 0 0 0.85rem !important;
+  color: rgba(187,247,208,0.78) !important;
+  font-family: Manrope, "Noto Sans TC", sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+.scamdna-brand {
+  margin: 0 !important;
+  color: #f7fef9 !important;
+  font-family: Manrope, "Noto Sans TC", sans-serif !important;
+  font-size: clamp(2.55rem, 4.6vw, 3.55rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.02 !important;
+}
+.scamdna-rule {
+  width: 48px !important;
+  height: 2px !important;
+  margin: 1.1rem 0 0 !important;
+  background: #86efac !important;
+  border-radius: 1px !important;
+}
+.scamdna-tagline {
+  margin: 1rem 0 0 !important;
+  color: rgba(220,252,231,0.72) !important;
+  font-size: 0.9rem !important;
+  font-weight: 500 !important;
+  line-height: 1.7 !important;
+  max-width: 26em !important;
+  text-align: left !important;
+}
+.scamdna-points {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+  max-width: 26em !important;
+  margin: 1.75rem 0 0 0 !important;
+  padding: 0 !important;
+}
+.scamdna-points .scamdna-point {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0.75rem 0.95rem !important;
+  border: 1px solid rgba(187,247,208,0.14) !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,0.04) !important;
+  text-align: left !important;
+}
+.scamdna-points .label {
+  display: block !important;
+  color: #ecfdf5 !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+}
+.scamdna-points .desc {
+  display: block !important;
+  margin-top: 0.28rem !important;
+  color: rgba(220,252,231,0.62) !important;
+  font-size: 0.78rem !important;
+}
+.scamdna-split-left .grain,
+.scamdna-split-left .canopy,
+.scamdna-split-left .mist,
+.scamdna-split-left .orbit {
+  pointer-events: none !important;
+  position: absolute !important;
+}
+.scamdna-split-left .grain {
+  inset: 0 !important;
+  opacity: 0.32 !important;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E") !important;
+  background-size: 160px 160px !important;
+  mix-blend-mode: soft-light !important;
+}
+.scamdna-split-left .canopy {
+  inset: -12% -8% auto -8% !important;
+  height: 52% !important;
+  background:
+    radial-gradient(ellipse 42% 70% at 12% 100%, rgba(34,197,94,0.16), transparent 70%),
+    radial-gradient(ellipse 36% 65% at 48% 110%, rgba(134,239,172,0.12), transparent 72%),
+    radial-gradient(ellipse 40% 70% at 86% 100%, rgba(22,101,52,0.20), transparent 70%) !important;
+}
+.scamdna-split-left .mist {
+  left: -8% !important;
+  bottom: -18% !important;
+  width: 70% !important;
+  height: 55% !important;
+  background: radial-gradient(ellipse at 40% 40%, rgba(236,253,245,0.09), transparent 68%) !important;
+}
+.scamdna-split-left .orbit {
+  right: -18% !important;
+  top: 50% !important;
+  width: min(58vw, 520px) !important;
+  aspect-ratio: 1 !important;
+  transform: translateY(-50%) !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(187,247,208,0.14) !important;
+  box-shadow: inset 0 0 0 56px rgba(187,247,208,0.03), inset 0 0 0 112px rgba(187,247,208,0.025) !important;
+}
+@keyframes scamdnaEmbedIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (max-width: 900px) {
+  #scamdna-login-left.scamdna-split-left,
+  .scamdna-split-left {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 280px !important;
+  }
+  .main .block-container,
+  div[data-testid="stMainBlockContainer"] {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+}
+"""
+
+_LOGIN_LEFT_HTML = """
+<aside id="scamdna-login-left" class="scamdna-split-left" translate="no" lang="zh-Hant">
+  <div class="grain" aria-hidden="true"></div>
+  <div class="canopy" aria-hidden="true"></div>
+  <div class="mist" aria-hidden="true"></div>
+  <div class="orbit" aria-hidden="true"></div>
+  <div class="content">
+    <div class="scamdna-eyebrow">AI Prediction System</div>
+    <div class="scamdna-brand">ScamDNA</div>
+    <div class="scamdna-rule" aria-hidden="true"></div>
+    <p class="scamdna-tagline">AI 詐騙話術進化預警系統，在新型詐騙大規模爆發前，提前看見風險。</p>
+    <div class="scamdna-points">
+      <div class="scamdna-point">
+        <span class="label">話術裂變生成</span>
+        <span class="desc">以 LLM 逆向模擬詐騙變種話術</span>
+      </div>
+      <div class="scamdna-point">
+        <span class="label">XAI 可解釋分析</span>
+        <span class="desc">標示心理操控片段，判斷有依據</span>
+      </div>
+      <div class="scamdna-point">
+        <span class="label">異常偵測預警</span>
+        <span class="desc">每日追蹤新興趨勢與風險訊號</span>
+      </div>
+    </div>
+  </div>
+</aside>
+"""
+
+
+def _inject_login_shell() -> None:
+    """把左牆與關鍵 CSS 寫進父頁 body/head（完全脫離 Streamlit 排版樹）。"""
+    import streamlit.components.v1 as components
+
+    css = _LOGIN_PARENT_CSS.replace("\\", "\\\\").replace("`", "\\`")
+    html = (
+        _LOGIN_LEFT_HTML.replace("\\", "\\\\")
+        .replace("`", "\\`")
+        .replace("</", "<\\/")
+    )
+    components.html(
+        f"""
+        <script>
+        (function () {{
+          let doc;
+          try {{ doc = window.top.document; }} catch (e) {{
+            try {{ doc = window.parent.document; }} catch (e2) {{ return; }}
+          }}
+          if (!doc || !doc.head || !doc.body) return;
+
+          const cssId = "scamdna-login-parent-css";
+          let style = doc.getElementById(cssId);
+          if (!style) {{
+            style = doc.createElement("style");
+            style.id = cssId;
+            doc.head.appendChild(style);
+          }}
+          style.textContent = `{css}`;
+
+          const old = doc.getElementById("scamdna-login-left");
+          if (old) old.remove();
+          const wrap = doc.createElement("div");
+          wrap.innerHTML = `{html}`;
+          const panel = wrap.firstElementChild;
+          if (panel) doc.body.appendChild(panel);
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def clear_login_shell() -> None:
+    """登入成功後移除父頁左牆與登入專用 CSS，避免殘留到 Dashboard。"""
+    import streamlit.components.v1 as components
+
+    components.html(
+        """
+        <script>
+        (function () {
+          let doc;
+          try { doc = window.top.document; } catch (e) {
+            try { doc = window.parent.document; } catch (e2) { return; }
+          }
+          if (!doc) return;
+          const panel = doc.getElementById("scamdna-login-left");
+          if (panel) panel.remove();
+          const style = doc.getElementById("scamdna-login-parent-css");
+          if (style) style.remove();
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def _render_login_form() -> None:
@@ -809,573 +1182,222 @@ def render_user_bar() -> str:
     )
 
 
-# ── 登入頁面 CSS — Forest Gate ────────────────────────────────────────────────
+# ── 登入頁面 CSS — Forest Narrative（左 6／右 4）─────────────────────────────
 _LOGIN_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 
 .stApp {
-    background:
-        radial-gradient(ellipse 90% 55% at 50% -5%, rgba(34,197,94,0.16), transparent 58%),
-        linear-gradient(165deg, #07140F 0%, #0F2419 42%, #14532D 100%) !important;
+    --ink: #15261c;
+    --muted: #5b6b61;
+    --forest: #166534;
+    --forest-deep: #124a2b;
+    --paper: #f6f7f4;
+    --panel: #ffffff;
+    --line: #d5ddd6;
+    --split-left: 60%;
+    --split-right: 40%;
+    background: #eef1ec !important;
     font-family: 'Noto Sans TC', 'Manrope', sans-serif !important;
+    color: var(--ink) !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
-header { visibility: hidden !important; }
-#MainMenu { visibility: hidden !important; }
-footer { visibility: hidden !important; }
+header, .stAppHeader, #MainMenu, footer {
+    display: none !important;
+    height: 0 !important;
+}
 [data-testid="stSidebar"] { display: none !important; }
 
+/* 右欄置中（詳細 layout 以父頁 CSS 為準） */
 .main .block-container {
-    padding-top: 0.5rem !important;
-    padding-bottom: 2.5rem !important;
-    max-width: 520px !important;
+    position: relative !important;
+    z-index: 5 !important;
+    margin-left: 60% !important;
+    width: 40% !important;
+    max-width: 40% !important;
+    min-height: 100vh !important;
+    padding: 1.5rem 1.25rem !important;
+    box-sizing: border-box !important;
+    background: #eef1ec !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+.main .block-container > div {
+    width: 100% !important;
+    max-width: 340px !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
 }
 
-.scamdna-stage {
+/* 登入卡片 */
+.scamdna-panel-head {
     position: relative;
     z-index: 1;
-    width: min(520px, 92vw);
-    margin: 1.5rem auto 0.25rem;
+    margin: 0 0 0.15rem;
     text-align: center;
-    animation: scamdnaFadeUp 0.55s ease-out;
 }
-.scamdna-art {
-    width: min(280px, 70vw);
-    height: auto;
-    margin: 0 auto 10px;
-    display: block;
-    filter: drop-shadow(0 12px 28px rgba(0,0,0,0.28));
-    animation: scamdnaFloat 5.5s ease-in-out infinite;
+.scamdna-panel-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: 'Manrope', 'Noto Sans TC', sans-serif;
+    font-size: 1.28rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
 }
-.scamdna-mark {
-    position: relative;
-    width: 52px;
-    height: 52px;
-    margin: 4px auto 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.scamdna-mark-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1.5px solid rgba(134,239,172,0.5);
-    box-shadow: 0 0 0 7px rgba(22,101,52,0.22);
-    animation: scamdnaPulse 3.2s ease-in-out infinite;
-}
-.scamdna-mark-core {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 50% 45%, #1e293b 0%, #0f172a 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(187,247,208,0.4);
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-}
-.scamdna-mark-shield {
-    width: 30px;
-    height: 30px;
-    object-fit: contain;
-    display: block;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
-}
-.scamdna-brand {
-    margin: 0 !important;
-    color: #F0FDF4 !important;
-    font-family: 'Manrope', 'Noto Sans TC', sans-serif !important;
-    font-size: clamp(2rem, 5vw, 2.55rem) !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.06em !important;
-    line-height: 1.1 !important;
-}
-.scamdna-tagline {
-    margin: 10px 0 0 !important;
-    color: rgba(220,252,231,0.92) !important;
-    font-size: 0.92rem !important;
-    font-weight: 500 !important;
-}
-.scamdna-pills {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 16px;
-}
-.scamdna-pill {
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: rgba(236,253,245,0.88);
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(134,239,172,0.28);
-    border-radius: 999px;
-    padding: 5px 12px;
+.scamdna-panel-sub {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    font-weight: 500;
+    line-height: 1.45;
 }
 
-.scamdna-login-bg {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    overflow: hidden;
-}
-.scamdna-login-bg .grid {
-    position: absolute;
-    inset: -48px;
-    background-image:
-      linear-gradient(rgba(134,239,172,0.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(134,239,172,0.07) 1px, transparent 1px);
-    background-size: 48px 48px;
-    animation: scamdnaGridDrift 18s linear infinite;
-    opacity: 0.85;
-}
-.scamdna-login-bg .radar {
-    position: absolute;
-    left: 50%;
-    top: 46%;
-    width: min(92vw, 920px);
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-}
-.scamdna-login-bg .radar-rings {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(134,239,172,0.18);
-    background:
-      repeating-radial-gradient(
-        circle at center,
-        transparent 0,
-        transparent 54px,
-        rgba(134,239,172,0.11) 55px,
-        rgba(134,239,172,0.11) 56px
-      );
-    box-shadow:
-      inset 0 0 0 1px rgba(134,239,172,0.08),
-      0 0 60px rgba(22,101,52,0.15);
-}
-.scamdna-login-bg .radar-cross::before,
-.scamdna-login-bg .radar-cross::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    background: rgba(134,239,172,0.14);
-}
-.scamdna-login-bg .radar-cross::before {
-    width: 1px;
-    height: 100%;
-    transform: translate(-50%, -50%);
-}
-.scamdna-login-bg .radar-cross::after {
-    width: 100%;
-    height: 1px;
-    transform: translate(-50%, -50%);
-}
-.scamdna-login-bg .radar-sweep {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: conic-gradient(
-      from 0deg,
-      transparent 0deg,
-      rgba(134,239,172,0.05) 8deg,
-      rgba(187,247,208,0.28) 28deg,
-      rgba(134,239,172,0.06) 48deg,
-      transparent 70deg
-    );
-    -webkit-mask-image: radial-gradient(circle, #000 0%, #000 68%, transparent 70%);
-    mask-image: radial-gradient(circle, #000 0%, #000 68%, transparent 70%);
-    animation: scamdnaRadarSpin 4.5s linear infinite;
-    transform-origin: center center;
-}
-.scamdna-login-bg .radar-blip {
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #86efac;
-    box-shadow: 0 0 10px rgba(134,239,172,0.9);
-    animation: scamdnaBlip 4.5s ease-in-out infinite;
-}
-.scamdna-login-bg .radar-blip.b1 { left: 62%; top: 34%; animation-delay: 0s; }
-.scamdna-login-bg .radar-blip.b2 { left: 28%; top: 58%; animation-delay: 1.4s; }
-.scamdna-login-bg .radar-blip.b3 { left: 70%; top: 66%; animation-delay: 2.6s; }
-.scamdna-login-bg .glow {
-    position: absolute;
-    top: -10%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 75vw;
-    max-width: 780px;
-    height: 45vh;
-    background: radial-gradient(ellipse, rgba(22,101,52,0.4) 0%, transparent 70%);
-}
-.scamdna-side-art {
-    position: absolute;
-    top: 18%;
-    width: min(220px, 18vw);
-    opacity: 0.35;
-}
-.scamdna-side-art.left { left: 4%; }
-.scamdna-side-art.right { right: 4%; transform: scaleX(-1); }
-@media (max-width: 960px) {
-    .scamdna-side-art { display: none; }
-}
-
+/* Tabs */
+.stTabs { margin-top: 0.35rem !important; width: 100% !important; }
+.stTabs [data-baseweb="tab-panel"] { padding-top: 0.45rem !important; }
 .stTabs [data-baseweb="tab-list"] {
     background: transparent !important;
-    border-bottom: 1px solid rgba(255,255,255,0.22) !important;
+    border-bottom: 1px solid var(--line) !important;
     gap: 0 !important;
-    padding: 0 !important;
     justify-content: center !important;
 }
-.stTabs [aria-selected="false"],
-.stTabs [aria-selected="false"] p,
-.stTabs [aria-selected="false"] span,
-.stTabs [aria-selected="false"] div,
-.stTabs button[role="tab"]:not([aria-selected="true"]),
-.stTabs button[role="tab"]:not([aria-selected="true"]) * {
-    color: rgba(236,253,245,0.92) !important;
-    -webkit-text-fill-color: rgba(236,253,245,0.92) !important;
-    opacity: 1 !important;
-}
 .stTabs [data-baseweb="tab"] {
-    padding: 10px 28px !important;
+    padding: 10px 20px !important;
     background: transparent !important;
     font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    border-radius: 0 !important;
+    font-size: 0.92rem !important;
 }
-.stTabs [data-baseweb="tab"],
-.stTabs [data-baseweb="tab"] p,
-.stTabs [data-baseweb="tab"] span,
-.stTabs [data-baseweb="tab"] div {
-    background: transparent !important;
+.stTabs [aria-selected="false"],
+.stTabs [aria-selected="false"] * {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
 }
 .stTabs [aria-selected="true"],
-.stTabs [aria-selected="true"] p,
-.stTabs [aria-selected="true"] span,
-.stTabs [aria-selected="true"] div {
-    background: transparent !important;
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
+.stTabs [aria-selected="true"] * {
+    color: var(--forest) !important;
+    -webkit-text-fill-color: var(--forest) !important;
     font-weight: 700 !important;
-    opacity: 1 !important;
-}
-.stTabs [data-baseweb="tab"]:hover,
-.stTabs [data-baseweb="tab"]:hover p,
-.stTabs [data-baseweb="tab"]:hover span {
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
 }
 .stTabs [data-baseweb="tab-highlight"] {
-    background: #86efac !important;
+    background: var(--forest) !important;
     height: 2px !important;
 }
 .stTabs [data-baseweb="tab-border"] { display: none !important; }
 
-div[data-testid="stForm"],
+/* 表單：全寬左對齊 */
 .stForm {
-    background: #FFFFFF !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 12px !important;
-    padding: 26px 24px 20px !important;
-    box-shadow:
-        0 1px 2px rgba(15,36,25,0.06),
-        0 22px 48px rgba(7,20,15,0.35) !important;
-    margin-top: 0.85rem !important;
-}
-
-/* ── 登入輸入契約：帳密欄必須永遠可輸入（修改樣式時勿移除此區塊）────────── */
-div[data-testid="stForm"] .stTextInput,
-.stForm .stTextInput {
-    pointer-events: auto !important;
-}
-div[data-testid="stForm"] .stTextInput input,
-.stForm .stTextInput input,
-.stForm .stTextInput > div > div > input {
-    pointer-events: auto !important;
-    opacity: 1 !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-    cursor: text !important;
-    position: relative !important;
-    z-index: 1 !important;
-}
-div[data-testid="stForm"] .stTextInput [data-baseweb="input"],
-div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"],
-.stForm .stTextInput [data-baseweb="input"],
-.stForm .stTextInput [data-baseweb="base-input"] {
-    pointer-events: auto !important;
-    opacity: 1 !important;
-}
-
-/* ── 輸入框：整平外層，消除密碼欄黑邊／黑三角接縫 ───────────────────────── */
-div[data-testid="stForm"] .stTextInput > div,
-.stForm .stTextInput > div {
     background: transparent !important;
     border: none !important;
-    box-shadow: none !important;
-}
-div[data-testid="stForm"] .stTextInput [data-baseweb="input"],
-div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"],
-.stForm .stTextInput [data-baseweb="input"],
-.stForm .stTextInput [data-baseweb="base-input"] {
-    background: #F3F6F4 !important;
-    background-color: #F3F6F4 !important;
-    border: 1px solid #D1D5DB !important;
-    border-color: #D1D5DB !important;
-    border-radius: 8px !important;
-    box-shadow: none !important;
-    outline: none !important;
-    overflow: hidden !important;
-    gap: 0 !important;
-}
-/* 內層所有容器同色，避免黑底透出 */
-div[data-testid="stForm"] .stTextInput [data-baseweb="input"] *,
-div[data-testid="stForm"] .stTextInput [data-baseweb="base-input"] *,
-.stForm .stTextInput [data-baseweb="input"] *,
-.stForm .stTextInput [data-baseweb="base-input"] * {
-    background-color: transparent !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
-}
-div[data-testid="stForm"] .stTextInput input,
-.stForm .stTextInput input,
-.stForm .stTextInput > div > div > input {
-    background: #F3F6F4 !important;
-    background-color: #F3F6F4 !important;
-    border: none !important;
-    border-radius: 8px !important;
-    color: #111827 !important;
-    -webkit-text-fill-color: #111827 !important;
-    caret-color: #14532d !important;
-    font-size: 0.9rem !important;
-    box-shadow: none !important;
-    outline: none !important;
-    width: 100% !important;
-    min-width: 100% !important;
-    flex: 1 1 auto !important;
-}
-div[data-testid="stForm"] .stTextInput input:-webkit-autofill,
-div[data-testid="stForm"] .stTextInput input:-webkit-autofill:hover,
-div[data-testid="stForm"] .stTextInput input:-webkit-autofill:focus,
-.stForm .stTextInput input:-webkit-autofill,
-.stForm .stTextInput input:-webkit-autofill:hover,
-.stForm .stTextInput input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px #F3F6F4 inset !important;
-    -webkit-text-fill-color: #111827 !important;
-    caret-color: #14532d !important;
-    transition: background-color 99999s ease-out;
-}
-div[data-testid="stForm"] .stTextInput [data-baseweb="input"]:focus-within,
-.stForm .stTextInput [data-baseweb="input"]:focus-within {
-    border-color: #166534 !important;
-    box-shadow: 0 0 0 3px rgba(22,101,52,0.14) !important;
-}
-/* 隱藏密碼顯示鈕：此鈕是黑塊／黑三角來源 */
-div[data-testid="stForm"] .stTextInput button,
-.stForm .stTextInput button,
-div[data-testid="stForm"] .stTextInput [data-testid="stBaseButton-secondary"],
-.stForm .stTextInput [data-testid="stBaseButton-secondary"] {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
     padding: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    border: none !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
 }
+/* ── 登入輸入契約：帳密欄必須永遠可輸入（修改樣式時勿移除此區塊）────────── */
+.stForm .stTextInput,
+.stForm label {
+    width: 100% !important;
+    text-align: left !important;
+    pointer-events: auto !important;
+}
+.stForm .stTextInput input {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    cursor: text !important;
+    text-align: left !important;
+    width: 100% !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: var(--ink) !important;
+    -webkit-text-fill-color: var(--ink) !important;
+    caret-color: var(--forest) !important;
+    font-size: 0.92rem !important;
+}
+.stForm .stTextInput > div:last-child {
+    width: 100% !important;
+    background: #ffffff !important;
+    border: 1.5px solid #9CA3AF !important;
+    border-radius: 8px !important;
+    box-shadow: inset 0 0 0 1px #9CA3AF !important;
+    min-height: 40px !important;
+    box-sizing: border-box !important;
+}
+.stForm .stTextInput > div:last-child:focus-within {
+    border-color: var(--forest) !important;
+    box-shadow: inset 0 0 0 1px var(--forest), 0 0 0 3px rgba(22,101,52,0.12) !important;
+}
+.stForm .stTextInput input::placeholder {
+    color: #8a968c !important;
+    -webkit-text-fill-color: #8a968c !important;
+    opacity: 1 !important;
+}
+.stForm .stTextInput button { display: none !important; }
 
 .stForm button[kind="primary"],
-.stForm button[data-testid="stBaseButton-primary"],
-.stForm [data-testid="stFormSubmitButton"] button,
-div[data-testid="stForm"] button[kind="primary"],
-div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button {
-    background: #166534 !important;
-    background-color: #166534 !important;
-    background-image: none !important;
+.stForm [data-testid="stFormSubmitButton"] button {
+    background: var(--forest) !important;
     color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     border: none !important;
     border-radius: 8px !important;
     padding: 12px !important;
     font-size: 0.95rem !important;
     font-weight: 700 !important;
-    letter-spacing: 0.14em !important;
-    margin-top: 8px !important;
-    box-shadow: 0 2px 10px rgba(22,101,52,0.3) !important;
+    letter-spacing: 0.12em !important;
+    margin-top: 10px !important;
+    width: 100% !important;
 }
 .stForm button[kind="primary"]:hover,
-.stForm [data-testid="stFormSubmitButton"] button:hover,
-div[data-testid="stForm"] [data-testid="stFormSubmitButton"] > button:hover {
-    background: #14532d !important;
-    background-color: #14532d !important;
+.stForm [data-testid="stFormSubmitButton"] button:hover {
+    background: var(--forest-deep) !important;
 }
-.stForm button[kind="primary"] p,
-.stForm button[kind="primary"] span,
-.stForm [data-testid="stFormSubmitButton"] button p,
-.stForm [data-testid="stFormSubmitButton"] button span,
-div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p,
-div[data-testid="stForm"] [data-testid="stFormSubmitButton"] button span {
+.stForm button[kind="primary"] *,
+.stForm [data-testid="stFormSubmitButton"] button * {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
 }
-
-.stForm label,
-.stForm [data-testid="stWidgetLabel"] p {
-    color: #374151 !important;
+.stForm label {
+    color: #3d4f44 !important;
     font-weight: 600 !important;
     font-size: 0.8rem !important;
 }
 
-.scamdna-demo-hint {
-    text-align: center;
-    margin: 14px 0 0 !important;
-    color: rgba(220,252,231,0.82) !important;
-    font-size: 0.68rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.04em !important;
+@keyframes scamdnaEmbedIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-@keyframes scamdnaFadeUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes scamdnaPulse {
-    0%, 100% { opacity: 0.55; transform: scale(1); }
-    50% { opacity: 0.95; transform: scale(1.05); }
-}
-@keyframes scamdnaFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-}
-@keyframes scamdnaGridDrift {
-    from { background-position: 0 0; }
-    to { background-position: 48px 48px; }
-}
-@keyframes scamdnaRadarSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-@keyframes scamdnaBlip {
-    0%, 70%, 100% { opacity: 0.15; transform: scale(0.7); }
-    78%, 86% { opacity: 1; transform: scale(1.15); }
+@media (max-width: 900px) {
+    .main .block-container {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+        height: auto !important;
+        padding: 1.25rem 1.1rem 2rem !important;
+        justify-content: flex-start !important;
+    }
 }
 </style>
 """
 
-_DNA_SVG = """
-<svg class="scamdna-art" viewBox="0 0 280 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ScamDNA">
-  <defs>
-    <linearGradient id="strandA" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#86EFAC"/>
-      <stop offset="100%" stop-color="#166534"/>
-    </linearGradient>
-    <linearGradient id="strandB" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#BBF7D0"/>
-      <stop offset="100%" stop-color="#14532D"/>
-    </linearGradient>
-    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="2.2" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <ellipse cx="140" cy="80" rx="118" ry="58" fill="rgba(22,101,52,0.18)"/>
-  <path d="M40 40 C80 10, 120 150, 140 80 C160 10, 200 150, 240 120"
-        fill="none" stroke="url(#strandA)" stroke-width="3.2" stroke-linecap="round" filter="url(#softGlow)"/>
-  <path d="M40 120 C80 150, 120 10, 140 80 C160 150, 200 10, 240 40"
-        fill="none" stroke="url(#strandB)" stroke-width="3.2" stroke-linecap="round" filter="url(#softGlow)"/>
-  <g stroke="rgba(187,247,208,0.55)" stroke-width="1.4">
-    <line x1="70" y1="52" x2="70" y2="108"/>
-    <line x1="100" y1="38" x2="100" y2="122"/>
-    <line x1="140" y1="48" x2="140" y2="112"/>
-    <line x1="180" y1="38" x2="180" y2="122"/>
-    <line x1="210" y1="52" x2="210" y2="108"/>
-  </g>
-  <circle cx="70" cy="52" r="4.2" fill="#86EFAC"/>
-  <circle cx="70" cy="108" r="4.2" fill="#4ADE80"/>
-  <circle cx="100" cy="38" r="4.2" fill="#BBF7D0"/>
-  <circle cx="100" cy="122" r="4.2" fill="#22C55E"/>
-  <circle cx="140" cy="48" r="5" fill="#ECFDF5"/>
-  <circle cx="140" cy="112" r="5" fill="#86EFAC"/>
-  <circle cx="180" cy="38" r="4.2" fill="#4ADE80"/>
-  <circle cx="180" cy="122" r="4.2" fill="#BBF7D0"/>
-  <circle cx="210" cy="52" r="4.2" fill="#22C55E"/>
-  <circle cx="210" cy="108" r="4.2" fill="#86EFAC"/>
-</svg>
-"""
+_LOGIN_STAGE_HTML = ""  # 左牆改由 _inject_login_shell 掛到父頁 body
 
-_SIDE_DNA_SVG = """
-<svg viewBox="0 0 120 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <path d="M30 20 C55 60, 55 100, 30 140 C5 180, 5 220, 30 260 C55 290, 70 300, 90 310"
-        fill="none" stroke="rgba(134,239,172,0.55)" stroke-width="2.2"/>
-  <path d="M90 20 C65 60, 65 100, 90 140 C115 180, 115 220, 90 260 C65 290, 50 300, 30 310"
-        fill="none" stroke="rgba(74,222,128,0.4)" stroke-width="2.2"/>
-  <g stroke="rgba(187,247,208,0.35)" stroke-width="1">
-    <line x1="38" y1="50" x2="82" y2="50"/>
-    <line x1="38" y1="100" x2="82" y2="100"/>
-    <line x1="38" y1="150" x2="82" y2="150"/>
-    <line x1="38" y1="200" x2="82" y2="200"/>
-    <line x1="38" y1="250" x2="82" y2="250"/>
-  </g>
-</svg>
-"""
-
-def _build_shield_mark_html() -> str:
-    """登入頁品牌標記：使用 static/logo.png 盾牌。"""
-    logo_path = Path(__file__).parent / "static" / "logo.png"
-    if not logo_path.exists():
-        return '<span class="scamdna-mark-core">S</span>'
-    logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
-    return (
-        '<span class="scamdna-mark-core">'
-        f'<img src="data:image/png;base64,{logo_b64}" alt="" class="scamdna-mark-shield">'
-        "</span>"
-    )
-
-
-_SHIELD_MARK_HTML = _build_shield_mark_html()
-
-_LOGIN_STAGE_HTML = f"""
-<div class="scamdna-login-bg" aria-hidden="true">
-  <div class="grid"></div>
-  <div class="radar">
-    <div class="radar-rings"></div>
-    <div class="radar-cross"></div>
-    <div class="radar-sweep"></div>
-    <span class="radar-blip b1"></span>
-    <span class="radar-blip b2"></span>
-    <span class="radar-blip b3"></span>
-  </div>
-  <div class="glow"></div>
-  <div class="scamdna-side-art left">{_SIDE_DNA_SVG}</div>
-  <div class="scamdna-side-art right">{_SIDE_DNA_SVG}</div>
-</div>
-<div class="scamdna-stage" translate="no" lang="zh-Hant">
-  {_DNA_SVG}
-  <div class="scamdna-mark" aria-hidden="true">
-    <span class="scamdna-mark-ring"></span>
-    {_SHIELD_MARK_HTML}
-  </div>
-  <div class="scamdna-brand">ScamDNA</div>
-  <p class="scamdna-tagline">AI 詐騙話術進化預警系統</p>
-  <div class="scamdna-pills">
-    <span class="scamdna-pill">話術 DNA</span>
-    <span class="scamdna-pill">進化預警</span>
-    <span class="scamdna-pill">XAI 解析</span>
-  </div>
+_LOGIN_PANEL_HEAD_HTML = """
+<div class="scamdna-auth-card scamdna-panel-head" translate="no" lang="zh-Hant">
+  <div class="scamdna-panel-title">歡迎回來</div>
+  <div class="scamdna-panel-sub">登入後即可進入預警儀表板</div>
 </div>
 """
 
-_LOGIN_HTML = _LOGIN_STAGE_HTML
+_LOGIN_HTML = _LOGIN_LEFT_HTML
 
 # ── 使用者列 CSS（嵌入主頁面 header）──────────────────────────────────────────
 USER_BAR_CSS = """
