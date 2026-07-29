@@ -318,7 +318,10 @@ if _llm_ready:
         and os.environ.get("LLM_FALLBACK", "ollama").lower() == "ollama"
     ):
         provider_label = "OpenAI（備援 Ollama）"
-    llm_status_html = f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">● LLM: {provider_label}</span>'
+    llm_status_html = (
+        f'<span style="color:#86efac;font-size:0.72rem;font-weight:600;">'
+        f'<span class="status-dot"></span>LLM: {provider_label}</span>'
+    )
 else:
     llm_status_html = '<span style="color:#fde68a;font-size:0.72rem;font-weight:600;">未設定 LLM</span>'
 
@@ -499,16 +502,11 @@ inject_html(f"""
     gap: 10px;
     white-space: nowrap;
 }}
-.top-bar-divider {{
-    color: rgba(255,255,255,0.7);
-    flex-shrink: 0;
-}}
 .top-bar-user-wrap {{
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    min-width: 168px;
-    max-width: 220px;
+    min-width: 0;
 }}
 .top-bar-logout {{
     display: inline-flex !important;
@@ -787,12 +785,10 @@ st.markdown(f"""
         <div class="top-bar-status">
             <div class="top-bar-status-row">
                 <span><span class="status-dot"></span>系統運行中</span>
-                <span class="top-bar-divider">|</span>
                 {llm_status_html}
             </div>
             {_freshness_html}
         </div>
-        <span class="top-bar-divider">|</span>
         <div class="top-bar-user-wrap">{_user_bar_html}</div>
         <a href="?logout=1" class="top-bar-logout" target="_self" rel="noopener">登出</a>
     </div>

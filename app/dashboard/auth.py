@@ -1310,8 +1310,22 @@ def _render_register_form() -> None:
 
 
 # ── 使用者列 ──────────────────────────────────────────────────────────────────
+def _labels_redundant(name: str, role_label: str) -> bool:
+    """顯示名稱與角色標籤是否實質重複（避免頂欄出現兩個近義身分）。"""
+    a = (name or "").strip()
+    b = (role_label or "").strip()
+    if not a or a == b:
+        return True
+    # 近義／錯字：系統管理師 ↔ 系統管理員
+    if a.replace("師", "員") == b or b.replace("師", "員") == a:
+        return True
+    if a in b or b in a:
+        return True
+    return False
+
+
 def render_user_bar() -> str:
-    """生成頂部使用者資訊 HTML"""
+    """生成頂部使用者資訊 HTML（身分標籤只顯示一個，不顯示空洞頭像符號）。"""
     user = get_current_user()
     if user is None:
         return ""
@@ -1323,26 +1337,17 @@ def render_user_bar() -> str:
         Role.EXTERNAL_CLIENT: "role-viewer",
     }.get(user.role, "role-viewer")
 
-    login_time = st.session_state.get("login_time")
-    time_str = login_time.strftime("%H:%M") if login_time else ""
+    name_label = (user.display_name or user.username).strip()
+    role_label = user.role.value.strip()
 
-    # 避免 display_name 與 role.value 相同時重複顯示（如 admin → 兩個「系統管理員」）
-    name_label = user.display_name
-    if name_label.strip() == user.role.value.strip():
-        name_label = user.username
-
-    time_html = (
-        f'<span class="user-time">{time_str}</span>' if time_str else ""
-    )
-
-    return (
-        f'<div class="user-bar" translate="no">'
-        f'<span class="user-avatar" aria-hidden="true">{user.avatar_emoji}</span>'
-        f'<span class="user-name">{name_label}</span>'
-        f'<span class="user-role {role_badge_cls}">{user.role.value}</span>'
-        f'{time_html}'
-        f'</div>'
-    )
+    parts = ['<div class="user-bar" translate="no">']
+    if _labels_redundant(name_label, role_label):
+        parts.append(f'<span class="user-role {role_badge_cls}">{role_label}</span>')
+    else:
+        parts.append(f'<span class="user-name">{name_label}</span>')
+        parts.append(f'<span class="user-role {role_badge_cls}">{role_label}</span>')
+    parts.append("</div>")
+    return "".join(parts)
 
 
 # ── 登入頁面 CSS — Forest Narrative（左 6／右 4）─────────────────────────────
@@ -1591,11 +1596,6 @@ USER_BAR_CSS = """
     flex-shrink: 0;
     height: 28px;
 }
-.user-avatar {
-    font-size: 1rem;
-    line-height: 1;
-    color: #ffffff;
-}
 .user-name {
     color: #ffffff;
     font-size: 0.75rem;
@@ -1626,12 +1626,5 @@ USER_BAR_CSS = """
     background: rgba(255,255,255,0.12);
     color: #f3f4f6;
     border: 1px solid rgba(255,255,255,0.25);
-}
-.user-time {
-    color: rgba(255,255,255,0.9);
-    font-size: 0.65rem;
-    white-space: nowrap;
-    min-width: 2.5em;
-    text-align: right;
 }
 """
