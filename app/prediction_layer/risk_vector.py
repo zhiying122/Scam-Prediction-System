@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from app.models.risk_vector import RiskVector, VALID_RISK_LEVELS
+from app.models.risk_vector import RiskVector
 
 logger = logging.getLogger(__name__)
 

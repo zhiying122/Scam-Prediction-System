@@ -10,7 +10,7 @@ RBAC 角色型存取控制模組
 from enum import Enum
 from typing import Callable
 
-from fastapi import Depends, HTTPException, Header, status
+from fastapi import HTTPException, Header, status
 
 
 # ── 角色枚舉定義 ──────────────────────────────────────────────────────────────

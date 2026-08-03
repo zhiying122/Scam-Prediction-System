@@ -84,7 +84,7 @@ def get_bubble_positions() -> list[dict[str, Any]]:
     相似度高的類型距離近，相似度低的距離遠。
     """
     types = list(SCAM_TYPE_VECTORS.keys())
-    matrix = build_similarity_matrix()
+    _similarity_matrix = build_similarity_matrix()  # noqa: F841 — 用於未來力導向佈局
 
     # 使用固定的視覺化位置（預先計算好的佈局）
     positions = {

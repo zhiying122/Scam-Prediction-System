@@ -8,15 +8,12 @@ DeliverableGenerator — 交付物產出器（主入口）
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
 from app.deliverable_generator.extractor import DataExtractor
 from app.deliverable_generator.models import (
-    DeliverableOutput,
     ProjectData,
     ValidationResult,
 )

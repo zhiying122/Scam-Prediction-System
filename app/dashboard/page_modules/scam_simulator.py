@@ -161,8 +161,6 @@ def analyze_user_response(user_text: str, scenario: str) -> dict[str, Any]:
     Returns:
         包含識破程度、觸發的防詐關鍵詞、建議的字典
     """
-    from app.pattern_analyzer.xai_highlighter import XAIHighlighter
-    from app.pattern_analyzer.psych_classifier import PsychologicalClassifier
 
     # 防詐關鍵詞（用戶說這些代表在識破詐騙）
     resistance_keywords = [

@@ -6,12 +6,10 @@ XAI 可解釋性高亮模組
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.pattern_analyzer.psych_classifier import (
-    PsychologicalClassifier,
     _TAG_PATTERNS,
-    VALID_PSYCHOLOGICAL_TAGS,
 )
 
 

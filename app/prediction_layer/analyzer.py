@@ -172,7 +172,7 @@ class PredictionAnalyzer:
         每個樣本生成一個基於心理特徵的稀疏向量（128 維，對應 5 個特徵維度）。
         """
         try:
-            from data.taiwan_scam_data import REAL_SCAM_SCRIPTS, SCAM_TYPE_STATS, MONTHLY_TREND
+            from data.taiwan_scam_data import REAL_SCAM_SCRIPTS, MONTHLY_TREND
             import hashlib
 
             # 心理特徵 → 向量維度映射
@@ -193,7 +193,7 @@ class PredictionAnalyzer:
                 # 建立代理向量：基於心理特徵分布 + 詐騙類型 hash
                 vec = [0.0] * VECTOR_DIM
                 for tag in tags:
-                    dim = TAG_DIM.get(tag, 0)
+                    _dim = TAG_DIM.get(tag, 0)  # noqa: F841
                     for j in range(VECTOR_DIM):
                         # 以 tag + 維度 hash 產生穩定的偽隨機特徵值
                         seed = int(hashlib.md5(f"{tag}{j}".encode()).hexdigest()[:8], 16)

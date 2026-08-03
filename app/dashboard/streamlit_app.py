@@ -53,10 +53,8 @@ from app.dashboard.styles import inject_css, inject_html
 # ── 登入認證 ──────────────────────────────────────────────────────────────────
 from app.dashboard.auth import (
     render_login_page,
-    is_authenticated,
     get_current_user,
     render_user_bar,
-    logout,
     enforce_login_gate,
     install_browser_refresh_guard,
     sync_auth_cookies,
@@ -940,7 +938,6 @@ elif page_key == "llm_demo":
     st.title("LLM 話術生成 Demo")
     st.markdown("選擇基礎詐騙情境，呼叫 LLM 生成多種變形話術，並即時進行 XAI 分析。")
 
-    import json
     from app.pattern_analyzer.xai_highlighter import XAIHighlighter
 
     TAG_COLORS = {
@@ -1045,12 +1042,12 @@ elif page_key == "llm_demo":
                     "target_audience": audience,
                 },
                 {
-                    "content": f"親愛的客戶，為了保護您的資金安全，我們的專業團隊需要您立即提供驗證碼，這是最後的機會。",
+                    "content": "親愛的客戶，為了保護您的資金安全，我們的專業團隊需要您立即提供驗證碼，這是最後的機會。",
                     "psychological_tags": ["信任建立", "緊迫感製造"],
                     "target_audience": audience,
                 },
                 {
-                    "content": f"您的帳戶涉及一起重大詐騙案件，警方正在調查，請立即配合轉帳至安全帳戶，否則您將面臨法律責任。",
+                    "content": "您的帳戶涉及一起重大詐騙案件，警方正在調查，請立即配合轉帳至安全帳戶，否則您將面臨法律責任。",
                     "psychological_tags": ["權威偽裝", "情緒勒索"],
                     "target_audience": audience,
                 },
@@ -1106,7 +1103,6 @@ elif page_key == "llm_demo":
 # 頁面：即時威脅監控
 # ══════════════════════════════════════════════════════════════════════════════
 elif page_key == "threat_monitor":
-    import time
     import pandas as pd
     from app.dashboard.page_modules.threat_monitor import (
         get_current_threat_summary, generate_live_alerts, THREAT_LEVELS,
@@ -1413,7 +1409,6 @@ elif page_key == "simulator":
 elif page_key == "dna_map":
     import pandas as pd
     from app.dashboard.page_modules.dna_map import (
-        build_similarity_matrix, get_bubble_positions,
         get_top_similar_pairs, SCAM_TYPE_VECTORS, SCAM_TYPE_KEYWORDS,
         SCAM_DANGER_LEVEL, SCAM_CASE_COUNT
     )
@@ -1884,7 +1879,7 @@ elif page_key == "hotwords":
     st.title("熱詞排行榜")
     st.markdown("顯示近期詐騙話術中出現頻率最高的關鍵詞，每 24 小時自動更新。")
 
-    from app.dashboard.page_modules.hotwords import compute_hotword_ranking, get_hotword_page_data
+    from app.dashboard.page_modules.hotwords import get_hotword_page_data
 
     def fetch_hotword_data():
         """從後端取得熱詞資料"""

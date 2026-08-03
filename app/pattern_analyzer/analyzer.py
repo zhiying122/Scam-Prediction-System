@@ -8,15 +8,15 @@ Pattern_Analyzer 完整分析流程串接模組
 """
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.pattern_analyzer.embedder import LanguageEmbedder, EMBEDDING_DIM
+from app.pattern_analyzer.embedder import LanguageEmbedder
 from app.pattern_analyzer.keyword_extractor import KeywordExtractor
 from app.pattern_analyzer.psych_classifier import PsychologicalClassifier
 from app.pattern_analyzer.clusterer import ScamClusterer
-from app.pattern_analyzer.xai_highlighter import XAIHighlighter, HighlightSpan, XAIResult
+from app.pattern_analyzer.xai_highlighter import XAIHighlighter, XAIResult
 from app.models.semantic_vector import SemanticVector
 
 

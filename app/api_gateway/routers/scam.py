@@ -14,10 +14,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.access_controller.rbac import Action, Role, check_permission
+from app.access_controller.rbac import Action, check_permission
 from app.models.scam_script import ScamScript
 from app.scam_engine.generator import generate_scam_samples, generate_simulator_reply
 

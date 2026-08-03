@@ -6,7 +6,6 @@
 所有來源失敗時觸發 FallbackProvider。
 """
 
-import asyncio
 import logging
 from collections import deque
 from datetime import datetime, timezone

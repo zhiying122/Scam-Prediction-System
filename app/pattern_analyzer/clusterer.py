@@ -7,12 +7,10 @@
 需求：2.4
 """
 
-import math
 from typing import Optional
 
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 
 
 # 分群數量範圍

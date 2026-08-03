@@ -8,7 +8,7 @@
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeVar
 
@@ -161,7 +161,7 @@ class DashboardCache:
         try:
             # 嘗試從後端取得最新資料
             fresh_data = fetch_fn()
-            entry = self.set(key, fresh_data, ttl_seconds=ttl_seconds)
+            self.set(key, fresh_data, ttl_seconds=ttl_seconds)
             logger.debug("快取已更新：key=%s", key)
             return fresh_data, False, None
 
