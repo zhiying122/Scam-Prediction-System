@@ -279,7 +279,7 @@ python -m streamlit run app/dashboard/streamlit_app.py --server.port 8502
 |---|------|------|---------|
 | 1 | 首頁 | KPI、台灣詐騙統計、六大模組介紹 | 否 |
 | 2 | 即時威脅監控 | SOC 風格監控、預警事件串流 | 否 |
-| 3 | 詐騙對話模擬器 | 與 AI 詐騙犯實戰對話 | 是 |
+| 3 | 詐騙對話模擬器 | 與 AI 詐騙犯實戰對話（4 種情境） | 是 |
 | 4 | 話術 DNA 圖譜 | 五維心理操控指標、餘弦相似度 | 否 |
 | 5 | 話術進化時間軸 | 2021–2026 詐騙手法演變 | 選用 |
 | 6 | 詐騙免疫訓練 | 互動訓練 + 防詐免疫證書 | 選用 |
@@ -400,7 +400,7 @@ AEGIS-CORE/
 | 機器學習 | scikit-learn（TF-IDF、K-Means、Isolation Forest） |
 | XAI | 規則式 Regex 高亮 + 信心分數 |
 | 前端 | Streamlit（12 頁面 SPA）+ Plotly |
-| 認證 | SHA-256 密碼雜湊 + RBAC 角色控制 |
+| 認證 | bcrypt 密碼雜湊 + RBAC 角色控制 + TOTP MFA |
 | 排程 | APScheduler（預測 24h + 資料擷取 6h） |
 | 儲存 | in-memory（PostgreSQL / Redis / Qdrant 已配置待接入） |
 | 測試 | pytest + Hypothesis |

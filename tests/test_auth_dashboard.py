@@ -10,6 +10,7 @@ from app.dashboard.auth import (
     DEMO_USERNAME,
     _build_default_user_db,
     _hash_password,
+    _verify_password,
     _load_local_admin_accounts_from_env,
     _sync_builtin_admin,
     demo_credentials_hint,
@@ -28,13 +29,13 @@ class TestDemoCredentialSingleSource:
     def test_default_db_uses_demo_constants(self) -> None:
         db = _build_default_user_db()
         assert DEMO_USERNAME in db
-        assert db[DEMO_USERNAME]["password_hash"] == _hash_password(DEMO_PASSWORD)
+        assert _verify_password(DEMO_PASSWORD, db[DEMO_USERNAME]["password_hash"])
 
     def test_sync_updates_stale_admin_hash(self) -> None:
         db = _build_default_user_db()
         db[DEMO_USERNAME]["password_hash"] = _hash_password("old-password")
         _sync_builtin_admin(db)
-        assert db[DEMO_USERNAME]["password_hash"] == _hash_password(DEMO_PASSWORD)
+        assert _verify_password(DEMO_PASSWORD, db[DEMO_USERNAME]["password_hash"])
 
     def test_streamlit_app_has_login_gate_without_auto_login(self) -> None:
         """streamlit_app 須有登入閘門，且不得硬編碼密碼或自動登入。"""
@@ -121,7 +122,7 @@ class TestDemoCredentialSingleSource:
         monkeypatch.setenv("DASHBOARD_LOCAL_ADMINS", "localadmin:localpass:Local Admin")
         accounts = _load_local_admin_accounts_from_env()
         assert "localadmin" in accounts
-        assert accounts["localadmin"]["password_hash"] == _hash_password("localpass")
+        assert _verify_password("localpass", accounts["localadmin"]["password_hash"])
         assert accounts["localadmin"]["role"] == Role.SYSTEM_ADMIN
         assert accounts["localadmin"]["source"] == "local_env"
 
@@ -141,7 +142,8 @@ class TestAuthenticateLogic:
         db = _build_default_user_db()
         user_data = db.get(DEMO_USERNAME.strip().lower())
         assert user_data is not None
-        assert user_data["password_hash"] == _hash_password(DEMO_PASSWORD)
+        # bcrypt 每次產生不同雜湊，需用 verify 驗證
+        assert _verify_password(DEMO_PASSWORD, user_data["password_hash"])
 
     def test_wrong_password_fails(self) -> None:
         db = _build_default_user_db()

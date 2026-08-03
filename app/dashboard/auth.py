@@ -40,9 +40,29 @@ class UserProfile:
 
 
 # ── 密碼雜湊 ──────────────────────────────────────────────────────────────────
+import bcrypt as _bcrypt
+
+
 def _hash_password(password: str) -> str:
-    """SHA-256 密碼雜湊"""
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    """使用 bcrypt 進行密碼雜湊（自動加鹽）"""
+    hashed = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt())
+    return hashed.decode("utf-8")
+
+
+def _verify_password(plain_password: str, hashed_password: str) -> bool:
+    """驗證明文密碼與 bcrypt 雜湊是否匹配（向下相容 SHA-256 舊格式）"""
+    # 向下相容：舊的 SHA-256 雜湊為 64 字元十六進位字串
+    _hex_chars = set("abcdef") | set("0987654321")
+    if len(hashed_password) == 64 and all(c in _hex_chars for c in hashed_password):
+        import hashlib
+        return hashlib.sha256(plain_password.encode("utf-8")).hexdigest() == hashed_password
+    try:
+        return _bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    except (ValueError, TypeError):
+        return False
 
 
 # ── Demo／內建帳號（單一來源，勿在其他檔案硬編碼）────────────────────────────
@@ -107,14 +127,15 @@ def _build_default_user_db() -> dict[str, dict]:
 
 
 def _sync_builtin_admin(db: dict[str, dict]) -> None:
-    """內建 admin 密碼雜湊與 DEMO_PASSWORD 常數保持同步（更新常數後無需清 session）。"""
-    expected_hash = _hash_password(DEMO_PASSWORD)
+    """內建 admin 密碼與 DEMO_PASSWORD 常數保持同步（更新常數後無需清 session）。"""
     if DEMO_USERNAME not in db:
         db[DEMO_USERNAME] = _build_default_user_db()[DEMO_USERNAME]
         db[DEMO_USERNAME]["source"] = "demo"
         return
-    if db[DEMO_USERNAME].get("password_hash") != expected_hash:
-        db[DEMO_USERNAME]["password_hash"] = expected_hash
+    # 檢查當前儲存的雜湊是否仍能驗證 DEMO_PASSWORD
+    stored_hash = db[DEMO_USERNAME].get("password_hash", "")
+    if not _verify_password(DEMO_PASSWORD, stored_hash):
+        db[DEMO_USERNAME]["password_hash"] = _hash_password(DEMO_PASSWORD)
 
 
 def _sync_local_admins(db: dict[str, dict]) -> None:
@@ -196,8 +217,15 @@ def authenticate(username: str, password: str) -> Optional[UserProfile]:
     if user_data is None:
         return None
 
-    if user_data["password_hash"] != _hash_password(password):
+    if not _verify_password(password, user_data["password_hash"]):
         return None
+
+    # 若舊格式（SHA-256）驗證通過，自動升級為 bcrypt
+    _hex_chars = set("abcdef") | set("0987654321")
+    if len(user_data["password_hash"]) == 64 and all(
+        c in _hex_chars for c in user_data["password_hash"]
+    ):
+        user_data["password_hash"] = _hash_password(password)
 
     return UserProfile(
         username=username.strip().lower(),
