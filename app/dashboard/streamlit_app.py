@@ -1085,11 +1085,13 @@ elif page_key == "llm_demo":
                             f'border-radius:6px;background:#fafafa;">{"".join(html_parts)}</div>',
                             unsafe_allow_html=True,
                         )
+                        # 顯示樣本本身的心理標籤（勿用 XAI 關鍵詞結果，否則常全部變成「緊迫感製造」）
+                        sample_tags = sample.get("psychological_tags") or list(xai_result.triggered_tags)
                         tags_str = " ".join(
                             f'<span style="background:{TAG_COLORS.get(t,"#eee")};'
                             f'color:{TAG_TEXT_COLORS.get(t,"#333")};padding:3px 8px;'
                             f'border-radius:10px;margin:2px;font-size:0.85rem;">{t}</span>'
-                            for t in xai_result.triggered_tags
+                            for t in sample_tags
                         )
                         st.markdown(f"**心理特徵：** {tags_str}", unsafe_allow_html=True)
                     else:
